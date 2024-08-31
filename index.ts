@@ -106,7 +106,6 @@ export type RegQuery = RegKey | {
      */
     f?: string // TODO this triggeres a search mode, prevent type safety of different arg combinations
 
-
     /**
      * /k  
      * __msdocs:__  
@@ -170,10 +169,10 @@ export type RegQuery = RegKey | {
     timeout?: number
 
     /**
-     * If stumbled upon unexpected lines, continue parsing the rest of the lines (will still throw if stubled upon unrecoverable error)
+     * If stumbled upon unexpected lines, continue parsing the rest of the lines (will still throw if stubled upon unrecoverable error).  
      * TODO document on scenarious where this might be happen, and therefor useful
      */
-    bestEffort?: boolean 
+    bestEffort?: boolean
 }
 
 function parseRegValue(type: RegType, value: string | null, se: string): RegValue {
@@ -198,20 +197,21 @@ function parseRegValue(type: RegType, value: string | null, se: string): RegValu
 function getQueryPathAndOpts(queryParam: RegQuery) {
     const queryKeyPath = (typeof queryParam === 'string') ? queryParam : queryParam.keyPath;
     const queryOpts: RegQuery = (typeof queryParam === 'string') ? { keyPath: queryKeyPath } : queryParam;
-    return {queryKeyPath, queryOpts};
+    return { queryKeyPath, queryOpts };
 }
 
-export class RegErrorBadQuery extends Error {constructor(message: string) {super(message);this.name = 'RegErrorBadQuery';}}
-export class RegErrorUnknown extends Error {constructor(message: string) {super(message);this.name = 'RegErrorUnknown';}}
-export class RegErrorStdoutTooLarge extends Error {constructor(message: string) {super(message); this.name = 'RegErrorStdoutTooLarge';}}
-export class RegErrorMalformedLine extends Error {constructor(message: string) {super(message);this.name = 'RegErrorMalformedLine';}}
-export class RegErrorTimeout extends Error {constructor(message: string) {super(message);this.name = 'RegErrorTimeout';}}
+export class RegErrorBadQuery extends Error { constructor(message: string) { super(message); this.name = 'RegErrorBadQuery'; } }
+export class RegErrorUnknown extends Error { constructor(message: string) { super(message); this.name = 'RegErrorUnknown'; } }
+export class RegErrorStdoutTooLarge extends Error { constructor(message: string) { super(message); this.name = 'RegErrorStdoutTooLarge'; } }
+export class RegErrorMalformedLine extends Error { constructor(message: string) { super(message); this.name = 'RegErrorMalformedLine'; } }
+export class RegErrorTimeout extends Error { constructor(message: string) { super(message); this.name = 'RegErrorTimeout'; } }
 
 export async function readSingle(queryParam: RegQuery): Promise<RegQuerySingleResult> {
     const LINE_DELIMITER = new RegExp('\r\n|\r|\n');
     const COLUMN_DELIMITER = '    ';
+    const INDENTATION_LENGTH_FOR_ENTRY_VALUE = 4;
 
-    const {queryKeyPath, queryOpts} = getQueryPathAndOpts(queryParam);
+    const { queryKeyPath, queryOpts } = getQueryPathAndOpts(queryParam);
 
     const args = [] as string[];
     if (queryOpts.se) {
@@ -256,7 +256,7 @@ export async function readSingle(queryParam: RegQuery): Promise<RegQuerySingleRe
             if (timer === null) return;
             clearTimeout(timer);
             timer = null;
-            if (proc) {proc.kill(); proc = null;}
+            if (proc) { proc.kill(); proc = null; }
             if (resOrErr instanceof Error) return reject(resOrErr);
             resolve(resOrErr);
         }
@@ -270,6 +270,41 @@ export async function readSingle(queryParam: RegQuery): Promise<RegQuerySingleRe
             proc.stdout?.on('data', data => { stdoutStr += data; })
             proc.stderr?.on('data', data => { stderrStr += data; })
 
+            const obj = {} as RegStruct;
+            function parseData(strChunk: string) {
+                function updateCurrentKey(key: string) {
+                    if (currentKey && !obj[currentKey]) obj[currentKey] = {}; // When reading keys and not their entires.
+                    currentKey = key;
+                }
+
+                let currentKey = null as string | null;
+                const lines = strChunk.split(LINE_DELIMITER);
+                for (const lineUntrimmed of lines) {
+                    if (lineUntrimmed.length === 0) updateCurrentKey(null)
+                    else if (lineUntrimmed.startsWith(' ')) {
+                        const val = lineUntrimmed.substring(INDENTATION_LENGTH_FOR_ENTRY_VALUE).split(COLUMN_DELIMITER);
+                        if (!currentKey) {
+                            if (bestEffort) continue;
+                            throw new RegErrorMalformedLine('Unexpected value line (missing parent key)');
+                        }
+                        if (!(currentKey in obj)) obj[currentKey] = {};
+                        if (val.length < 2 || val.length > 3) { // can be only 2 columns if there's no value in the entry, but it still exists (e.g an empty REG_BINARY)
+                            if (bestEffort) continue;
+                            throw new RegErrorMalformedLine(`Unexpected value line, probably "${COLUMN_DELIMITER}" in value (${COLUMN_DELIMITER.length} spaces): "${lineUntrimmed}"`)
+                        };
+                        const name = val[0];
+                        const type = val[1] as RegType;
+                        const valueInStr = val?.[2] || null;
+                        try {
+                            const value = parseRegValue(type, valueInStr, queryOpts?.se || '\\0');
+                            obj[currentKey][name] = { type, value } as RegEntry;
+                        } catch (e) {
+                            if (!bestEffort) throw e;
+                        }
+                    } else updateCurrentKey(lineUntrimmed)
+                }
+            }
+
             proc.on('exit', code => {
                 proc = null;
                 try {
@@ -280,38 +315,10 @@ export async function readSingle(queryParam: RegQuery): Promise<RegQuerySingleRe
                         if (trimmedStdErr.startsWith('ERROR: Invalid syntax.')) throw new RegErrorStdoutTooLarge(trimmedStdErr);
                     }
                     if (code === null && stderrStr.length === 0) { throw new Error('Read too large') } // TODO: maybe chunked read will solve this situation (or flush? trum the stdout somehow)
-                    if (code !== 0 || stderrStr) {throw new RegErrorUnknown(stderrStr || 'Failed to read registry') }
+                    if (code !== 0 || stderrStr) { throw new RegErrorUnknown(stderrStr || 'Failed to read registry') }
 
-                    const obj = {} as RegStruct;
-                    let currentKey = null as string | null;
-                    const lines = stdoutStr.split(LINE_DELIMITER);
-                    for (const lineUntrimmed of lines) {
-                        const line = lineUntrimmed.trim();
-                        if (line.length === 0) { currentKey = null; continue; }
-                        else if (lineUntrimmed.startsWith(' ')) {
-                            const val = line.split(COLUMN_DELIMITER);
-                            if (!currentKey) {
-                                if(bestEffort) continue;
-                                throw new RegErrorMalformedLine('Unexpected value line (missing parent key)');
-                            }
-                            if (!(currentKey in obj)) obj[currentKey] = {};
-                            if (val.length < 2 || val.length > 3) { // can be only 2 columns if there's no value in the entry, but it still exists (e.g an empty REG_BINARY)
-                                if(bestEffort) continue;
-                                throw new RegErrorMalformedLine(`Unexpected value line, probably "${COLUMN_DELIMITER}" in value (${COLUMN_DELIMITER.length} spaces): "${line}"`)
-                            };
-                            const name = val[0];
-                            const type = val[1] as RegType;
-                            const valueInStr = val?.[2] || null;
-                            try {
-                                const value = parseRegValue(type, valueInStr, queryOpts?.se || '\\0');
-                                obj[currentKey][name] = { type, value } as RegEntry;
-                            } catch (e) {
-                                if(!bestEffort) throw e;
-                            }
-                            continue;
-                        }
-                        else currentKey = line;
-                    }
+                    parseData(stdoutStr)
+
                     finish({ struct: obj });
                 } catch (e) {
                     finish(e);
@@ -330,20 +337,20 @@ type VarArgsOrArray<T> = T[] | T[][];
  * @param queryParam the key path to read from, or an object with more options
  * @returns struct representing the registry entries, and whether the key was missing
  */
-export async function readBulk(...queriesParam:VarArgsOrArray<RegQuery>): Promise<RegQueryResultBulk> {
+export async function readBulk(...queriesParam: VarArgsOrArray<RegQuery>): Promise<RegQueryResultBulk> {
     const flattened = queriesParam.flat();
     const queries = flattened.map(getQueryPathAndOpts);
 
     const results = await Promise.all(flattened.map(readSingle));
-    
+
     // Merge structs for all keys retreived
     const struct = {} as RegStruct;
     let keysMissing = [] as string[];
-    for(let i=0; i<results.length; i++) {
+    for (let i = 0; i < results.length; i++) {
         const res = results[i];
-        if(res.keyMissing) keysMissing.push(queries[i].queryKeyPath);
-        for(const key in res.struct) {
-            struct[key] = {...struct[key], ...res.struct[key]}
+        if (res.keyMissing) keysMissing.push(queries[i].queryKeyPath);
+        for (const key in res.struct) {
+            struct[key] = { ...struct[key], ...res.struct[key] }
         }
     }
     return { struct, keysMissing };
@@ -370,10 +377,10 @@ async function main() {
     try {
         const res = await readSingle(
             {
-                keyPath: 'HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\DirectPlay\\Services',
-                e:true
+                keyPath: 'HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\DirectPlay\\Service Providers\\IPX Connection For DirectPlay',
+                // s: true,
             }
-    )
+        )
         console.log(JSON.stringify(res, null, 4));
     } catch (e) {
         console.error(e);
