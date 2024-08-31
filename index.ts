@@ -178,7 +178,7 @@ export type RegQuery = RegKey | {
 
 function parseRegValue(type: RegType, value: string | null, se: string): RegValue {
     if (type === 'REG_DWORD' || type === 'REG_QWORD') {
-        if (value == null) throw new Error('Value is null for ' + type);
+        if (value == null) throw new RegErrorMalformedLine('Value is null for ' + type);
         return parseInt(value, 16);
     } else if (type === 'REG_SZ' || type === 'REG_EXPAND_SZ') {
         return value || ''; // If value is null, return an empty string
@@ -186,13 +186,13 @@ function parseRegValue(type: RegType, value: string | null, se: string): RegValu
         if (value == null) return [];
         return value.split(se);
     } else if (type === 'REG_BINARY') {
-        if ((value?.length || 0) % 2 !== 0) throw new Error(`${type} binary value length is not even: ${value}`);
+        if ((value?.length || 0) % 2 !== 0) throw new RegErrorMalformedLine(`${type} binary value length is not even: ${value}`);
         const m = value != null ? value.match(/../g) : null;
         if (m == null) return [];
         return m.map(h => parseInt(h, 16));
     } else if (type === 'REG_NONE') {
         return null;
-    } else throw new Error('Unknown REG type: ' + type);
+    } else throw new RegErrorMalformedLine('Unknown REG type: ' + type);
 }
 
 function getQueryPathAndOpts(queryParam: RegQuery) {
@@ -200,6 +200,12 @@ function getQueryPathAndOpts(queryParam: RegQuery) {
     const queryOpts: RegQuery = (typeof queryParam === 'string') ? { keyPath: queryKeyPath } : queryParam;
     return {queryKeyPath, queryOpts};
 }
+
+export class RegErrorBadQuery extends Error {constructor(message: string) {super(message);this.name = 'RegErrorBadQuery';}}
+export class RegErrorUnknown extends Error {constructor(message: string) {super(message);this.name = 'RegErrorUnknown';}}
+export class RegErrorStdoutTooLarge extends Error {constructor(message: string) {super(message); this.name = 'RegErrorStdoutTooLarge';}}
+export class RegErrorMalformedLine extends Error {constructor(message: string) {super(message);this.name = 'RegErrorMalformedLine';}}
+export class RegErrorTimeout extends Error {constructor(message: string) {super(message);this.name = 'RegErrorTimeout';}}
 
 export async function readSingle(queryParam: RegQuery): Promise<RegQuerySingleResult> {
     const LINE_DELIMITER = new RegExp('\r\n|\r|\n');
@@ -209,7 +215,7 @@ export async function readSingle(queryParam: RegQuery): Promise<RegQuerySingleRe
 
     const args = [] as string[];
     if (queryOpts.se) {
-        if (queryOpts.se.length !== 1) throw new Error('/se must be a single character');
+        if (queryOpts.se.length !== 1) throw new RegErrorBadQuery('/se must be a single character');
         args.push('/se', queryOpts.se);;
     }
     if (queryOpts.t)
@@ -243,7 +249,7 @@ export async function readSingle(queryParam: RegQuery): Promise<RegQuerySingleRe
 
         let proc: child_process.ChildProcess | null = null;
         let timer: NodeJS.Timeout | null = setTimeout(() => {
-            finish(new Error('Timeout'));
+            finish(new RegErrorTimeout('Timeout'));
         }, queryOpts.timeout || 30000);
 
         function finish(resOrErr: RegQuerySingleResult | Error) {
@@ -269,10 +275,12 @@ export async function readSingle(queryParam: RegQuery): Promise<RegQuerySingleRe
                 try {
                     if (code === 1) {
                         if (stdoutStr.trim() === 'End of search: 0 match(es) found.') return finish({ struct: {} });
-                        if (stderrStr.trim() === 'ERROR: The system was unable to find the specified registry key or value.') return finish({ struct: {}, keyMissing: true });
+                        const trimmedStdErr = stderrStr.trim();
+                        if (trimmedStdErr === 'ERROR: The system was unable to find the specified registry key or value.') return finish({ struct: {}, keyMissing: true });
+                        if (trimmedStdErr.startsWith('ERROR: Invalid syntax.')) throw new RegErrorStdoutTooLarge(trimmedStdErr);
                     }
                     if (code === null && stderrStr.length === 0) { throw new Error('Read too large') } // TODO: maybe chunked read will solve this situation (or flush? trum the stdout somehow)
-                    if (code !== 0 || stderrStr) {throw new Error(stderrStr || 'Failed to read registry') }
+                    if (code !== 0 || stderrStr) {throw new RegErrorUnknown(stderrStr || 'Failed to read registry') }
 
                     const obj = {} as RegStruct;
                     let currentKey = null as string | null;
@@ -280,26 +288,29 @@ export async function readSingle(queryParam: RegQuery): Promise<RegQuerySingleRe
                     for (const lineUntrimmed of lines) {
                         const line = lineUntrimmed.trim();
                         if (line.length === 0) { currentKey = null; continue; }
-
-                        if (lineUntrimmed.startsWith(' ')) {
-                            const val = line.split('    ');
+                        else if (lineUntrimmed.startsWith(' ')) {
+                            const val = line.split(COLUMN_DELIMITER);
                             if (!currentKey) {
                                 if(bestEffort) continue;
-                                throw new Error('Unexpected value line (missing parent key)');
+                                throw new RegErrorMalformedLine('Unexpected value line (missing parent key)');
                             }
                             if (!(currentKey in obj)) obj[currentKey] = {};
                             if (val.length < 2 || val.length > 3) { // can be only 2 columns if there's no value in the entry, but it still exists (e.g an empty REG_BINARY)
                                 if(bestEffort) continue;
-                                throw new Error(`Unexpected value line, probably "${COLUMN_DELIMITER}" in value (${COLUMN_DELIMITER.length} spaces): "${line}"`)
+                                throw new RegErrorMalformedLine(`Unexpected value line, probably "${COLUMN_DELIMITER}" in value (${COLUMN_DELIMITER.length} spaces): "${line}"`)
                             };
                             const name = val[0];
                             const type = val[1] as RegType;
                             const valueInStr = val?.[2] || null;
-                            const value = parseRegValue(type, valueInStr, queryOpts?.se || '\\0');
-                            obj[currentKey][name] = { type, value } as RegEntry;
+                            try {
+                                const value = parseRegValue(type, valueInStr, queryOpts?.se || '\\0');
+                                obj[currentKey][name] = { type, value } as RegEntry;
+                            } catch (e) {
+                                if(!bestEffort) throw e;
+                            }
                             continue;
                         }
-                        currentKey = line;
+                        else currentKey = line;
                     }
                     finish({ struct: obj });
                 } catch (e) {
@@ -360,7 +371,7 @@ async function main() {
         const res = await readSingle(
             {
                 keyPath: 'HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\DirectPlay\\Services',
-                s:true
+                e:true
             }
     )
         console.log(JSON.stringify(res, null, 4));
