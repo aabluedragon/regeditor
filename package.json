@@ -1,0 +1,38 @@
+{
+  "name": "regeditor",
+  "version": "0.5.0",
+  "description": "A simplistic windows registry manager",
+  "main": "index.js",
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "*"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aabluedragon/regeditor.git"
+  },
+  "keywords": [
+    "regedit",
+    "reg",
+    "edit",
+    "registry",
+    "windows",
+    "win32",
+    "wine",
+    "aabluedragon",
+    "alon",
+    "amir",
+    "bluedragon",
+    "blue",
+    "dragon"
+  ],
+  "author": "Alon Amir (aaBlueDragon)",
+  "license": "LGPL-3.0-or-later",
+  "bugs": {
+    "url": "https://github.com/aabluedragon/regeditor/issues"
+  },
+  "homepage": "https://github.com/aabluedragon/regeditor#readme"
+}
