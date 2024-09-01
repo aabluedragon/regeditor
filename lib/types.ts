@@ -191,13 +191,13 @@ export type RegQuery = RegKey | (RegQueryBase & ({
      */
     c?: boolean
 } | {
-    // Params that cannot be used without /f
-    f?: FlagParamOff
-    v?: boolean
-    c?: FlagParamOff
-    e?: FlagParamOff
-    d?: FlagParamOff
-    k?: FlagParamOff
+    // Restricted params without /f
+    f?: Omitted
+    v?: string | Omitted
+    c?: Omitted
+    e?: Omitted
+    d?: Omitted
+    k?: Omitted
 }) & ({
     /**
      * /reg:32  
@@ -205,7 +205,7 @@ export type RegQuery = RegKey | (RegQueryBase & ({
      * Specifies the key should be accessed using the 32-bit registry view.
      */
     reg32?: boolean
-    reg64?: FlagParamOff
+    reg64?: Omitted
 } | {
     /**
      * /reg:64  
@@ -213,10 +213,10 @@ export type RegQuery = RegKey | (RegQueryBase & ({
      * Specifies the key should be accessed using the 64-bit registry view.
      */
     reg64?: boolean
-    reg32?: FlagParamOff
+    reg32?: Omitted
 }))
 
-type FlagParamOff = never | false | undefined
+type Omitted = never | false | undefined | null
 
 type RegDeleteV = {
     /**
@@ -227,12 +227,12 @@ type RegDeleteV = {
      */
     v: string
 
-    ve?: FlagParamOff
-    va?: FlagParamOff
+    ve?: Omitted
+    va?: Omitted
 }
 
 type RegDeleteVE = {
-    v?: FlagParamOff
+    v?: Omitted
 
     /**
      * /ve  
@@ -240,12 +240,12 @@ type RegDeleteVE = {
      * delete the value of empty value name (Default).
      */
     ve: boolean
-    va?: FlagParamOff
+    va?: Omitted
 }
 
 type RegDeleteVA = {
-    v?: FlagParamOff
-    ve?: FlagParamOff
+    v?: Omitted
+    ve?: Omitted
 
     /**
      * /va  
@@ -255,7 +255,7 @@ type RegDeleteVA = {
     va: boolean
 }
 
-export type RegDelete = {keyPath:string} & (RegDeleteV | RegDeleteVA | RegDeleteVE) & ({
+export type RegDelete = { keyPath: string } & (RegDeleteV | RegDeleteVA | RegDeleteVE) & ({
     /**
      * /reg:32  
      * __msdocs:__
@@ -263,7 +263,7 @@ export type RegDelete = {keyPath:string} & (RegDeleteV | RegDeleteVA | RegDelete
      */
     reg32?: boolean
 
-    reg64?: FlagParamOff
+    reg64?: Omitted
 } | {
     /**
      * /reg:64  
@@ -272,5 +272,5 @@ export type RegDelete = {keyPath:string} & (RegDeleteV | RegDeleteVA | RegDelete
      */
     reg64?: boolean
 
-    reg32?: FlagParamOff
+    reg32?: Omitted
 })
