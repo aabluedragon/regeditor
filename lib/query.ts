@@ -1,7 +1,7 @@
 import { RegErrorMalformedLine, RegErrorBadQuery, RegErrorTimeout, RegErrorStdoutTooLarge, RegErrorUnknown } from "./errors";
 import { PromiseStoppable } from "./promise-stoppable";
 import { RegType, RegValue, RegQuery, RegQuerySingleResult, RegStruct, RegEntry, RegQueryResultBulk } from "./types";
-import { VarArgsOrArray } from "./utils";
+import { getMinimumFoundIndex, VarArgsOrArray } from "./utils";
 import { execFile, ChildProcess } from "child_process"
 
 function parseRegValue(type: RegType, value: string | null, se: string): RegValue {
@@ -111,22 +111,14 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleResul
                 while (true) {
                     // Tricky line splitting of output from "reg" tool, preventing some edge cases.
                     const nextValueInKey_Delimiter = `\r\n${INDENTATION_FOR_ENTRY_VALUE}`;
-                    const nextValueInKey_DelimiterIndex = stdoutStr.indexOf(nextValueInKey_Delimiter);
-
                     const keyEnded_Delimiter = `\r\n\r\n${queryKeyPath}`; // if \r\n\r\n, make sure next row is a key (otherwise it might be some very long, but legitimate entry value, e.g. REG_SZ)
-                    const keyInded_DelimiterIndex = stdoutStr.indexOf(keyEnded_Delimiter);
 
-                    let minIndex: number = -1; let chosenDelimiter
-                    if (nextValueInKey_DelimiterIndex != -1 && (nextValueInKey_DelimiterIndex < keyInded_DelimiterIndex || keyInded_DelimiterIndex === -1)) {
-                        minIndex = nextValueInKey_DelimiterIndex; chosenDelimiter = nextValueInKey_Delimiter;
-                    } else if (keyInded_DelimiterIndex != -1 && (keyInded_DelimiterIndex < nextValueInKey_DelimiterIndex || nextValueInKey_DelimiterIndex === -1)) {
-                        minIndex = keyInded_DelimiterIndex; chosenDelimiter = keyEnded_Delimiter;
-                    }
+                    const { minIndex, chosenPattern } = getMinimumFoundIndex(stdoutStr, [nextValueInKey_Delimiter, keyEnded_Delimiter]);
                     if (minIndex === -1) break;
                     const row = stdoutStr.substring(0, minIndex);
 
                     stdoutLines.push(row);
-                    if (chosenDelimiter === keyEnded_Delimiter) {
+                    if (chosenPattern === keyEnded_Delimiter) {
                         stdoutLines.push('');
                         stdoutStr = stdoutStr.substring(minIndex + 4);
                     } else {
