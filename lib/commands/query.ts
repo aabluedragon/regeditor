@@ -1,7 +1,7 @@
-import { RegErrorMalformedLine, RegErrorBadQuery, RegErrorTimeout, RegErrorStdoutTooLarge, RegErrorUnknown } from "./errors";
-import { PromiseStoppable } from "./promise-stoppable";
-import { RegType, RegValue, RegQuery, RegQuerySingleResult, RegStruct, RegEntry, RegQueryResultBulk } from "./types";
-import { getMinimumFoundIndex, VarArgsOrArray } from "./utils";
+import { RegErrorMalformedLine, RegErrorBadQuery, RegErrorTimeout, RegErrorStdoutTooLarge, RegErrorUnknown } from "../errors";
+import { PromiseStoppable } from "../promise-stoppable";
+import { RegType, RegValue, RegQuery, RegQuerySingleResult, RegStruct, RegEntry, RegQueryResultBulk } from "../types";
+import { getMinimumFoundIndex, VarArgsOrArray } from "../utils";
 import { execFile, ChildProcess } from "child_process"
 
 function parseRegValue(type: RegType, value: string | null, se: string): RegValue {
