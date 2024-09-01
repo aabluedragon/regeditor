@@ -91,11 +91,10 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleResul
         }
 
         function finishSuccess(keyMissing = false) {
-            finish({
-                struct: obj,
-                ...(hadErrors? {hadErrors} : {}),
-                ...(keyMissing? {keyMissing} : {})
-            });
+            const res: RegQuerySingleResult = { struct: obj };
+            if (keyMissing) res.keyMissing = true;
+            if (hadErrors) res.hadErrors = true;
+            finish(res);
         }
 
         setKiller(finishSuccess);
