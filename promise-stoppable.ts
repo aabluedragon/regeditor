@@ -1,3 +1,7 @@
+import { AddParameters } from "utils";
+
+type PromiseCallBackType = ConstructorParameters<typeof Promise>[0];
+type WithSetStoppable = AddParameters<PromiseCallBackType, [(stop: () => void) => void]>;
 
 export class PromiseStoppable<T> extends Promise<T> {
     stop() {
@@ -6,14 +10,13 @@ export class PromiseStoppable<T> extends Promise<T> {
 
     #stopper = () => { }
 
-    // Yeah I know, lots of typescript relaxations.
-    static create<T>(fn: (res: (res: T) => any, rej: (rej: any) => any, setStopper: (fn: (...any) => any) => any) => any): PromiseStoppable<T> {
-        let patchedRes: any, patchedRej: any;
+    static create<T>(fn: WithSetStoppable): PromiseStoppable<T> {
+        let patchedRes: (r:T)=>void, patchedRej: (e:any)=>any;
         const p = new PromiseStoppable((r, j) => {
             patchedRes = r; patchedRej = j;
         })
         fn(patchedRes, patchedRej, (k) => p.#stopper = k)
-        return p as any;
+        return p as PromiseStoppable<T>;
     }
 
     static allStoppable<HANDLE_RESULT_TYPE, RES>(promises: PromiseStoppable<RES>[], handleResult: (results: RES[]) => Promise<HANDLE_RESULT_TYPE>): PromiseStoppable<HANDLE_RESULT_TYPE> {
@@ -23,7 +26,7 @@ export class PromiseStoppable<T> extends Promise<T> {
             })
             try {
                 const results = await Promise.all(promises);
-                res(await handleResult(results) as any);
+                res(await handleResult(results));
             } catch (e) {
                 rej(e);
             }
