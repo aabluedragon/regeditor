@@ -44,11 +44,21 @@ export type RegStruct = Record<RegKey, RegDictionary>
 export type RegQuerySingleResult = {
     struct: RegStruct,
     keyMissing?: boolean
+
+    /**
+     * May be set to true only if "bestEffort" is set to true in the query and errors were found
+     */
+    hadErrors?: boolean
 };
 
 export type RegQueryResultBulk = {
     struct: RegStruct,
-    keysMissing: string[]
+    keysMissing: string[],
+
+    /**
+     * May be set to true only if "bestEffort" is set to true in the query and errors were found
+     */
+    hadErrors?: boolean
 }
 
 

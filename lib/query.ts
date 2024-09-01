@@ -135,6 +135,7 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleResul
                 currentKey = key;
             }
 
+            let hadErrors = false;
             function handleDataChunk(stdoutLines: string[]) {
                 try {
                     for (const lineUntrimmed of stdoutLines) {
@@ -142,12 +143,12 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleResul
                         else if (lineUntrimmed.startsWith(' ')) {
                             const val = lineUntrimmed.substring(INDENTATION_LENGTH_FOR_ENTRY_VALUE).split(COLUMN_DELIMITER);
                             if (!currentKey) {
-                                if (bestEffort) continue;
+                                if (bestEffort) { hadErrors = true; continue };
                                 throw new RegErrorMalformedLine('Unexpected value line (missing parent key)');
                             }
                             if (!(currentKey in obj)) obj[currentKey] = {};
                             if (val.length < 2 || val.length > 3) { // can be only 2 columns if there's no value in the entry, but it still exists (e.g an empty REG_BINARY)
-                                if (bestEffort) continue;
+                                if (bestEffort) { hadErrors = true; continue };
                                 throw new RegErrorMalformedLine(`Unexpected value line, probably "${COLUMN_DELIMITER}" in value (${COLUMN_DELIMITER.length} spaces): "${lineUntrimmed}"`)
                             };
                             const name = val[0];
@@ -158,6 +159,7 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleResul
                                 obj[currentKey][name] = { type, value } as RegEntry;
                             } catch (e) {
                                 if (!bestEffort) throw e;
+                                else { hadErrors = true; };
                             }
                         } else updateCurrentKey(lineUntrimmed)
                     }
@@ -219,14 +221,24 @@ export function query(...queriesParam: VarArgsOrArray<RegQuery>): PromiseStoppab
 
     return PromiseStoppable.allStoppable(promises, async (results) => {
         // Skipping the merge logic if just a single query.
-        if (results.length === 1) { return { struct: results[0].struct, keysMissing: results[0]?.keyMissing ? [queries[0].queryKeyPath] : [] } }
+        if (results.length === 1) {
+            const r = results[0];
+            const q = queries[0];
+            return {
+                struct: r.struct,
+                keysMissing: r?.keyMissing ? [q.queryKeyPath] : [],
+                ...(r.hadErrors ? { hadErrors: true } : {})
+            }
+        }
 
         // Merge structs for all keys retreived
         const struct = {} as RegStruct;
         let keysMissing = [] as string[];
+        let hadErrors = false;
         for (let i = 0; i < results.length; i++) {
             const res = results[i];
             if (res.keyMissing) keysMissing.push(queries[i].queryKeyPath);
+            if (res.hadErrors && !hadErrors) hadErrors = true;
             for (const key in res.struct) {
                 struct[key] = { ...struct[key], ...res.struct[key] }
             }
