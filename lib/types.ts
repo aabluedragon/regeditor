@@ -107,20 +107,6 @@ type RegQueryBase = {
     t?: RegType[] | RegType
 
     /**
-     * /reg:32  
-     * __msdocs:__  
-     * Specifies the key should be accessed using the 32-bit registry view.
-     */
-    reg32?: boolean
-
-    /**
-     * /reg:64  
-     * __msdocs:__  
-     * Specifies the key should be accessed using the 64-bit registry view.
-     */
-    reg64?: boolean
-
-    /**
      * Milliseconds to wait for the command to finish before rejecting the promise.
      */
     timeout?: number
@@ -212,6 +198,22 @@ export type RegQuery = RegKey | (RegQueryBase & ({
     e?: FlagParamOff
     d?: FlagParamOff
     k?: FlagParamOff
+}) & ({
+    /**
+     * /reg:32  
+     * __msdocs:__  
+     * Specifies the key should be accessed using the 32-bit registry view.
+     */
+    reg32?: boolean
+    reg64?: FlagParamOff
+} | {
+    /**
+     * /reg:64  
+     * __msdocs:__  
+     * Specifies the key should be accessed using the 64-bit registry view.
+     */
+    reg64?: boolean
+    reg32?: FlagParamOff
 }))
 
 type FlagParamOff = never | false | undefined
