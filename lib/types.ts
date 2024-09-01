@@ -62,29 +62,12 @@ export type RegQueryResult = {
 }
 
 
-/**
- * Query for the "reg query" command
- */
-export type RegQuery = RegKey | {
+type RegQueryBase = {
 
     /**
      * The registry key path to read from, e.g. "HKLM\\SOFTWARE\\Apple Inc.\\Bonjour"
      */
     keyPath: RegKey,
-
-    /**
-     * /v  
-     * Can use true only if /f is present.  
-     * If /f is not present, must be a string, or omitted.  
-     * 
-     * __msdocs:__  
-     * Queries for a specific registry key values.  
-     * If omitted, all values for the key are queried.  
-     *  
-     * Argument to this switch can be optional only when specified  
-     * along with /f switch. This specifies to search in valuenames only.  
-     */
-    v?: string | true
 
     /**
      * /ve  
@@ -111,44 +94,6 @@ export type RegQuery = RegKey | {
     se?: string
 
     /**
-     * /f  
-     * Triggeres "Find" mode.  
-     * 
-     * __msdocs:__  
-     * Specifies the data or pattern to search for.  
-     * Use double quotes if a string contains spaces. Default is "*".
-     */
-    f?: string
-
-    /**
-     * /k  
-     * Might only be usable with /f  
-     * 
-     * __msdocs:__  
-     * Specifies to search in key names only.
-     */
-    k?: boolean
-
-    /**
-     * /d  
-     * Might only be usable with /f  
-     * 
-     * __msdocs:__  
-     * Specifies the search in data only.
-     */
-    d?: boolean
-
-    /**
-     * /e  
-     * Might only be usable with /f  
-     * 
-     * __msdocs:__  
-     * Specifies to return only exact matches.  
-     * By default all the matches are returned.
-     */
-    e?: boolean
-
-    /**
      * /t  
      * Use for filtering entry types, e.g. "REG_SZ", "REG_DWORD", etc...
      * 
@@ -160,16 +105,6 @@ export type RegQuery = RegKey | {
      * Defaults to all types.  
      */
     t?: RegType[] | RegType
-
-    /**
-     * /c  
-     * Might only be usable with /f  
-     * 
-     * __msdocs:__  
-     * Specifies that the search is case sensitive.  
-     * The default search is case insensitive.  
-     */
-    c?: boolean
 
     /**
      * /reg:32  
@@ -201,6 +136,83 @@ export type RegQuery = RegKey | {
      */
     onProgress?: (partialStruct: RegStruct, stop: () => void) => false | undefined | void
 }
+
+/**
+ * Query for the "reg query" command
+ */
+export type RegQuery = RegKey | (RegQueryBase & ({
+    // Params that can only be used in mode /f
+
+    /**
+     * /v  
+     * Can use true only if /f is present.  
+     * If /f is not present, must be a string, or omitted.  
+     * 
+     * __msdocs:__  
+     * Queries for a specific registry key values.  
+     * If omitted, all values for the key are queried.  
+     *  
+     * Argument to this switch can be optional only when specified  
+     * along with /f switch. This specifies to search in valuenames only.  
+     */
+    v?: string | true
+
+    /**
+     * /f  
+     * Triggeres "Find" mode.  
+     * 
+     * __msdocs:__  
+     * Specifies the data or pattern to search for.  
+     * Use double quotes if a string contains spaces. Default is "*".
+     */
+    f: string
+
+    /**
+     * /k  
+     * Might only be usable with /f  
+     * 
+     * __msdocs:__  
+     * Specifies to search in key names only.
+     */
+    k?: boolean
+
+    /**
+     * /d  
+     * Might only be usable with /f  
+     * 
+     * __msdocs:__  
+     * Specifies the search in data only.
+     */
+    d?: boolean
+
+    /**
+     * /e  
+     * Might only be usable with /f  
+     * 
+     * __msdocs:__  
+     * Specifies to return only exact matches.  
+     * By default all the matches are returned.
+     */
+    e?: boolean
+
+    /**
+     * /c  
+     * Might only be usable with /f  
+     * 
+     * __msdocs:__  
+     * Specifies that the search is case sensitive.  
+     * The default search is case insensitive.  
+     */
+    c?: boolean
+} | {
+    // Params that cannot be used without /f
+    f?: FlagParamOff
+    v?: boolean
+    c?: FlagParamOff
+    e?: FlagParamOff
+    d?: FlagParamOff
+    k?: FlagParamOff
+}))
 
 type FlagParamOff = never | false | undefined
 

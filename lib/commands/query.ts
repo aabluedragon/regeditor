@@ -46,27 +46,31 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleSingl
         args.push('/t', Array.isArray(queryOpts.t) ? queryOpts.t.join(',') : queryOpts.t);
     if (queryOpts.s)
         args.push('/s');
-    if (queryOpts.c)
-        args.push('/c');
     if (queryOpts.f)
         args.push('/f', queryOpts.f);
     if (queryOpts.ve)
         args.push('/ve');
-    if (queryOpts.e)
-        args.push('/e');
-    if (queryOpts.k)
-        args.push('/k');
-    if (queryOpts.d)
-        args.push('/d');
     if (queryOpts.reg32)
         args.push('/reg:32');
     if (queryOpts.reg64)
         args.push('/reg:64');
 
+    if (queryOpts.f) { // Params that are only allowed in combination with /f
+        if (queryOpts.c)
+            args.push('/c');
+        if (queryOpts.e)
+            args.push('/e');
+        if (queryOpts.k)
+            args.push('/k');
+        if (queryOpts.d)
+            args.push('/d');
+    }
+
     // NOTE! this arg must come last, because it might not have a value after (e.g. "/v somestr" should not be conflate with "/v /t" as if /t is the value for /v)
     if (queryOpts.v) {
         args.push('/v');
         if (typeof queryOpts.v === 'string') args.push(queryOpts.v);
+        else if (!queryOpts.f) throw new RegErrorInvalidSyntax('/v can only have a string argument when used with "/f"');
     }
 
     return PromiseStoppable.createStoppable<RegQuerySingleSingle>((resolve, reject, setKiller) => {
