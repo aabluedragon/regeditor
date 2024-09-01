@@ -105,15 +105,9 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleResul
             proc = execFile('reg', ['query', queryKeyPath, ...args]);
 
             let stdoutStr: string = '', stderrStr = '';
-            let firstStart = false
 
             proc.stdout?.on('data', data => {
                 stdoutStr += data.toString();
-
-                if (!firstStart && stdoutStr.startsWith('\r\n')) {
-                    firstStart = true;
-                    stdoutStr = stdoutStr.substring(2);
-                }
 
                 const stdoutLines: string[] = [];
                 while (true) {
