@@ -1,6 +1,6 @@
 
 import * as child_process from "child_process"
-import { PromiseStoppable } from "./promise-killable";
+import { PromiseStoppable } from "./promise-stoppable";
 
 export interface REG_SZ {
     type: 'REG_SZ';
