@@ -70,7 +70,7 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleSingl
     if (queryOpts.v) {
         args.push('/v');
         if (typeof queryOpts.v === 'string') args.push(queryOpts.v);
-        else if (!queryOpts.f) throw new RegErrorInvalidSyntax('/v can only have a string argument when used with "/f"');
+        else if (!queryOpts.f) throw new RegErrorInvalidSyntax('/v may only omit a string argument when used with /f');
     }
 
     return PromiseStoppable.createStoppable<RegQuerySingleSingle>((resolve, reject, setKiller) => {
