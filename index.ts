@@ -1,5 +1,6 @@
 
 import * as child_process from "child_process"
+import { PromiseKillable } from "./promise-killable";
 
 export interface REG_SZ {
     type: 'REG_SZ';
@@ -216,11 +217,7 @@ const COLUMN_DELIMITER = '    ';
 const INDENTATION_FOR_ENTRY_VALUE = '    ';
 const INDENTATION_LENGTH_FOR_ENTRY_VALUE = INDENTATION_FOR_ENTRY_VALUE.length;
 
-export interface PromiseRegQuery<T> extends Promise<T> {
-    kill: () => void
-}
-
-function querySingle(queryParam: RegQuery): PromiseRegQuery<RegQuerySingleResult> {
+function querySingle(queryParam: RegQuery): PromiseKillable<RegQuerySingleResult> {
 
     const { queryKeyPath, queryOpts } = getQueryPathAndOpts(queryParam);
 
@@ -256,18 +253,18 @@ function querySingle(queryParam: RegQuery): PromiseRegQuery<RegQuerySingleResult
         if (typeof queryOpts.v === 'string') args.push(queryOpts.v);
     }
 
-    let finish:(resOrErr: RegQuerySingleResult | Error)=>void;
-    const obj = {} as RegStruct;
-    let currentKey = null as string | null;
-
-    const p = new Promise<RegQuerySingleResult>((resolve, reject) => {
+    return PromiseKillable.create<RegQuerySingleResult>((resolve, reject, setKiller) => {
 
         let proc: child_process.ChildProcess | null = null;
         let timer: NodeJS.Timeout | null = setTimeout(() => {
             finish(new RegErrorTimeout('Timeout'));
         }, queryOpts.timeout || 30000);
 
-        finish = (resOrErr: RegQuerySingleResult | Error) => {
+
+        const obj = {} as RegStruct;
+        let currentKey = null as string | null;
+
+        const finish = (resOrErr: RegQuerySingleResult | Error) => {
             if (timer === null) return;
             clearTimeout(timer);
             timer = null;
@@ -275,6 +272,8 @@ function querySingle(queryParam: RegQuery): PromiseRegQuery<RegQuerySingleResult
             if (resOrErr instanceof Error) return reject(resOrErr);
             resolve(resOrErr);
         }
+
+        setKiller(()=>finish({struct:obj}));
 
         const bestEffort = queryOpts.bestEffort || false;
 
@@ -398,11 +397,6 @@ function querySingle(queryParam: RegQuery): PromiseRegQuery<RegQuerySingleResult
             finish(e);
         }
     });
-
-    const regPromise = p as PromiseRegQuery<RegQuerySingleResult>;
-    regPromise.kill = () => {finish({struct: obj})};
-
-    return regPromise;
 }
 
 type VarArgsOrArray<T> = T[] | T[][];
