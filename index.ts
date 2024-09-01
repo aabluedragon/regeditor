@@ -173,6 +173,12 @@ export type RegQuery = RegKey | {
      * TODO document on scenarious where this might be happen, and therefor useful
      */
     bestEffort?: boolean
+
+    /**
+     * Use to observe the value of the the result registry struct before it has finished reading, call stop() or return false to stop reading.  
+     * Might be useful for long reads, e.g. when using the /s flag for recursive read.
+     */
+    onProgress?: (partialStruct: RegStruct, stop: () => void) => false | undefined | void
 }
 
 function parseRegValue(type: RegType, value: string | null, se: string): RegValue {
@@ -206,10 +212,15 @@ export class RegErrorStdoutTooLarge extends Error { constructor(message: string)
 export class RegErrorMalformedLine extends Error { constructor(message: string) { super(message); this.name = 'RegErrorMalformedLine'; } }
 export class RegErrorTimeout extends Error { constructor(message: string) { super(message); this.name = 'RegErrorTimeout'; } }
 
-export async function readSingle(queryParam: RegQuery): Promise<RegQuerySingleResult> {
-    const LINE_DELIMITER = new RegExp('\r\n|\r|\n');
-    const COLUMN_DELIMITER = '    ';
-    const INDENTATION_LENGTH_FOR_ENTRY_VALUE = 4;
+const COLUMN_DELIMITER = '    ';
+const INDENTATION_FOR_ENTRY_VALUE = '    ';
+const INDENTATION_LENGTH_FOR_ENTRY_VALUE = INDENTATION_FOR_ENTRY_VALUE.length;
+
+export interface PromiseRegQuery<T> extends Promise<T> {
+    kill: () => void
+}
+
+export function readSingle(queryParam: RegQuery): PromiseRegQuery<RegQuerySingleResult> {
 
     const { queryKeyPath, queryOpts } = getQueryPathAndOpts(queryParam);
 
@@ -245,18 +256,22 @@ export async function readSingle(queryParam: RegQuery): Promise<RegQuerySingleRe
         if (typeof queryOpts.v === 'string') args.push(queryOpts.v);
     }
 
-    return new Promise<RegQuerySingleResult>((resolve, reject) => {
+    let finish:(resOrErr: RegQuerySingleResult | Error)=>void;
+    const obj = {} as RegStruct;
+    let currentKey = null as string | null;
+
+    const p = new Promise<RegQuerySingleResult>((resolve, reject) => {
 
         let proc: child_process.ChildProcess | null = null;
         let timer: NodeJS.Timeout | null = setTimeout(() => {
             finish(new RegErrorTimeout('Timeout'));
         }, queryOpts.timeout || 30000);
 
-        function finish(resOrErr: RegQuerySingleResult | Error) {
+        finish = (resOrErr: RegQuerySingleResult | Error) => {
             if (timer === null) return;
             clearTimeout(timer);
             timer = null;
-            if (proc) { proc.kill(); proc = null; }
+            if (proc) { proc.removeAllListeners(); proc.kill(); proc = null; }
             if (resOrErr instanceof Error) return reject(resOrErr);
             resolve(resOrErr);
         }
@@ -266,60 +281,115 @@ export async function readSingle(queryParam: RegQuery): Promise<RegQuerySingleRe
         try {
             proc = child_process.execFile('reg', ['query', queryKeyPath, ...args]);
 
-            let stdoutStr = '', stderrStr = '';
-            proc.stdout?.on('data', data => { stdoutStr += data; })
-            proc.stderr?.on('data', data => { stderrStr += data; })
+            let stdoutStr: string = '', stderrStr = '';
+            let firstStart = false
 
-            const obj = {} as RegStruct;
-            function parseData(strChunk: string) {
-                function updateCurrentKey(key: string) {
-                    if (currentKey && !obj[currentKey]) obj[currentKey] = {}; // When reading keys and not their entires.
-                    currentKey = key;
+            proc.stdout?.on('data', data => {
+                stdoutStr += data.toString();
+
+                if (!firstStart && stdoutStr.startsWith('\r\n')) {
+                    firstStart = true;
+                    stdoutStr = stdoutStr.substring(2);
                 }
 
-                let currentKey = null as string | null;
-                const lines = strChunk.split(LINE_DELIMITER);
-                for (const lineUntrimmed of lines) {
-                    if (lineUntrimmed.length === 0) updateCurrentKey(null)
-                    else if (lineUntrimmed.startsWith(' ')) {
-                        const val = lineUntrimmed.substring(INDENTATION_LENGTH_FOR_ENTRY_VALUE).split(COLUMN_DELIMITER);
-                        if (!currentKey) {
-                            if (bestEffort) continue;
-                            throw new RegErrorMalformedLine('Unexpected value line (missing parent key)');
-                        }
-                        if (!(currentKey in obj)) obj[currentKey] = {};
-                        if (val.length < 2 || val.length > 3) { // can be only 2 columns if there's no value in the entry, but it still exists (e.g an empty REG_BINARY)
-                            if (bestEffort) continue;
-                            throw new RegErrorMalformedLine(`Unexpected value line, probably "${COLUMN_DELIMITER}" in value (${COLUMN_DELIMITER.length} spaces): "${lineUntrimmed}"`)
-                        };
-                        const name = val[0];
-                        const type = val[1] as RegType;
-                        const valueInStr = val?.[2] || null;
-                        try {
-                            const value = parseRegValue(type, valueInStr, queryOpts?.se || '\\0');
-                            obj[currentKey][name] = { type, value } as RegEntry;
-                        } catch (e) {
-                            if (!bestEffort) throw e;
-                        }
-                    } else updateCurrentKey(lineUntrimmed)
+                const stdoutLines: string[] = [];
+                while (true) {
+                    // Tricky line splitting of output from "reg" tool, preventing some edge cases.
+                    const nextValueInKey_Delimiter = `\r\n${INDENTATION_FOR_ENTRY_VALUE}`;
+                    const nextValueInKey_DelimiterIndex = stdoutStr.indexOf(nextValueInKey_Delimiter);
+
+                    const keyEnded_Delimiter = `\r\n\r\n${queryKeyPath}`; // if \r\n\r\n, make sure next row is a key (otherwise it might be some very long, but legitimate entry value, e.g. REG_SZ)
+                    const keyInded_DelimiterIndex = stdoutStr.indexOf(keyEnded_Delimiter);
+
+                    let minIndex: number = -1; let chosenDelimiter
+                    if (nextValueInKey_DelimiterIndex != -1 && (nextValueInKey_DelimiterIndex < keyInded_DelimiterIndex || keyInded_DelimiterIndex === -1)) {
+                        minIndex = nextValueInKey_DelimiterIndex; chosenDelimiter = nextValueInKey_Delimiter;
+                    } else if (keyInded_DelimiterIndex != -1 && (keyInded_DelimiterIndex < nextValueInKey_DelimiterIndex || nextValueInKey_DelimiterIndex === -1)) {
+                        minIndex = keyInded_DelimiterIndex; chosenDelimiter = keyEnded_Delimiter;
+                    }
+                    if (minIndex === -1) break;
+                    const row = stdoutStr.substring(0, minIndex);
+
+                    stdoutLines.push(row);
+                    if (chosenDelimiter === keyEnded_Delimiter) {
+                        stdoutLines.push('');
+                        stdoutStr = stdoutStr.substring(minIndex + 4);
+                    } else {
+                        stdoutStr = stdoutStr.substring(minIndex + 2);
+                    }
+                }
+                if (stdoutLines.length > 0) handleDataChunk(stdoutLines);
+            });
+
+            proc.stderr?.on('data', data => { stderrStr += data; })
+
+            function updateCurrentKey(key: string) {
+                if (currentKey && !obj[currentKey]) obj[currentKey] = {}; // When reading keys and not their entries, and not run in recursive mode (/s), still add the key names to the struct
+                currentKey = key;
+            }
+
+            function handleDataChunk(stdoutLines: string[]) {
+                try {
+                    for (const lineUntrimmed of stdoutLines) {
+                        if (lineUntrimmed.length === 0) { updateCurrentKey(null); }
+                        else if (lineUntrimmed.startsWith(' ')) {
+                            const val = lineUntrimmed.substring(INDENTATION_LENGTH_FOR_ENTRY_VALUE).split(COLUMN_DELIMITER);
+                            if (!currentKey) {
+                                if (bestEffort) continue;
+                                throw new RegErrorMalformedLine('Unexpected value line (missing parent key)');
+                            }
+                            if (!(currentKey in obj)) obj[currentKey] = {};
+                            if (val.length < 2 || val.length > 3) { // can be only 2 columns if there's no value in the entry, but it still exists (e.g an empty REG_BINARY)
+                                if (bestEffort) continue;
+                                throw new RegErrorMalformedLine(`Unexpected value line, probably "${COLUMN_DELIMITER}" in value (${COLUMN_DELIMITER.length} spaces): "${lineUntrimmed}"`)
+                            };
+                            const name = val[0];
+                            const type = val[1] as RegType;
+                            const valueInStr = val?.[2] || null;
+                            try {
+                                const value = parseRegValue(type, valueInStr, queryOpts?.se || '\\0');
+                                obj[currentKey][name] = { type, value } as RegEntry;
+                            } catch (e) {
+                                if (!bestEffort) throw e;
+                            }
+                        } else updateCurrentKey(lineUntrimmed)
+                    }
+
+                    if ('function' === typeof queryOpts.onProgress && Object.keys(obj).length > 0) {
+                        setTimeout(() => {
+                            const shouldStop = false === queryOpts.onProgress(obj, () => { finish({ struct: obj }) });
+                            if (shouldStop) finish({ struct: obj })
+                        })
+                    }
+                } catch (error) {
+                    finish(error);
                 }
             }
 
             proc.on('exit', code => {
                 proc = null;
                 try {
+                    if (stdoutStr.trim() === 'End of search: 0 match(es) found.') return finish({ struct: {} }); // string returned when using /f and having 0 results
                     if (code === 1) {
-                        if (stdoutStr.trim() === 'End of search: 0 match(es) found.') return finish({ struct: {} });
                         const trimmedStdErr = stderrStr.trim();
                         if (trimmedStdErr === 'ERROR: The system was unable to find the specified registry key or value.') return finish({ struct: {}, keyMissing: true });
                         if (trimmedStdErr.startsWith('ERROR: Invalid syntax.')) throw new RegErrorStdoutTooLarge(trimmedStdErr);
                     }
-                    if (code === null && stderrStr.length === 0) { throw new Error('Read too large') } // TODO: maybe chunked read will solve this situation (or flush? trum the stdout somehow)
+                    if (code === null && stderrStr.length === 0) { throw new Error('Read too large') }
                     if (code !== 0 || stderrStr) { throw new RegErrorUnknown(stderrStr || 'Failed to read registry') }
 
-                    parseData(stdoutStr)
+                    // Might happen if using the /f "somestr" argument, and there are 1 or more results.
+                    if(stdoutStr.endsWith('match(es) found.\r\n')) {
+                        const matchIndex = stdoutStr.lastIndexOf('End of search: ');
+                        if(matchIndex !== -1) {
+                            stdoutStr = stdoutStr.substring(0, matchIndex);
+                        }
+                    }
+
+                    handleDataChunk(stdoutStr.split('\r\n')); // Handle the remaining data, if any.
 
                     finish({ struct: obj });
+
                 } catch (e) {
                     finish(e);
                 }
@@ -328,6 +398,11 @@ export async function readSingle(queryParam: RegQuery): Promise<RegQuerySingleRe
             finish(e);
         }
     });
+
+    const regPromise = p as PromiseRegQuery<RegQuerySingleResult>;
+    regPromise.kill = () => {finish({struct: obj})};
+
+    return regPromise;
 }
 
 type VarArgsOrArray<T> = T[] | T[][];
@@ -338,6 +413,8 @@ type VarArgsOrArray<T> = T[] | T[][];
  * @returns struct representing the registry entries, and whether the key was missing
  */
 export async function readBulk(...queriesParam: VarArgsOrArray<RegQuery>): Promise<RegQueryResultBulk> {
+    // TODO: make killable;
+
     const flattened = queriesParam.flat();
     const queries = flattened.map(getQueryPathAndOpts);
 
@@ -377,8 +454,14 @@ async function main() {
     try {
         const res = await readSingle(
             {
-                keyPath: 'HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\DirectPlay\\Service Providers\\IPX Connection For DirectPlay',
-                // s: true,
+
+                // keyPath: 'HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\DirectPlay\\Service Providers\\IPX Connection For DirectPlay',
+                // f: '*',
+
+                // keyPath: 'HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node',
+                keyPath: 'HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Lenovo\\MachineInfo',
+                timeout: 1000 * 60 * 60 * 2,
+                s: true
             }
         )
         console.log(JSON.stringify(res, null, 4));
