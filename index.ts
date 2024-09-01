@@ -406,28 +406,36 @@ type VarArgsOrArray<T> = T[] | T[][];
  * @param queryParam one or more queries to perform
  * @returns struct representing the registry entries
  */
-export async function query(...queriesParam: VarArgsOrArray<RegQuery>): Promise<RegQueryResultBulk> {
-    // TODO: make killable;
-
+export function query(...queriesParam: VarArgsOrArray<RegQuery>): PromiseKillable<RegQueryResultBulk> {
     const flattened = queriesParam.flat();
     const queries = flattened.map(getQueryPathAndOpts);
+    const promises = flattened.map(querySingle);
 
-    const results = await Promise.all(flattened.map(querySingle));
-
-    // Skipping the merge logic if just a single query.
-    if(results.length === 1) {return {struct: results[0].struct, keysMissing: results[0]?.keyMissing ? [queries[0].queryKeyPath]:[]}}
-
-    // Merge structs for all keys retreived
-    const struct = {} as RegStruct;
-    let keysMissing = [] as string[];
-    for (let i = 0; i < results.length; i++) {
-        const res = results[i];
-        if (res.keyMissing) keysMissing.push(queries[i].queryKeyPath);
-        for (const key in res.struct) {
-            struct[key] = { ...struct[key], ...res.struct[key] }
+    return PromiseKillable.create<RegQueryResultBulk>(async (res,rej,setKiller)=>{
+        try {
+            setKiller(()=>{
+                promises.forEach(p=>p.kill());
+            })
+    
+            const results = await Promise.all(promises);
+            // Skipping the merge logic if just a single query.
+            if(results.length === 1) {return res({struct: results[0].struct, keysMissing: results[0]?.keyMissing ? [queries[0].queryKeyPath]:[]})}
+    
+            // Merge structs for all keys retreived
+            const struct = {} as RegStruct;
+            let keysMissing = [] as string[];
+            for (let i = 0; i < results.length; i++) {
+                const res = results[i];
+                if (res.keyMissing) keysMissing.push(queries[i].queryKeyPath);
+                for (const key in res.struct) {
+                    struct[key] = { ...struct[key], ...res.struct[key] }
+                }
+            }
+            res({ struct, keysMissing });
+        } catch(e) {
+            rej(e)
         }
-    }
-    return { struct, keysMissing };
+    })
 }
 
 
@@ -449,7 +457,7 @@ function batch() {
 
 async function main() {
     try {
-        const res = await query(
+        const p = query(
             {
 
                 keyPath: 'HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\DirectPlay\\Service Providers\\IPX Connection For DirectPlay',
@@ -461,7 +469,8 @@ async function main() {
                 s: true
             }
         )
-        console.log(JSON.stringify(res, null, 4));
+        p.kill()
+        console.log(JSON.stringify(await p, null, 4));
     } catch (e) {
         console.error(e);
     }
