@@ -1,4 +1,4 @@
-import { AddParameters } from "utils";
+import { AddParameters } from "./utils";
 
 type PromiseCallBackType = ConstructorParameters<typeof Promise>[0];
 type WithSetStoppable = AddParameters<PromiseCallBackType, [(stop: () => void) => void]>;
