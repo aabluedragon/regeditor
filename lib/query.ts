@@ -182,9 +182,9 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleResul
                     if (code === 1) {
                         const trimmedStdErr = stderrStr.trim();
                         if (trimmedStdErr === 'ERROR: The system was unable to find the specified registry key or value.') return finish({ struct: {}, keyMissing: true });
-                        if (trimmedStdErr.startsWith('ERROR: Invalid syntax.')) throw new RegErrorStdoutTooLarge(trimmedStdErr);
+                        if (trimmedStdErr.startsWith('ERROR: Invalid syntax.')) throw new RegErrorBadQuery(trimmedStdErr);
                     }
-                    if (code === null && stderrStr.length === 0) { throw new Error('Read too large') }
+                    if (code === null && stderrStr.length === 0) { throw new RegErrorStdoutTooLarge('Read too large') }
                     if (code !== 0 || stderrStr) { throw new RegErrorUnknown(stderrStr || 'Failed to read registry') }
 
                     // Might happen if using the /f "somestr" argument, and there are 1 or more results.
