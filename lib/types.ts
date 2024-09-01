@@ -74,6 +74,9 @@ export type RegQuery = RegKey | {
 
     /**
      * /v  
+     * Can use true only if /f is present.  
+     * If /f is not present, must be a string, or omitted.  
+     * 
      * __msdocs:__  
      * Queries for a specific registry key values.  
      * If omitted, all values for the key are queried.  
@@ -81,7 +84,7 @@ export type RegQuery = RegKey | {
      * Argument to this switch can be optional only when specified  
      * along with /f switch. This specifies to search in valuenames only.  
      */
-    v?: string | true //TODO handle true only if /f is present typescript safety measure
+    v?: string | true
 
     /**
      * /ve  
@@ -109,33 +112,41 @@ export type RegQuery = RegKey | {
 
     /**
      * /f  
+     * Triggeres "Find" mode.  
+     * 
      * __msdocs:__  
      * Specifies the data or pattern to search for.  
      * Use double quotes if a string contains spaces. Default is "*".
      */
-    f?: string // TODO this triggeres a search mode, prevent type safety of different arg combinations
+    f?: string
 
     /**
      * /k  
+     * Might only be usable with /f  
+     * 
      * __msdocs:__  
      * Specifies to search in key names only.
      */
-    k?: boolean // TODO can only be used with /f
+    k?: boolean
 
     /**
      * /d  
+     * Might only be usable with /f  
+     * 
      * __msdocs:__  
      * Specifies the search in data only.
      */
-    d?: boolean  // TODO can only be used with /f
+    d?: boolean
 
     /**
      * /e  
+     * Might only be usable with /f  
+     * 
      * __msdocs:__  
      * Specifies to return only exact matches.  
      * By default all the matches are returned.
      */
-    e?: boolean // TODO can only be used with /f
+    e?: boolean
 
     /**
      * /t  
@@ -152,11 +163,13 @@ export type RegQuery = RegKey | {
 
     /**
      * /c  
+     * Might only be usable with /f  
+     * 
      * __msdocs:__  
      * Specifies that the search is case sensitive.  
      * The default search is case insensitive.  
      */
-    c?: boolean // TODO only if /f is present
+    c?: boolean
 
     /**
      * /reg:32  
@@ -178,8 +191,7 @@ export type RegQuery = RegKey | {
     timeout?: number
 
     /**
-     * If stumbled upon unexpected lines, continue parsing the rest of the lines (will still throw if stubled upon unrecoverable error).  
-     * TODO document on scenarious where this might be happen, and therefor useful
+     * If stumbled upon unexpected lines, continue parsing the rest of the lines (will still throw if stubled upon unrecoverable error).
      */
     bestEffort?: boolean
 
