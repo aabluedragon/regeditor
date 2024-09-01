@@ -406,35 +406,28 @@ type VarArgsOrArray<T> = T[] | T[][];
  * @param queryParam one or more queries to perform
  * @returns struct representing the registry entries
  */
-export function query(...queriesParam: VarArgsOrArray<RegQuery>): PromiseKillable<RegQueryResultBulk> {
+
+export function query(...queriesParam: VarArgsOrArray<RegQuery>): PromiseKillable<RegQueryResultBulk>
+{
     const flattened = queriesParam.flat();
     const queries = flattened.map(getQueryPathAndOpts);
     const promises = flattened.map(querySingle);
 
-    return PromiseKillable.create<RegQueryResultBulk>(async (res,rej,setKiller)=>{
-        try {
-            setKiller(()=>{
-                promises.forEach(p=>p.kill());
-            })
+    return PromiseKillable.allKillable<RegQueryResultBulk, RegQuerySingleResult>(promises, async (results)=>{
+        // Skipping the merge logic if just a single query.
+        if(results.length === 1) {return {struct: results[0].struct, keysMissing: results[0]?.keyMissing ? [queries[0].queryKeyPath]:[]}}
     
-            const results = await Promise.all(promises);
-            // Skipping the merge logic if just a single query.
-            if(results.length === 1) {return res({struct: results[0].struct, keysMissing: results[0]?.keyMissing ? [queries[0].queryKeyPath]:[]})}
-    
-            // Merge structs for all keys retreived
-            const struct = {} as RegStruct;
-            let keysMissing = [] as string[];
-            for (let i = 0; i < results.length; i++) {
-                const res = results[i];
-                if (res.keyMissing) keysMissing.push(queries[i].queryKeyPath);
-                for (const key in res.struct) {
-                    struct[key] = { ...struct[key], ...res.struct[key] }
-                }
+        // Merge structs for all keys retreived
+        const struct = {} as RegStruct;
+        let keysMissing = [] as string[];
+        for (let i = 0; i < results.length; i++) {
+            const res = results[i];
+            if (res.keyMissing) keysMissing.push(queries[i].queryKeyPath);
+            for (const key in res.struct) {
+                struct[key] = { ...struct[key], ...res.struct[key] }
             }
-            res({ struct, keysMissing });
-        } catch(e) {
-            rej(e)
         }
+        return { struct, keysMissing };
     })
 }
 
@@ -469,7 +462,7 @@ async function main() {
                 s: true
             }
         )
-        p.kill()
+        // p.kill()
         console.log(JSON.stringify(await p, null, 4));
     } catch (e) {
         console.error(e);

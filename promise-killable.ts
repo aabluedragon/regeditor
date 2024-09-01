@@ -15,4 +15,18 @@ export class PromiseKillable<T> extends Promise<T> {
         fn(patchedRes, patchedRej, (k) => p.#killer = k)
         return p as any;
     }
+
+    static allKillable<HANDLE_RESULT_TYPE, T>(promises: PromiseKillable<T>[], handleResult: (results: T[]) => Promise<HANDLE_RESULT_TYPE>): PromiseKillable<HANDLE_RESULT_TYPE> {
+        return PromiseKillable.create(async (res, rej, setKiller) => {
+            setKiller(() => {
+                promises.forEach(p => p.kill());
+            })
+            try {
+                const results = await Promise.all(promises);
+                res(await handleResult(results) as any);
+            } catch (e) {
+                rej(e);
+            }
+        })
+    }
 }
