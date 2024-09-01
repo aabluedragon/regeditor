@@ -1,12 +1,12 @@
-import { RegErrorMalformedLine, RegErrorBadQuery, RegErrorTimeout, RegErrorStdoutTooLarge, RegErrorUnknown } from "../errors";
+import { RegQueryErrorMalformedLine, RegErrorInvalidSyntax, RegQueryErrorTimeout, RegQueryErrorStdoutTooLarge, RegErrorUnknown } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
-import { RegType, RegValue, RegQuery, RegQuerySingleResult, RegStruct, RegEntry, RegQueryResultBulk } from "../types";
+import { RegType, RegValue, RegQuery, RegQuerySingleSingle, RegStruct, RegEntry, RegQueryResult } from "../types";
 import { getMinimumFoundIndex, VarArgsOrArray } from "../utils";
 import { execFile, ChildProcess } from "child_process"
 
 function parseRegValue(type: RegType, value: string | null, se: string): RegValue {
     if (type === 'REG_DWORD' || type === 'REG_QWORD') {
-        if (value == null) throw new RegErrorMalformedLine('Value is null for ' + type);
+        if (value == null) throw new RegQueryErrorMalformedLine('Value is null for ' + type);
         return parseInt(value, 16);
     } else if (type === 'REG_SZ' || type === 'REG_EXPAND_SZ') {
         return value || ''; // If value is null, return an empty string
@@ -14,13 +14,13 @@ function parseRegValue(type: RegType, value: string | null, se: string): RegValu
         if (value == null) return [];
         return value.split(se);
     } else if (type === 'REG_BINARY') {
-        if ((value?.length || 0) % 2 !== 0) throw new RegErrorMalformedLine(`${type} binary value length is not even: ${value}`);
+        if ((value?.length || 0) % 2 !== 0) throw new RegQueryErrorMalformedLine(`${type} binary value length is not even: ${value}`);
         const m = value != null ? value.match(/../g) : null;
         if (m == null) return [];
         return m.map(h => parseInt(h, 16));
     } else if (type === 'REG_NONE') {
         return null;
-    } else throw new RegErrorMalformedLine('Unknown REG type: ' + type);
+    } else throw new RegQueryErrorMalformedLine('Unknown REG type: ' + type);
 }
 
 function getQueryPathAndOpts(queryParam: RegQuery) {
@@ -33,13 +33,13 @@ const COLUMN_DELIMITER = '    ';
 const INDENTATION_FOR_ENTRY_VALUE = '    ';
 const INDENTATION_LENGTH_FOR_ENTRY_VALUE = INDENTATION_FOR_ENTRY_VALUE.length;
 
-function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleResult> {
+function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleSingle> {
 
     const { queryKeyPath, queryOpts } = getQueryPathAndOpts(queryParam);
 
     const args = [] as string[];
     if (queryOpts.se) {
-        if (queryOpts.se.length !== 1) throw new RegErrorBadQuery('/se must be a single character');
+        if (queryOpts.se.length !== 1) throw new RegErrorInvalidSyntax('/se must be a single character');
         args.push('/se', queryOpts.se);;
     }
     if (queryOpts.t)
@@ -69,11 +69,11 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleResul
         if (typeof queryOpts.v === 'string') args.push(queryOpts.v);
     }
 
-    return PromiseStoppable.createStoppable<RegQuerySingleResult>((resolve, reject, setKiller) => {
+    return PromiseStoppable.createStoppable<RegQuerySingleSingle>((resolve, reject, setKiller) => {
 
         let proc: ChildProcess | null = null;
         let timer: NodeJS.Timeout | null = setTimeout(() => {
-            finish(new RegErrorTimeout('Timeout'));
+            finish(new RegQueryErrorTimeout('Timeout'));
         }, queryOpts.timeout || 30000);
 
 
@@ -81,7 +81,7 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleResul
         let hadErrors = false;
         let currentKey = null as string | null;
 
-        const finish = (resOrErr: RegQuerySingleResult | Error) => {
+        const finish = (resOrErr: RegQuerySingleSingle | Error) => {
             if (timer === null) return;
             clearTimeout(timer);
             timer = null;
@@ -91,7 +91,7 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleResul
         }
 
         function finishSuccess(keyMissing = false) {
-            const res: RegQuerySingleResult = { struct: obj };
+            const res: RegQuerySingleSingle = { struct: obj };
             if (keyMissing) res.keyMissing = true;
             if (hadErrors) res.hadErrors = true;
             finish(res);
@@ -145,12 +145,12 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleResul
                             const val = lineUntrimmed.substring(INDENTATION_LENGTH_FOR_ENTRY_VALUE).split(COLUMN_DELIMITER);
                             if (!currentKey) {
                                 if (bestEffort) { hadErrors = true; continue };
-                                throw new RegErrorMalformedLine('Unexpected value line (missing parent key)');
+                                throw new RegQueryErrorMalformedLine('Unexpected value line (missing parent key)');
                             }
                             if (!(currentKey in obj)) obj[currentKey] = {};
                             if (val.length < 2 || val.length > 3) { // can be only 2 columns if there's no value in the entry, but it still exists (e.g an empty REG_BINARY)
                                 if (bestEffort) { hadErrors = true; continue };
-                                throw new RegErrorMalformedLine(`Unexpected value line, probably "${COLUMN_DELIMITER}" in value (${COLUMN_DELIMITER.length} spaces): "${lineUntrimmed}"`)
+                                throw new RegQueryErrorMalformedLine(`Unexpected value line, probably "${COLUMN_DELIMITER}" in value (${COLUMN_DELIMITER.length} spaces): "${lineUntrimmed}"`)
                             };
                             const name = val[0];
                             const type = val[1] as RegType;
@@ -183,9 +183,9 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleResul
                     if (code === 1) {
                         const trimmedStdErr = stderrStr.trim();
                         if (trimmedStdErr === 'ERROR: The system was unable to find the specified registry key or value.') return finishSuccess(true);
-                        if (trimmedStdErr.startsWith('ERROR: Invalid syntax.')) throw new RegErrorBadQuery(trimmedStdErr);
+                        if (trimmedStdErr.startsWith('ERROR: Invalid syntax.')) throw new RegErrorInvalidSyntax(trimmedStdErr);
                     }
-                    if (code === null && stderrStr.length === 0) { throw new RegErrorStdoutTooLarge('Read too large') }
+                    if (code === null && stderrStr.length === 0) { throw new RegQueryErrorStdoutTooLarge('Read too large') }
                     if (code !== 0 || stderrStr) { throw new RegErrorUnknown(stderrStr || 'Failed to read registry') }
 
                     // Might happen if using the /f "somestr" argument, and there are 1 or more results.
@@ -215,7 +215,7 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleResul
  * @param queryParam one or more queries to perform
  * @returns struct representing the registry entries
  */
-export function query(...queriesParam: VarArgsOrArray<RegQuery>): PromiseStoppable<RegQueryResultBulk> {
+export function query(...queriesParam: VarArgsOrArray<RegQuery>): PromiseStoppable<RegQueryResult> {
     const flattened = queriesParam.flat();
     const queries = flattened.map(getQueryPathAndOpts);
     const promises = flattened.map(querySingle);

@@ -17,7 +17,7 @@ export class PromiseStoppable<T> extends Promise<T> {
         return p;
     }
 
-    static allStoppable<HANDLE_RESULT_TYPE, RES>(promises: PromiseStoppable<RES>[], handleResult: (results: RES[]) => Promise<HANDLE_RESULT_TYPE>): PromiseStoppable<HANDLE_RESULT_TYPE> {
+    static allStoppable<HANDLE_RESULT_TYPE, RES>(promises: PromiseStoppable<RES>[], handleResult: (results: RES[]) => Promise<HANDLE_RESULT_TYPE>|HANDLE_RESULT_TYPE): PromiseStoppable<HANDLE_RESULT_TYPE> {
         return PromiseStoppable.createStoppable(async (res, rej, setStopper) => {
             setStopper(() => {
                 promises.forEach(p => p.stop());

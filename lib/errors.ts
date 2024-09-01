@@ -1,6 +1,7 @@
-
-export class RegErrorBadQuery extends Error { constructor(message: string) { super(message); this.name = 'RegErrorBadQuery'; } }
+export class RegErrorAccessDenied extends Error { constructor(message: string) { super(message); this.name = 'RegErrorAccessDenied'; } }
+export class RegErrorInvalidSyntax extends Error { constructor(message: string) { super(message); this.name = 'RegErrorInvalidSyntax'; } }
 export class RegErrorUnknown extends Error { constructor(message: string) { super(message); this.name = 'RegErrorUnknown'; } }
-export class RegErrorStdoutTooLarge extends Error { constructor(message: string) { super(message); this.name = 'RegErrorStdoutTooLarge'; } }
-export class RegErrorMalformedLine extends Error { constructor(message: string) { super(message); this.name = 'RegErrorMalformedLine'; } }
-export class RegErrorTimeout extends Error { constructor(message: string) { super(message); this.name = 'RegErrorTimeout'; } }
+
+export class RegQueryErrorStdoutTooLarge extends Error { constructor(message: string) { super(message); this.name = 'RegQueryErrorStdoutTooLarge'; } }
+export class RegQueryErrorMalformedLine extends Error { constructor(message: string) { super(message); this.name = 'RegQueryErrorMalformedLine'; } }
+export class RegQueryErrorTimeout extends Error { constructor(message: string) { super(message); this.name = 'RegQueryErrorTimeout'; } }

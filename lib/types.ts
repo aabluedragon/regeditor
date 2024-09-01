@@ -41,7 +41,7 @@ export type RegName = string;
 export type RegDictionary = Record<RegName, RegEntry>
 export type RegStruct = Record<RegKey, RegDictionary>
 
-export type RegQuerySingleResult = {
+export type RegQuerySingleSingle = {
     struct: RegStruct,
     keyMissing?: boolean
 
@@ -51,7 +51,7 @@ export type RegQuerySingleResult = {
     hadErrors?: boolean
 };
 
-export type RegQueryResultBulk = {
+export type RegQueryResult = {
     struct: RegStruct,
     keysMissing: string[],
 
@@ -201,3 +201,62 @@ export type RegQuery = RegKey | {
      */
     onProgress?: (partialStruct: RegStruct, stop: () => void) => false | undefined | void
 }
+
+type FlagParamOff = never | false | undefined
+
+type RegDeleteV = {
+    /**
+     * /v  
+     * __Example from msdocs:__  
+     * REG DELETE \\ZODIAC\HKLM\Software\MyCo /v MTU  
+     * Deletes the registry value MTU under MyCo on ZODIAC
+     */
+    v: string
+
+    ve?: FlagParamOff
+    va?: FlagParamOff
+}
+
+type RegDeleteVE = {
+    v?: FlagParamOff
+
+    /**
+     * /ve  
+     * __msdocs:__
+     * delete the value of empty value name (Default).
+     */
+    ve: boolean
+    va?: FlagParamOff
+}
+
+type RegDeleteVA = {
+    v?: FlagParamOff
+    ve?: FlagParamOff
+
+    /**
+     * /va  
+     * __msdocs:__
+     * delete all values under this key.
+     */
+    va: boolean
+}
+
+export type RegDelete = {keyPath:string} & (RegDeleteV | RegDeleteVA | RegDeleteVE) & ({
+    /**
+     * /reg:32  
+     * __msdocs:__
+     * Specifies the key should be accessed using the 32-bit registry view.
+     */
+    reg32?: boolean
+
+    reg64?: FlagParamOff
+} | {
+    /**
+     * /reg:64  
+     * __msdocs:__
+     * Specifies the key should be accessed using the 64-bit registry view.
+     */
+    reg64?: boolean
+
+    reg32?: FlagParamOff
+})
