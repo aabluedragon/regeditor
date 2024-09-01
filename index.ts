@@ -253,7 +253,7 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleResul
         if (typeof queryOpts.v === 'string') args.push(queryOpts.v);
     }
 
-    return PromiseStoppable.create<RegQuerySingleResult>((resolve, reject, setKiller) => {
+    return PromiseStoppable.createStoppable<RegQuerySingleResult>((resolve, reject, setKiller) => {
 
         let proc: child_process.ChildProcess | null = null;
         let timer: NodeJS.Timeout | null = setTimeout(() => {
