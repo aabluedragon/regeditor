@@ -220,7 +220,7 @@ export interface PromiseRegQuery<T> extends Promise<T> {
     kill: () => void
 }
 
-export function readSingle(queryParam: RegQuery): PromiseRegQuery<RegQuerySingleResult> {
+function querySingle(queryParam: RegQuery): PromiseRegQuery<RegQuerySingleResult> {
 
     const { queryKeyPath, queryOpts } = getQueryPathAndOpts(queryParam);
 
@@ -408,17 +408,20 @@ export function readSingle(queryParam: RegQuery): PromiseRegQuery<RegQuerySingle
 type VarArgsOrArray<T> = T[] | T[][];
 
 /**
- * Read registry entries.
- * @param queryParam the key path to read from, or an object with more options
- * @returns struct representing the registry entries, and whether the key was missing
+ * Execute one or more reg queries.
+ * @param queryParam one or more queries to perform
+ * @returns struct representing the registry entries
  */
-export async function readBulk(...queriesParam: VarArgsOrArray<RegQuery>): Promise<RegQueryResultBulk> {
+export async function query(...queriesParam: VarArgsOrArray<RegQuery>): Promise<RegQueryResultBulk> {
     // TODO: make killable;
 
     const flattened = queriesParam.flat();
     const queries = flattened.map(getQueryPathAndOpts);
 
-    const results = await Promise.all(flattened.map(readSingle));
+    const results = await Promise.all(flattened.map(querySingle));
+
+    // Skipping the merge logic if just a single query.
+    if(results.length === 1) {return {struct: results[0].struct, keysMissing: results[0]?.keyMissing ? [queries[0].queryKeyPath]:[]}}
 
     // Merge structs for all keys retreived
     const struct = {} as RegStruct;
@@ -452,15 +455,15 @@ function batch() {
 
 async function main() {
     try {
-        const res = await readSingle(
+        const res = await query(
             {
 
-                // keyPath: 'HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\DirectPlay\\Service Providers\\IPX Connection For DirectPlay',
-                // f: '*',
-
+                keyPath: 'HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\DirectPlay\\Service Providers\\IPX Connection For DirectPlay',
+                f: '*',
                 // keyPath: 'HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node',
-                keyPath: 'HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Lenovo\\MachineInfo',
+                // keyPath: 'HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Lenovo\\MachineInfo',
                 timeout: 1000 * 60 * 60 * 2,
+                reg64: true,
                 s: true
             }
         )
