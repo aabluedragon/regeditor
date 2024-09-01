@@ -78,6 +78,7 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleResul
 
 
         const obj = {} as RegStruct;
+        let hadErrors = false;
         let currentKey = null as string | null;
 
         const finish = (resOrErr: RegQuerySingleResult | Error) => {
@@ -89,7 +90,15 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleResul
             resolve(resOrErr);
         }
 
-        setKiller(() => finish({ struct: obj }));
+        function finishSuccess(keyMissing = false) {
+            finish({
+                struct: obj,
+                ...(hadErrors? {hadErrors} : {}),
+                ...(keyMissing? {keyMissing} : {})
+            });
+        }
+
+        setKiller(finishSuccess);
 
         const bestEffort = queryOpts.bestEffort || false;
 
@@ -135,7 +144,6 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleResul
                 currentKey = key;
             }
 
-            let hadErrors = false;
             function handleDataChunk(stdoutLines: string[]) {
                 try {
                     for (const lineUntrimmed of stdoutLines) {
@@ -166,8 +174,8 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleResul
 
                     if ('function' === typeof queryOpts.onProgress && Object.keys(obj).length > 0) {
                         setTimeout(() => {
-                            const shouldStop = false === queryOpts.onProgress(obj, () => { finish({ struct: obj }) });
-                            if (shouldStop) finish({ struct: obj })
+                            const shouldStop = false === queryOpts.onProgress(obj, finishSuccess);
+                            if (shouldStop) finishSuccess()
                         })
                     }
                 } catch (error) {
@@ -178,10 +186,10 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleResul
             proc.on('exit', code => {
                 proc = null;
                 try {
-                    if (stdoutStr.trim() === 'End of search: 0 match(es) found.') return finish({ struct: {} }); // string returned when using /f and having 0 results
+                    if (stdoutStr.trim() === 'End of search: 0 match(es) found.') return finishSuccess(); // string returned when using /f and having 0 results
                     if (code === 1) {
                         const trimmedStdErr = stderrStr.trim();
-                        if (trimmedStdErr === 'ERROR: The system was unable to find the specified registry key or value.') return finish({ struct: {}, keyMissing: true });
+                        if (trimmedStdErr === 'ERROR: The system was unable to find the specified registry key or value.') return finishSuccess(true);
                         if (trimmedStdErr.startsWith('ERROR: Invalid syntax.')) throw new RegErrorBadQuery(trimmedStdErr);
                     }
                     if (code === null && stderrStr.length === 0) { throw new RegErrorStdoutTooLarge('Read too large') }
@@ -197,7 +205,7 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleResul
 
                     handleDataChunk(stdoutStr.split('\r\n')); // Handle the remaining data, if any.
 
-                    finish({ struct: obj });
+                    finishSuccess();
 
                 } catch (e) {
                     finish(e);
