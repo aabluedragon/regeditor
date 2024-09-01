@@ -1,25 +1,25 @@
 
-export class PromiseKillable<T> extends Promise<T> {
-    kill() {
-        this.#killer?.();
+export class PromiseStoppable<T> extends Promise<T> {
+    stop() {
+        this.#stopper?.();
     }
 
-    #killer = () => { }
+    #stopper = () => { }
 
     // Yeah I know, lots of typescript relaxations.
-    static create<T>(fn: (res: (res: T) => any, rej: (rej: any) => any, setKiller: (fn: (...any) => any) => any) => any): PromiseKillable<T> {
+    static create<T>(fn: (res: (res: T) => any, rej: (rej: any) => any, setStopper: (fn: (...any) => any) => any) => any): PromiseStoppable<T> {
         let patchedRes: any, patchedRej: any;
-        const p = new PromiseKillable((r, j) => {
+        const p = new PromiseStoppable((r, j) => {
             patchedRes = r; patchedRej = j;
         })
-        fn(patchedRes, patchedRej, (k) => p.#killer = k)
+        fn(patchedRes, patchedRej, (k) => p.#stopper = k)
         return p as any;
     }
 
-    static allKillable<HANDLE_RESULT_TYPE, T>(promises: PromiseKillable<T>[], handleResult: (results: T[]) => Promise<HANDLE_RESULT_TYPE>): PromiseKillable<HANDLE_RESULT_TYPE> {
-        return PromiseKillable.create(async (res, rej, setKiller) => {
-            setKiller(() => {
-                promises.forEach(p => p.kill());
+    static allStoppable<HANDLE_RESULT_TYPE, RES>(promises: PromiseStoppable<RES>[], handleResult: (results: RES[]) => Promise<HANDLE_RESULT_TYPE>): PromiseStoppable<HANDLE_RESULT_TYPE> {
+        return PromiseStoppable.create(async (res, rej, setStopper) => {
+            setStopper(() => {
+                promises.forEach(p => p.stop());
             })
             try {
                 const results = await Promise.all(promises);

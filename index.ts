@@ -1,6 +1,6 @@
 
 import * as child_process from "child_process"
-import { PromiseKillable } from "./promise-killable";
+import { PromiseStoppable } from "./promise-killable";
 
 export interface REG_SZ {
     type: 'REG_SZ';
@@ -217,7 +217,7 @@ const COLUMN_DELIMITER = '    ';
 const INDENTATION_FOR_ENTRY_VALUE = '    ';
 const INDENTATION_LENGTH_FOR_ENTRY_VALUE = INDENTATION_FOR_ENTRY_VALUE.length;
 
-function querySingle(queryParam: RegQuery): PromiseKillable<RegQuerySingleResult> {
+function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleResult> {
 
     const { queryKeyPath, queryOpts } = getQueryPathAndOpts(queryParam);
 
@@ -253,7 +253,7 @@ function querySingle(queryParam: RegQuery): PromiseKillable<RegQuerySingleResult
         if (typeof queryOpts.v === 'string') args.push(queryOpts.v);
     }
 
-    return PromiseKillable.create<RegQuerySingleResult>((resolve, reject, setKiller) => {
+    return PromiseStoppable.create<RegQuerySingleResult>((resolve, reject, setKiller) => {
 
         let proc: child_process.ChildProcess | null = null;
         let timer: NodeJS.Timeout | null = setTimeout(() => {
@@ -407,13 +407,13 @@ type VarArgsOrArray<T> = T[] | T[][];
  * @returns struct representing the registry entries
  */
 
-export function query(...queriesParam: VarArgsOrArray<RegQuery>): PromiseKillable<RegQueryResultBulk>
+export function query(...queriesParam: VarArgsOrArray<RegQuery>): PromiseStoppable<RegQueryResultBulk>
 {
     const flattened = queriesParam.flat();
     const queries = flattened.map(getQueryPathAndOpts);
     const promises = flattened.map(querySingle);
 
-    return PromiseKillable.allKillable<RegQueryResultBulk, RegQuerySingleResult>(promises, async (results)=>{
+    return PromiseStoppable.allStoppable(promises, async (results)=>{
         // Skipping the merge logic if just a single query.
         if(results.length === 1) {return {struct: results[0].struct, keysMissing: results[0]?.keyMissing ? [queries[0].queryKeyPath]:[]}}
     
@@ -462,7 +462,7 @@ async function main() {
                 s: true
             }
         )
-        // p.kill()
+        // p.stop()
         console.log(JSON.stringify(await p, null, 4));
     } catch (e) {
         console.error(e);
