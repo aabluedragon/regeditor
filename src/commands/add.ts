@@ -1,6 +1,6 @@
 import { execFile } from "child_process";
 import { PromiseStoppable } from "../promise-stoppable";
-import { RegAdd, RegType, RegValue } from "../types";
+import { COMMAND_NAMES, RegAdd, RegType, RegValue } from "../types";
 import { findCommonErrorInTrimmedStdErr, RegErrorUnknown } from "../errors";
 import { VarArgsOrArray } from "../utils";
 
@@ -48,7 +48,7 @@ function addSingle(a: RegAdd): PromiseStoppable<void> {
         proc.on('exit', code => {
             if (code !== 0) {
                 const trimmedStdErr = stderrStr.trim();
-                const commonError = findCommonErrorInTrimmedStdErr("ADD", trimmedStdErr);
+                const commonError = findCommonErrorInTrimmedStdErr(COMMAND_NAMES.ADD, trimmedStdErr);
                 if(commonError) return reject(commonError);
                 return reject(new RegErrorUnknown(stderrStr));
             }

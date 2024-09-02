@@ -1,7 +1,7 @@
 import { VarArgsOrArray } from "../utils";
 import { findCommonErrorInTrimmedStdErr, RegErrorUnknown } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
-import { RegDelete } from "../types";
+import { COMMAND_NAMES, RegDelete } from "../types";
 import { execFile } from "child_process"
 
 type RegDeleteResultSingle = {
@@ -30,7 +30,7 @@ function delSingle(d: RegDelete): PromiseStoppable<RegDeleteResultSingle> {
             if (code !== 0) {
                 const trimmed = stderrStr.trim();
                 if (trimmed === 'ERROR: The system was unable to find the specified registry key or value.') return resolve({ notFound: true });
-                const commonError = findCommonErrorInTrimmedStdErr("DELETE", trimmed);
+                const commonError = findCommonErrorInTrimmedStdErr(COMMAND_NAMES.DELETE, trimmed);
                 if(commonError) return reject(commonError);
                 return reject(new RegErrorUnknown(stderrStr));
             }

@@ -32,6 +32,13 @@ export interface REG_NONE {
     value?: null
 }
 
+export const COMMAND_NAMES = Object.freeze({
+    ADD: 'ADD',
+    QUERY: 'QUERY',
+    DELETE: 'DELETE'
+})
+export type COMMAND_NAME = typeof COMMAND_NAMES[keyof typeof COMMAND_NAMES];
+
 export type RegEntry = REG_SZ | REG_EXPAND_SZ | REG_DWORD | REG_QWORD | REG_MULTI_SZ | REG_BINARY | REG_NONE;
 export type RegType = RegEntry['type'];
 export type RegValue = RegEntry['value'];
