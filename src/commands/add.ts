@@ -1,7 +1,7 @@
 import { execFile } from "child_process";
 import { PromiseStoppable } from "../promise-stoppable";
 import { RegAdd, RegType, RegValue } from "../types";
-import { RegErrorAccessDenied, RegErrorInvalidKeyName, RegErrorInvalidSyntax, RegErrorUnknown } from "../errors";
+import { findCommonErrorInTrimmedStdErr, RegErrorUnknown } from "../errors";
 import { VarArgsOrArray } from "../utils";
 
 function serializeData(type: RegType, data: RegValue, separator: string): string | null {
@@ -48,9 +48,8 @@ function addSingle(a: RegAdd): PromiseStoppable<void> {
         proc.on('exit', code => {
             if (code !== 0) {
                 const trimmedStdErr = stderrStr.trim();
-                if (trimmedStdErr === 'ERROR: Invalid syntax.\r\nType "REG ADD /?" for usage.' || trimmedStdErr === 'ERROR: The parameter is incorrect.') return reject(new RegErrorInvalidSyntax(trimmedStdErr));
-                if (trimmedStdErr === 'ERROR: Access is denied.') return reject(new RegErrorAccessDenied(trimmedStdErr));
-                if (trimmedStdErr === 'ERROR: Invalid key name.\r\nType "REG ADD /?" for usage.') return reject(new RegErrorInvalidKeyName(trimmedStdErr));
+                const commonError = findCommonErrorInTrimmedStdErr("ADD", trimmedStdErr);
+                if(commonError) return reject(commonError);
                 return reject(new RegErrorUnknown(stderrStr));
             }
             const trimmedStdout = stdoutStr.trim();

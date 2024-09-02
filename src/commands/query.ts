@@ -1,4 +1,4 @@
-import { RegQueryErrorMalformedLine, RegErrorInvalidSyntax, RegQueryErrorTimeout, RegQueryErrorReadTooWide, RegErrorUnknown } from "../errors";
+import { RegQueryErrorMalformedLine, RegErrorInvalidSyntax, RegQueryErrorTimeout, RegQueryErrorReadTooWide, RegErrorUnknown, RegErrorInvalidKeyName, findCommonErrorInTrimmedStdErr } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
 import { RegType, RegValue, RegQuery, RegQuerySingleSingle, RegStruct, RegEntry, RegQueryResult } from "../types";
 import { getMinimumFoundIndex, VarArgsOrArray } from "../utils";
@@ -169,13 +169,15 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleSingl
             proc.on('exit', code => {
                 proc = null;
                 try {
-                    if (stdoutStr.trim() === 'End of search: 0 match(es) found.') return finishSuccess(); // string returned when using /f and having 0 results
                     if (code === 1) {
+                        if (stdoutStr.trim() === 'End of search: 0 match(es) found.') return finishSuccess(); // happens when using /f and having 0 results
                         const trimmedStdErr = stderrStr.trim();
                         if (trimmedStdErr === 'ERROR: The system was unable to find the specified registry key or value.') return finishSuccess(true);
-                        if (trimmedStdErr.startsWith('ERROR: Invalid syntax.')) throw new RegErrorInvalidSyntax(trimmedStdErr);
+                        const commonError = findCommonErrorInTrimmedStdErr("QUERY", trimmedStdErr);
+                        if (commonError) return reject(commonError);
+                        return reject(new RegErrorUnknown(stderrStr));
                     }
-                    if (code === null && stderrStr.length === 0) { throw new RegQueryErrorReadTooWide('Read too large') }
+                    if (code === null && stderrStr.length === 0) { throw new RegQueryErrorReadTooWide('Read too wide') }
                     if (code !== 0 || stderrStr) { throw new RegErrorUnknown(stderrStr || 'Failed to read registry') }
 
                     // Might happen if using the /f "somestr" argument, and there are 1 or more results.
