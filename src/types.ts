@@ -309,3 +309,10 @@ export type RegAdd = string | {
     ve?: boolean;
     v?: Omitted;
 }) & OptionsReg64Or32
+
+export type RegUpsertOpts = {
+    /**
+     * Delete values that were not given in the struct object.
+     */
+    deleteUnspecifiedValues?: boolean
+}

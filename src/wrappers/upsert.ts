@@ -1,5 +1,5 @@
 import { isEqual } from "../utils";
-import { RegStruct } from "../types";
+import { RegStruct, RegUpsertOpts } from "../types";
 import { add } from "../commands/add";
 import { query } from "../commands/query";
 import { del } from "../commands/delete";
@@ -11,12 +11,12 @@ function nameOrDefault(valueName: string) {
 // TODO convert to PromiseStoppable
 // TODO allow diffing without writing.
 
-// if enabled deleteUnspecifiedValues, should it also delete values in (Default) if missing?
+// if enabled deleteUnspecifiedValues, should it also delete values in (Default) if missing? or support to modes: 'all' and 'exceptDefault'
 
 /**
  * Merge the given object into the registry, only runs commands if changes were found (does one or more REG QUERY first for diffing)
  */
-export async function upsert(struct: RegStruct, { deleteUnspecifiedValues = false } = {}) {
+export async function upsert(struct: RegStruct, { deleteUnspecifiedValues = false }: RegUpsertOpts = {}) {
     const keyPaths = Object.keys(struct);
     const existingData = await query(keyPaths);
 
@@ -38,7 +38,7 @@ export async function upsert(struct: RegStruct, { deleteUnspecifiedValues = fals
             .map(([name, entry]) => add({ keyPath: k, data: entry, ...nameOrDefault(name) }));
 
         const deleteCommands = (!deleteUnspecifiedValues) ? [] :
-                 Object.entries(dataInExistingKey)
+            Object.entries(dataInExistingKey)
                 .filter(([name]) => !struct[k][name])
                 .map(([name]) => del({ keyPath: k, ...nameOrDefault(name) }));
 
