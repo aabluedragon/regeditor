@@ -4,20 +4,19 @@ import { RegAdd, RegType, RegValue } from "../types";
 import { RegErrorAccessDenied, RegErrorInvalidKeyName, RegErrorInvalidSyntax, RegErrorUnknown } from "../errors";
 import { VarArgsOrArray } from "../utils";
 
-function serializeData(type: RegType, data: RegValue, separator: string): string {
+function serializeData(type: RegType, data: RegValue, separator: string): string | null {
     switch (type) {
-        case 'REG_SZ':
-        case 'REG_EXPAND_SZ':
-            return data as string;
-        case 'REG_MULTI_SZ':
-            return (data as string[]).join(separator);
         case 'REG_DWORD':
         case 'REG_QWORD':
-            return data!.toString();
+        case 'REG_SZ':
+        case 'REG_EXPAND_SZ':
+            return `${data}`;
+        case 'REG_MULTI_SZ':
+            return (data as string[]).join(separator);
         case 'REG_BINARY':
             return (data as number[]).map(n => n.toString(16).padStart(2, '0')).join('');
         case 'REG_NONE':
-            return '';
+            return null;
     }
 }
 
@@ -31,7 +30,8 @@ function addSingle(a: RegAdd): PromiseStoppable<void> {
     if (opts.s) args.push('/s', opts.s);
     if (opts.data) {
         args.push('/t', opts.data.type);
-        args.push('/d', serializeData(opts.data.type, opts.data.value, opts.s || '\\0'));
+        if (opts.data.type !== 'REG_NONE')
+            args.push('/d', serializeData(opts.data.type, opts.data.value, opts.s || '\\0')!);
     }
     if (opts.v) args.push('/v', opts.v);
     if (opts.ve) args.push('/ve');
@@ -69,5 +69,5 @@ function addSingle(a: RegAdd): PromiseStoppable<void> {
  * @returns void when successful, throws an error when failed
  */
 export function add(...addCommands: VarArgsOrArray<RegAdd>): PromiseStoppable<void> {
-    return PromiseStoppable.allStoppable(addCommands.flat().map(addSingle), ()=>{});
+    return PromiseStoppable.allStoppable(addCommands.flat().map(addSingle), () => { });
 }

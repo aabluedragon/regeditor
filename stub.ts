@@ -33,8 +33,8 @@ async function main() {
             
             keyPath:"HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\DirectPlay\\Service Providers\\IPX Connection For DirectPlay",
             data: {
-                type: "REG_MULTI_SZ",
-                value: ["hello", "world"]
+                type: "REG_NONE",
+                value: null
             },
             v: "name"
         })
