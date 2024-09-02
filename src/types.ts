@@ -86,6 +86,13 @@ type OptionsReg64Or32 = ({
     reg32?: Omitted
 });
 
+type TimeoutOpt = {
+    /**
+     * Milliseconds to wait for the command to finish before rejecting the promise.
+     */
+    timeout?: number
+}
+
 type RegQueryBase = {
 
     /**
@@ -131,11 +138,6 @@ type RegQueryBase = {
     t?: RegType[] | RegType
 
     /**
-     * Milliseconds to wait for the command to finish before rejecting the promise.
-     */
-    timeout?: number
-
-    /**
      * If stumbled upon unexpected lines, continue parsing the rest of the lines (will still throw if stubled upon unrecoverable error).
      */
     bestEffort?: boolean
@@ -145,7 +147,7 @@ type RegQueryBase = {
      * Might be useful for long reads, e.g. when using the /s flag for recursive read.
      */
     onProgress?: (partialStruct: RegStruct, stop: () => void) => false | undefined | void
-}
+} & TimeoutOpt
 
 /**
  * Query for the "reg query" command
@@ -263,7 +265,7 @@ type RegDeleteVA = {
     va: boolean
 }
 
-export type RegDelete = { keyPath: string } & (RegDeleteV | RegDeleteVA | RegDeleteVE) & OptionsReg64Or32
+export type RegDelete = { keyPath: string } & (RegDeleteV | RegDeleteVA | RegDeleteVE) & OptionsReg64Or32 & TimeoutOpt
 
 export type RegAdd = string | {
     keyPath: string;
@@ -308,11 +310,16 @@ export type RegAdd = string | {
      */
     ve?: boolean;
     v?: Omitted;
-}) & OptionsReg64Or32
+}) & OptionsReg64Or32 & TimeoutOpt
 
 export type RegUpsertOpts = {
     /**
      * Delete values that were not given in the struct object.
      */
     deleteUnspecifiedValues?: boolean
-}
+} & TimeoutOpt
+
+/**
+ * Default timeout for all operations
+ */
+export const TimeoutDefault = 30000;

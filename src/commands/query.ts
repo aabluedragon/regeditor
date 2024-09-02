@@ -1,6 +1,6 @@
-import { RegQueryErrorMalformedLine, RegErrorInvalidSyntax, RegQueryErrorTimeout, RegQueryErrorReadTooWide, RegErrorUnknown, findCommonErrorInTrimmedStdErr } from "../errors";
+import { RegQueryErrorMalformedLine, RegErrorInvalidSyntax, RegQueryErrorReadTooWide, RegErrorUnknown, findCommonErrorInTrimmedStdErr } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
-import { RegType, RegValue, RegQuery, RegQuerySingleSingle, RegStruct, RegEntry, RegQueryResult, COMMAND_NAMES } from "../types";
+import { RegType, RegValue, RegQuery, RegQuerySingleSingle, RegStruct, RegEntry, RegQueryResult, COMMAND_NAMES, TimeoutDefault } from "../types";
 import { getMinimumFoundIndex, VarArgsOrArray } from "../utils";
 import { execFile, ChildProcess } from "child_process"
 
@@ -62,19 +62,12 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleSingl
     return PromiseStoppable.createStoppable<RegQuerySingleSingle>((_resolve, _reject, setKiller) => {
 
         let proc: ChildProcess | null = null;
-        let timer: NodeJS.Timeout | null = setTimeout(() => {
-            finish(new RegQueryErrorTimeout('Timeout'));
-        }, queryOpts.timeout || 30000);
-
 
         const obj = {} as RegStruct;
         let hadErrors = false;
         let currentKey = null as string | null;
 
         const finish = (resOrErr: RegQuerySingleSingle | Error) => {
-            if (timer === null) return;
-            clearTimeout(timer);
-            timer = null;
             if (proc) { proc.removeAllListeners(); proc.kill(); proc = null; }
             if (resOrErr instanceof Error) return _reject(resOrErr);
             _resolve(resOrErr);
@@ -87,7 +80,7 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleSingl
             finish(res);
         }
 
-        setKiller(finishSuccess);
+        setKiller(()=>finishSuccess());
 
         const bestEffort = queryOpts.bestEffort || false;
 
@@ -196,7 +189,7 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleSingl
         } catch (e) {
             finish(e as Error);
         }
-    });
+    }, queryOpts?.timeout ?? TimeoutDefault);
 }
 
 /**

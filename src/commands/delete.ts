@@ -1,7 +1,7 @@
 import { VarArgsOrArray } from "../utils";
 import { findCommonErrorInTrimmedStdErr, RegErrorUnknown } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
-import { COMMAND_NAMES, RegDelete } from "../types";
+import { COMMAND_NAMES, RegDelete, TimeoutDefault } from "../types";
 import { execFile } from "child_process"
 
 type RegDeleteResultSingle = {
@@ -20,7 +20,7 @@ function delSingle(d: RegDelete): PromiseStoppable<RegDeleteResultSingle> {
     return PromiseStoppable.createStoppable((resolve, reject, setStopper) => {
         const proc = execFile('reg', ['delete', d.keyPath, ...args]);
 
-        setStopper(proc.kill);
+        setStopper(()=>proc.kill());
 
         let stdoutStr = '', stderrStr = '';
         proc.stdout?.on('data', data => { stdoutStr += data.toString(); });
@@ -36,7 +36,7 @@ function delSingle(d: RegDelete): PromiseStoppable<RegDeleteResultSingle> {
             }
             resolve({});
         });
-    });
+    }, d?.timeout ?? TimeoutDefault);
 }
 
 

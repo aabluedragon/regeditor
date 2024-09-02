@@ -1,4 +1,4 @@
-import { query, del, add, upsert } from './src/index';
+import { query, del, add, write } from './src/index';
 
 async function main() {
     try {
@@ -8,9 +8,9 @@ async function main() {
         //         keyPath: 'HKEY_LOCAL_MACHINE\\Software\\Microsoft',
         //         // f: '*',
         //         // keyPath: 'HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node',
-        //         s: true,
+        //         // s: true,
         //         // keyPath: 'HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Lenovo\\MachineInfo',
-        //         timeout: 1000 * 60 * 60 * 2,
+        //         // timeout: 500,
         //         // reg64: true,
         //         // d: true,
         //     },
@@ -48,7 +48,7 @@ async function main() {
 
          */
 
-        upsert({
+        write({
             "HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\Microsoft\\DirectPlay\\Service Providers\\IPX Connection For DirectPlay": {
                 "(Default)": {type:"REG_SZ", value: "Akkkk"},
                 dwReserved1: {type:"REG_DWORD", value: 0x32},
