@@ -62,7 +62,7 @@ function addSingle(a: RegAdd): PromiseStoppable<void> {
 }
 
 /**
- * Wrapper around the REG ADD command.  
+ * Executes the REG ADD command.  
  * Adds keys and/or values to the registry.  
  * @param addCommands one or more REG ADD commands
  * @returns void when successful, throws an error when failed

@@ -269,7 +269,7 @@ export type RegAdd = string | {
     keyPath: string;
     
     /**
-     * Wrapper around /d Data and /t Type
+     * Passes the /d Data and /t Type arguments.
      * 
      * __msdocs for /d:__  
      * /d Data  

@@ -103,19 +103,16 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleSingl
                 while (true) {
                     // Tricky line splitting of output from "reg" tool, preventing some edge cases.
                     const nextValueInKey_Delimiter = `\r\n${INDENTATION_FOR_ENTRY_VALUE}`;
-                    const keyEnded_Delimiter = `\r\n\r\n${queryKeyPath}`; // if \r\n\r\n, make sure next row is a key (otherwise it might be some very long, but legitimate entry value, e.g. REG_SZ)
+                    const keyEnded_Delimiter = `\r\n${queryKeyPath}`; // if \r\n, make sure next row is a key (otherwise it might be some very long, but legitimate entry value, e.g. REG_SZ)
 
                     const { minIndex, chosenPattern } = getMinimumFoundIndex(stdoutStr, [nextValueInKey_Delimiter, keyEnded_Delimiter]);
                     if (minIndex === -1) break;
-                    const row = stdoutStr.substring(0, minIndex);
 
+                    const row = stdoutStr.substring(0, minIndex);
                     stdoutLines.push(row);
-                    if (chosenPattern === keyEnded_Delimiter) {
-                        stdoutLines.push('');
-                        stdoutStr = stdoutStr.substring(minIndex + 4);
-                    } else {
-                        stdoutStr = stdoutStr.substring(minIndex + 2);
-                    }
+
+                    if (chosenPattern === keyEnded_Delimiter) stdoutLines.push('');
+                    stdoutStr = stdoutStr.substring(minIndex + 2);
                 }
                 if (stdoutLines.length > 0) handleDataChunk(stdoutLines);
             });
@@ -204,7 +201,7 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleSingl
 
 /**
  * Execute one or more reg queries.  
- * Wrapper around the REG QUERY command.  
+ * Executes the REG QUERY command.  
  * @param queryParam one or more queries to perform
  * @returns struct representing the registry entries
  */
