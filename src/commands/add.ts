@@ -65,7 +65,7 @@ function addSingle(a: RegAdd): PromiseStoppable<void> {
 /**
  * Wrapper around the REG ADD command.  
  * Adds keys and/or values to the registry.  
- * @param addCommands one or more commands to add a registry key
+ * @param addCommands one or more REG ADD commands
  * @returns void when successful, throws an error when failed
  */
 export function add(...addCommands: VarArgsOrArray<RegAdd>): PromiseStoppable<void> {

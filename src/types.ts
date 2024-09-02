@@ -29,7 +29,7 @@ export interface REG_BINARY {
 }
 export interface REG_NONE {
     type: 'REG_NONE';
-    value: null
+    value?: null
 }
 
 export type RegEntry = REG_SZ | REG_EXPAND_SZ | REG_DWORD | REG_QWORD | REG_MULTI_SZ | REG_BINARY | REG_NONE;
