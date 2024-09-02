@@ -48,7 +48,8 @@ export type RegDeleteResult = {
 }
 
 /**
- * Delete one or more registry keys or values
+ * Delete one or more registry keys or values  
+ * Wrapper around the REG DELETE command.  
  * @param opts paramters for the REG DELETE command
  * @returns nothing. throws on errors such as access denied.
  */

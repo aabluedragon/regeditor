@@ -1,4 +1,4 @@
-import { RegQueryErrorMalformedLine, RegErrorInvalidSyntax, RegQueryErrorTimeout, RegQueryErrorStdoutTooLarge, RegErrorUnknown } from "../errors";
+import { RegQueryErrorMalformedLine, RegErrorInvalidSyntax, RegQueryErrorTimeout, RegQueryErrorReadTooWide, RegErrorUnknown } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
 import { RegType, RegValue, RegQuery, RegQuerySingleSingle, RegStruct, RegEntry, RegQueryResult } from "../types";
 import { getMinimumFoundIndex, VarArgsOrArray } from "../utils";
@@ -24,9 +24,8 @@ function parseRegValue(type: RegType, value: string | null, se: string): RegValu
 }
 
 function getQueryPathAndOpts(queryParam: RegQuery) {
-    const queryKeyPath = (typeof queryParam === 'string') ? queryParam : queryParam.keyPath;
-    const queryOpts: RegQuery = (typeof queryParam === 'string') ? { keyPath: queryKeyPath } : queryParam;
-    return { queryKeyPath, queryOpts };
+    const queryOpts: RegQuery = (typeof queryParam === 'string') ? { keyPath: queryParam } : queryParam;
+    return { queryOpts, queryKeyPath: queryOpts.keyPath };
 }
 
 const COLUMN_DELIMITER = '    ';
@@ -38,32 +37,19 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleSingl
     const { queryKeyPath, queryOpts } = getQueryPathAndOpts(queryParam);
 
     const args = [] as string[];
-    if (queryOpts.se) {
-        if (queryOpts.se.length !== 1) throw new RegErrorInvalidSyntax('/se must be a single character');
-        args.push('/se', queryOpts.se);;
-    }
-    if (queryOpts.t)
-        args.push('/t', Array.isArray(queryOpts.t) ? queryOpts.t.join(',') : queryOpts.t);
-    if (queryOpts.s)
-        args.push('/s');
-    if (queryOpts.f)
-        args.push('/f', queryOpts.f);
-    if (queryOpts.ve)
-        args.push('/ve');
-    if (queryOpts.reg32)
-        args.push('/reg:32');
-    if (queryOpts.reg64)
-        args.push('/reg:64');
+    if (queryOpts.se) args.push('/se', queryOpts.se);;
+    if (queryOpts.t) args.push('/t', Array.isArray(queryOpts.t) ? queryOpts.t.join(',') : queryOpts.t);
+    if (queryOpts.s) args.push('/s');
+    if (queryOpts.f) args.push('/f', queryOpts.f);
+    if (queryOpts.ve) args.push('/ve');
+    if (queryOpts.reg32) args.push('/reg:32');
+    if (queryOpts.reg64) args.push('/reg:64');
 
     if (queryOpts.f) { // Params that are only allowed in combination with /f
-        if (queryOpts.c)
-            args.push('/c');
-        if (queryOpts.e)
-            args.push('/e');
-        if (queryOpts.k)
-            args.push('/k');
-        if (queryOpts.d)
-            args.push('/d');
+        if (queryOpts.c) args.push('/c');
+        if (queryOpts.e) args.push('/e');
+        if (queryOpts.k) args.push('/k');
+        if (queryOpts.d) args.push('/d');
     }
 
     // NOTE! this arg must come last, because it might not have a value after (e.g. "/v somestr" should not be conflate with "/v /t" as if /t is the value for /v)
@@ -136,7 +122,7 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleSingl
 
             proc.stderr?.on('data', data => { stderrStr += data; })
 
-            function updateCurrentKey(key: string|null) {
+            function updateCurrentKey(key: string | null) {
                 if (currentKey && !obj[currentKey]) obj[currentKey] = {}; // When reading keys and not their entries, and not run in recursive mode (/s), still add the key names to the struct
                 currentKey = key;
             }
@@ -189,7 +175,7 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleSingl
                         if (trimmedStdErr === 'ERROR: The system was unable to find the specified registry key or value.') return finishSuccess(true);
                         if (trimmedStdErr.startsWith('ERROR: Invalid syntax.')) throw new RegErrorInvalidSyntax(trimmedStdErr);
                     }
-                    if (code === null && stderrStr.length === 0) { throw new RegQueryErrorStdoutTooLarge('Read too large') }
+                    if (code === null && stderrStr.length === 0) { throw new RegQueryErrorReadTooWide('Read too large') }
                     if (code !== 0 || stderrStr) { throw new RegErrorUnknown(stderrStr || 'Failed to read registry') }
 
                     // Might happen if using the /f "somestr" argument, and there are 1 or more results.
@@ -215,7 +201,8 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleSingl
 }
 
 /**
- * Execute one or more reg queries.
+ * Execute one or more reg queries.  
+ * Wrapper around the REG QUERY command.  
  * @param queryParam one or more queries to perform
  * @returns struct representing the registry entries
  */

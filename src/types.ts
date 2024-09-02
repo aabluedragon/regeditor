@@ -61,6 +61,23 @@ export type RegQueryResult = {
     hadErrors?: boolean
 }
 
+type OptionsReg64Or32 = ({
+    /**
+     * /reg:32  
+     * __msdocs:__  
+     * Specifies the key should be accessed using the 32-bit registry view.
+     */
+    reg32?: boolean
+    reg64?: Omitted
+} | {
+    /**
+     * /reg:64  
+     * __msdocs:__  
+     * Specifies the key should be accessed using the 64-bit registry view.
+     */
+    reg64?: boolean
+    reg32?: Omitted
+});
 
 type RegQueryBase = {
 
@@ -198,23 +215,7 @@ export type RegQuery = RegKey | (RegQueryBase & ({
     e?: Omitted
     d?: Omitted
     k?: Omitted
-}) & ({
-    /**
-     * /reg:32  
-     * __msdocs:__  
-     * Specifies the key should be accessed using the 32-bit registry view.
-     */
-    reg32?: boolean
-    reg64?: Omitted
-} | {
-    /**
-     * /reg:64  
-     * __msdocs:__  
-     * Specifies the key should be accessed using the 64-bit registry view.
-     */
-    reg64?: boolean
-    reg32?: Omitted
-}))
+}) & OptionsReg64Or32)
 
 type Omitted = never | false | undefined | null
 
@@ -255,22 +256,49 @@ type RegDeleteVA = {
     va: boolean
 }
 
-export type RegDelete = { keyPath: string } & (RegDeleteV | RegDeleteVA | RegDeleteVE) & ({
-    /**
-     * /reg:32  
-     * __msdocs:__
-     * Specifies the key should be accessed using the 32-bit registry view.
-     */
-    reg32?: boolean
+export type RegDelete = { keyPath: string } & (RegDeleteV | RegDeleteVA | RegDeleteVE) & OptionsReg64Or32
 
-    reg64?: Omitted
+export type RegAdd = string | {
+    keyPath: string;
+    
+    /**
+     * Wrapper around /d Data and /t Type
+     * 
+     * __msdocs for /d:__  
+     * /d Data  
+     * The data to assign to the registry ValueName being added.  
+     * 
+     * __msdocs for /t:__  
+     * /t Type  
+     * __msdocs:__  
+     * RegKey data types  
+     * [ REG_SZ    | REG_MULTI_SZ | REG_EXPAND_SZ |  
+     *   REG_DWORD | REG_QWORD    | REG_BINARY    | REG_NONE ]  
+     * If omitted, REG_SZ is assumed.
+     */
+    data?: RegEntry
+
+    /**
+     * /s Separator  
+     * __msdocs:__  
+     * Specify one character that you use as the separator in your data  
+     * string for REG_MULTI_SZ. If omitted, use "\0" as the separator.
+     */
+    s?: string
+} & ({
+    /**
+     * /v ValueName  
+     * __msdocs:__  
+     * The value name, under the selected Key, to add.
+     */
+    v?: string;
+    ve?: Omitted;
 } | {
     /**
-     * /reg:64  
-     * __msdocs:__
-     * Specifies the key should be accessed using the 64-bit registry view.
+     * /ve  
+     * __msdocs:__  
+     * adds an empty value name (Default) for the key.
      */
-    reg64?: boolean
-
-    reg32?: Omitted
-})
+    ve?: boolean;
+    v?: Omitted;
+}) & OptionsReg64Or32

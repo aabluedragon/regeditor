@@ -1,4 +1,4 @@
-import { query, del } from './src/index';
+import { query, del, add } from './src/index';
 
 async function main() {
     try {
@@ -20,9 +20,23 @@ async function main() {
         // const res = await p;
         // console.log(JSON.stringify(res, null, 4));
 
-        const p = del({
+        // const p = del({
+        //     keyPath:"HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\DirectPlay\\Service Providers\\IPX Connection For DirectPlay",
+        //     v:"name",
+        // })
+        // // p.stop();
+        // const res = await p;
+        // console.log(res)
+
+        // REG_MULTI_SZ
+        const p = add({
+            
             keyPath:"HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\DirectPlay\\Service Providers\\IPX Connection For DirectPlay",
-            v:"name",
+            data: {
+                type: "REG_MULTI_SZ",
+                value: ["hello", "world"]
+            },
+            v: "name"
         })
         // p.stop();
         const res = await p;
