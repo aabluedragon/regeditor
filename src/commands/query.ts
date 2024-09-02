@@ -1,4 +1,4 @@
-import { RegQueryErrorMalformedLine, RegErrorInvalidSyntax, RegQueryErrorTimeout, RegQueryErrorReadTooWide, RegErrorUnknown, RegErrorInvalidKeyName, findCommonErrorInTrimmedStdErr } from "../errors";
+import { RegQueryErrorMalformedLine, RegErrorInvalidSyntax, RegQueryErrorTimeout, RegQueryErrorReadTooWide, RegErrorUnknown, findCommonErrorInTrimmedStdErr } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
 import { RegType, RegValue, RegQuery, RegQuerySingleSingle, RegStruct, RegEntry, RegQueryResult, COMMAND_NAMES } from "../types";
 import { getMinimumFoundIndex, VarArgsOrArray } from "../utils";
@@ -59,7 +59,7 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleSingl
         else if (!queryOpts.f) throw new RegErrorInvalidSyntax('/v may only omit a string argument when used with /f');
     }
 
-    return PromiseStoppable.createStoppable<RegQuerySingleSingle>((resolve, reject, setKiller) => {
+    return PromiseStoppable.createStoppable<RegQuerySingleSingle>((_resolve, _reject, setKiller) => {
 
         let proc: ChildProcess | null = null;
         let timer: NodeJS.Timeout | null = setTimeout(() => {
@@ -76,8 +76,8 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleSingl
             clearTimeout(timer);
             timer = null;
             if (proc) { proc.removeAllListeners(); proc.kill(); proc = null; }
-            if (resOrErr instanceof Error) return reject(resOrErr);
-            resolve(resOrErr);
+            if (resOrErr instanceof Error) return _reject(resOrErr);
+            _resolve(resOrErr);
         }
 
         function finishSuccess(keyMissing = false) {
@@ -174,8 +174,8 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleSingl
                         const trimmedStdErr = stderrStr.trim();
                         if (trimmedStdErr === 'ERROR: The system was unable to find the specified registry key or value.') return finishSuccess(true);
                         const commonError = findCommonErrorInTrimmedStdErr(COMMAND_NAMES.QUERY, trimmedStdErr);
-                        if (commonError) return reject(commonError);
-                        return reject(new RegErrorUnknown(stderrStr));
+                        if (commonError) throw commonError;
+                        throw new RegErrorUnknown(stderrStr);
                     }
                     if (code === null && stderrStr.length === 0) { throw new RegQueryErrorReadTooWide('Read too wide') }
                     if (code !== 0 || stderrStr) { throw new RegErrorUnknown(stderrStr || 'Failed to read registry') }
