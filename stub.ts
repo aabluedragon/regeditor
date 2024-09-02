@@ -1,17 +1,4 @@
-import { del } from "./lib/commands/delete";
-import { query } from "./lib/commands/query";
-
-function write() {
-    // TODO
-}
-
-function ensure() {
-    // TODO
-}
-
-function batch() {
-    // TODO
-}
+import { query, del } from './src/index';
 
 async function main() {
     try {

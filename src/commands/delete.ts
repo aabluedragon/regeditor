@@ -1,4 +1,4 @@
-import { VarArgsOrArray } from "lib/utils";
+import { VarArgsOrArray } from "../utils";
 import { RegErrorAccessDenied, RegErrorInvalidSyntax, RegErrorUnknown } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
 import { RegDelete } from "../types";

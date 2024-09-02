@@ -136,7 +136,7 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleSingl
 
             proc.stderr?.on('data', data => { stderrStr += data; })
 
-            function updateCurrentKey(key: string) {
+            function updateCurrentKey(key: string|null) {
                 if (currentKey && !obj[currentKey]) obj[currentKey] = {}; // When reading keys and not their entries, and not run in recursive mode (/s), still add the key names to the struct
                 currentKey = key;
             }
@@ -171,12 +171,12 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleSingl
 
                     if ('function' === typeof queryOpts.onProgress && Object.keys(obj).length > 0) {
                         setTimeout(() => {
-                            const shouldStop = false === queryOpts.onProgress(obj, finishSuccess);
+                            const shouldStop = false === queryOpts?.onProgress?.(obj, finishSuccess);
                             if (shouldStop) finishSuccess()
                         })
                     }
                 } catch (error) {
-                    finish(error);
+                    finish(error as Error);
                 }
             }
 
@@ -205,11 +205,11 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleSingl
                     finishSuccess();
 
                 } catch (e) {
-                    finish(e);
+                    finish(e as Error);
                 }
             });
         } catch (e) {
-            finish(e);
+            finish(e as Error);
         }
     });
 }

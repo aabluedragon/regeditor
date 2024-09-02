@@ -2,12 +2,15 @@
   "name": "regeditor",
   "version": "0.5.0",
   "description": "A simplistic windows registry manager",
-  "main": "index.js",
+  "main": "lib/index",
+  "types": "lib/index.d.ts",
   "dependencies": {},
   "devDependencies": {
     "@types/node": "*"
   },
   "scripts": {
+    "prepare": "npm run build",
+    "build": "tsc --project tsconfig.json",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

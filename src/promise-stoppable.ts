@@ -13,7 +13,7 @@ export class PromiseStoppable<T> extends Promise<T> {
         const p = new PromiseStoppable<T>((r, j) => {
             patchedRes = r; patchedRej = j;
         })
-        fn(patchedRes, patchedRej, k => p.#stopper = k)
+        fn(patchedRes! as any, patchedRej!, k => p.#stopper = k)
         return p;
     }
 
