@@ -10,8 +10,6 @@ function nameOrDefault(valueName: string) {
     return { ...(valueName === `(Default)` ? { ve: true } : { v: valueName }) }
 }
 
-// TODO allow diffing without writing (just two reg structs, no need to perform REG QUERY commands)
-
 /**
  * Merge the given object into the registry, only runs commands if changes were found (does one or more REG QUERY first for diffing)
  */

@@ -2,6 +2,7 @@ export * from './commands/query';
 export * from './commands/add';
 export * from './commands/delete';
 export * from './wrappers/write';
+export * from './tools/compare';
 export * from './errors';
 export * from './types';
 export * from './promise-stoppable';

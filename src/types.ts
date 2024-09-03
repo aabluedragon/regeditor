@@ -320,3 +320,31 @@ export type RegUpsertOpts = {
      */
     deleteUnspecifiedValues?: false | "all" | "allExceptDefault" | "onlyDefault" | ((key: string, name: string, value: RegEntry) => boolean)
 } & TimeoutOpt
+
+/**
+ * Result of comparing two registry structs.
+ */
+export type RegCompareResult = {
+    /**
+     * Keys that exists in both previous and next, but have differences in one or more of their values.
+     */
+    changedKeys: {
+        [keyPath: string]: {
+            [valueName: string]: (
+                { op: 'removed', previous: RegEntry, next?: Omitted } |
+                { op: 'added', previous?: Omitted, next: RegEntry } |
+                { op: 'updated', previous: RegEntry, next: RegEntry }
+            )
+        }
+    }
+
+    /**
+     * Keys existing in previous, but not in next.
+     */
+    removedKeys: RegStruct;
+
+    /**
+     * Keys existing in next, but not in previous.
+     */
+    addedKeys: RegStruct;
+}
