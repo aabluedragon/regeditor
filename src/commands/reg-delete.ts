@@ -1,15 +1,15 @@
 import { VarArgsOrArray } from "../utils";
 import { findCommonErrorInTrimmedStdErr, RegErrorUnknown } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
-import { RegDelete } from "../types";
+import { RegDeleteCmd, RegDeleteCmdResult } from "../types";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
 import { execFile } from "child_process"
 
-type RegDeleteResultSingle = {
+type RegDeleteCmdResultSingle = {
     notFound?: boolean
 }
 
-function delSingle(d: RegDelete): PromiseStoppable<RegDeleteResultSingle> {
+function regDeleteSingle(d: RegDeleteCmd): PromiseStoppable<RegDeleteCmdResultSingle> {
 
     const args = ['/f'] as string[];
     if (d.reg32) args.push('/reg:32');
@@ -40,24 +40,16 @@ function delSingle(d: RegDelete): PromiseStoppable<RegDeleteResultSingle> {
     }, d?.timeout ?? TIMEOUT_DEFAULT);
 }
 
-
-export type RegDeleteResult = {
-    notFound: {
-        commandObject: RegDelete,
-        commandIndex: number,
-    }[]
-}
-
 /**
  * Delete one or more registry keys or values  
  * Executes the REG DELETE command.  
  * @param opts paramters for the REG DELETE command
  * @returns nothing. throws on errors such as access denied.
  */
-export function del(...opts: VarArgsOrArray<RegDelete>): PromiseStoppable<RegDeleteResult> {
+export function regDelete(...opts: VarArgsOrArray<RegDeleteCmd>): PromiseStoppable<RegDeleteCmdResult> {
     const requests = opts.flat();
-    return PromiseStoppable.allStoppable(requests.map(delSingle), res => {
-        const response: RegDeleteResult = { notFound: [] };
+    return PromiseStoppable.allStoppable(requests.map(regDeleteSingle), res => {
+        const response: RegDeleteCmdResult = { notFound: [] };
 
         for (let i = 0; i < res.length; i++) {
             if (res[i].notFound) response.notFound.push({

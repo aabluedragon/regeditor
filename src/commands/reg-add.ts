@@ -1,6 +1,6 @@
 import { execFile } from "child_process";
 import { PromiseStoppable } from "../promise-stoppable";
-import { RegAdd, RegType, RegData } from "../types";
+import { RegAddCmd, RegType, RegData } from "../types";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
 import { findCommonErrorInTrimmedStdErr, RegErrorInvalidSyntax, RegErrorUnknown } from "../errors";
 import { VarArgsOrArray } from "../utils";
@@ -23,7 +23,7 @@ function serializeData(type: RegType, data: RegData, separator: string): string 
     }
 }
 
-function addSingle(a: RegAdd): PromiseStoppable<void> {
+function regAddSingle(a: RegAddCmd): PromiseStoppable<void> {
     const opts = typeof a === 'string' ? { keyPath: a } : a;
     return PromiseStoppable.createStoppable((resolve, reject, setStopper) => {
         try {
@@ -72,6 +72,6 @@ function addSingle(a: RegAdd): PromiseStoppable<void> {
  * @param addCommands one or more REG ADD commands
  * @returns void when successful, throws an error when failed
  */
-export function add(...addCommands: VarArgsOrArray<RegAdd>): PromiseStoppable<void> {
-    return PromiseStoppable.allStoppable(addCommands.flat().map(addSingle), () => { });
+export function regAdd(...addCommands: VarArgsOrArray<RegAddCmd>): PromiseStoppable<void> {
+    return PromiseStoppable.allStoppable(addCommands.flat().map(regAddSingle), () => { });
 }

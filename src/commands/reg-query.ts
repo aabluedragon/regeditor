@@ -1,9 +1,19 @@
 import { RegQueryErrorMalformedLine, RegErrorInvalidSyntax, RegQueryErrorReadTooWide, RegErrorUnknown, findCommonErrorInTrimmedStdErr } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
-import { RegType, RegData, RegQuery, RegQuerySingleSingle, RegStruct, RegValue, RegQueryResult } from "../types";
+import { RegType, RegData, RegQueryCmd, RegStruct, RegValue, RegQueryCmdResult } from "../types";
 import { getMinimumFoundIndex, VarArgsOrArray } from "../utils";
 import { execFile, ChildProcess } from "child_process"
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
+
+type RegQueryCmdResultSingle = {
+    struct: RegStruct,
+    keyMissing?: boolean
+
+    /**
+     * May be set to true only if "bestEffort" is set to true in the query and errors were found
+     */
+    hadErrors?: boolean
+};
 
 function parseRegValue(type: RegType, value: string | null, se: string): RegData {
     if (type === 'REG_DWORD' || type === 'REG_QWORD') {
@@ -24,8 +34,8 @@ function parseRegValue(type: RegType, value: string | null, se: string): RegData
     } else throw new RegQueryErrorMalformedLine('Unknown REG type: ' + type);
 }
 
-function getQueryPathAndOpts(queryParam: RegQuery) {
-    const queryOpts: RegQuery = (typeof queryParam === 'string') ? { keyPath: queryParam } : queryParam;
+function getQueryPathAndOpts(queryParam: RegQueryCmd) {
+    const queryOpts: RegQueryCmd = (typeof queryParam === 'string') ? { keyPath: queryParam } : queryParam;
     return { queryOpts, queryKeyPath: queryOpts.keyPath };
 }
 
@@ -33,7 +43,7 @@ const COLUMN_DELIMITER = '    ';
 const INDENTATION_FOR_ENTRY_VALUE = '    ';
 const INDENTATION_LENGTH_FOR_ENTRY_VALUE = INDENTATION_FOR_ENTRY_VALUE.length;
 
-function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleSingle> {
+function regQuerySingle(queryParam: RegQueryCmd): PromiseStoppable<RegQueryCmdResultSingle> {
 
     const { queryKeyPath, queryOpts } = getQueryPathAndOpts(queryParam);
 
@@ -60,7 +70,7 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleSingl
         else if (!queryOpts.f) throw new RegErrorInvalidSyntax('/v may only omit a string argument when used with /f');
     }
 
-    return PromiseStoppable.createStoppable<RegQuerySingleSingle>((_resolve, _reject, setKiller) => {
+    return PromiseStoppable.createStoppable<RegQueryCmdResultSingle>((_resolve, _reject, setKiller) => {
 
         let proc: ChildProcess | null = null;
 
@@ -68,14 +78,14 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleSingl
         let hadErrors = false;
         let currentKey = null as string | null;
 
-        const finish = (resOrErr: RegQuerySingleSingle | Error) => {
+        const finish = (resOrErr: RegQueryCmdResultSingle | Error) => {
             if (proc) { proc.removeAllListeners(); proc.kill(); proc = null; }
             if (resOrErr instanceof Error) return _reject(resOrErr);
             _resolve(resOrErr);
         }
 
         function finishSuccess(keyMissing = false) {
-            const res: RegQuerySingleSingle = { struct: obj };
+            const res: RegQueryCmdResultSingle = { struct: obj };
             if (keyMissing) res.keyMissing = true;
             if (hadErrors) res.hadErrors = true;
             finish(res);
@@ -199,10 +209,10 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleSingl
  * @param queryParam one or more queries to perform
  * @returns struct representing the registry entries
  */
-export function query(...queriesParam: VarArgsOrArray<RegQuery>): PromiseStoppable<RegQueryResult> {
+export function regQuery(...queriesParam: VarArgsOrArray<RegQueryCmd>): PromiseStoppable<RegQueryCmdResult> {
     const flattened = queriesParam.flat();
     const queries = flattened.map(getQueryPathAndOpts);
-    const promises = flattened.map(querySingle);
+    const promises = flattened.map(regQuerySingle);
 
     return PromiseStoppable.allStoppable(promises, async (results) => {
         // Skipping the merge logic if just a single query.

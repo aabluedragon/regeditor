@@ -44,17 +44,7 @@ export type RegName = string;
 export type RegValues = Record<RegName, RegValue>
 export type RegStruct = Record<RegKey, RegValues>
 
-export type RegQuerySingleSingle = {
-    struct: RegStruct,
-    keyMissing?: boolean
-
-    /**
-     * May be set to true only if "bestEffort" is set to true in the query and errors were found
-     */
-    hadErrors?: boolean
-};
-
-export type RegQueryResult = {
+export type RegQueryCmdResult = {
     struct: RegStruct,
     keysMissing: string[],
 
@@ -62,6 +52,13 @@ export type RegQueryResult = {
      * May be set to true only if "bestEffort" is set to true in the query and errors were found
      */
     hadErrors?: boolean
+}
+
+export type RegDeleteCmdResult = {
+    notFound: {
+        commandObject: RegDeleteCmd,
+        commandIndex: number,
+    }[]
 }
 
 type OptionsReg64Or32 = ({
@@ -89,7 +86,7 @@ type TimeoutOpt = {
     timeout?: number
 }
 
-type RegQueryBase = {
+type RegQueryCmdBase = {
 
     /**
      * The registry key path to read from, e.g. "HKLM\\SOFTWARE\\Apple Inc.\\Bonjour"
@@ -146,9 +143,10 @@ type RegQueryBase = {
 } & TimeoutOpt
 
 /**
- * Query for the "reg query" command
+ * REG QUERY: A command to query (read) registry values.  
+ * The executable path is usually C:\Windows\System32\reg.exe
  */
-export type RegQuery = RegKey | (RegQueryBase & ({
+export type RegQueryCmd = RegKey | (RegQueryCmdBase & ({
     // Params that can only be used in mode /f
 
     /**
@@ -261,9 +259,30 @@ type RegDeleteVA = {
     va: boolean
 }
 
-export type RegDelete = { keyPath: string } & (RegDeleteV | RegDeleteVA | RegDeleteVE) & OptionsReg64Or32 & TimeoutOpt
+/**
+ * REG DELETE: A command to delete registry keys and values.  
+ * The executable path is usually C:\Windows\System32\reg.exe
+ */
+export type RegDeleteCmd = { keyPath: string } & (RegDeleteV | RegDeleteVA | RegDeleteVE) & OptionsReg64Or32 & TimeoutOpt
 
-export type RegAdd = string | {
+export type RegImportCmdOpts = {
+    /**
+     * The path to the .reg file to import.
+     */
+    fileName: string
+} & OptionsReg64Or32 & TimeoutOpt
+
+/**
+ * REG IMPORT A single command to mutate multiple registry keys and values.  
+ * The executable path is usually C:\Windows\System32\reg.exe
+ */
+export type RegImportCmd = string | RegImportCmdOpts
+
+/**
+ * REG ADD: A command to add registry keys and values.  
+ * The executable path is usually C:\Windows\System32\reg.exe
+ */
+export type RegAddCmd = string | {
     keyPath: string;
 
     /**
@@ -308,7 +327,7 @@ export type RegAdd = string | {
     v?: Omitted;
 }) & OptionsReg64Or32 & TimeoutOpt
 
-export type RegUpsertOpts = {
+export type RegWriteOpts = {
     /**
      * Delete values that were found in existing key but not given in the new struct object.
      * 
