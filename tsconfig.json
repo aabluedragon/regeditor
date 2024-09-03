@@ -12,7 +12,6 @@
     "strict": true,
     "esModuleInterop": true,
     "strictNullChecks": true,
-    "baseUrl": "./src",
     "paths": {
       "*": ["./typings/*"]
     },
