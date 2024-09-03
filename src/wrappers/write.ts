@@ -1,8 +1,9 @@
 import { isEqual } from "../utils";
-import { RegStruct, RegUpsertOpts, TimeoutDefault } from "../types";
+import { RegStruct, RegUpsertOpts } from "../types";
 import { add } from "../commands/add";
 import { query } from "../commands/query";
 import { del } from "../commands/delete";
+import { TIMEOUT_DEFAULT } from "../constants";
 
 function nameOrDefault(valueName: string) {
     return { ...(valueName === `(Default)` ? { ve: true } : { v: valueName }) }
@@ -10,12 +11,11 @@ function nameOrDefault(valueName: string) {
 
 // TODO convert to PromiseStoppable
 // TODO allow diffing without writing (just two reg structs, no need to perform REG QUERY commands)
-// if enabled deleteUnspecifiedValues, should it also delete values in (Default) if missing? or support to modes: 'any' and 'anyExceptDefault'
 
 /**
  * Merge the given object into the registry, only runs commands if changes were found (does one or more REG QUERY first for diffing)
  */
-export async function write(struct: RegStruct, { deleteUnspecifiedValues = false, timeout = TimeoutDefault }: RegUpsertOpts = {}) {
+export async function write(struct: RegStruct, { deleteUnspecifiedValues = false, timeout = TIMEOUT_DEFAULT }: RegUpsertOpts = {}) {
     const keyPaths = Object.keys(struct);
 
     const timeStarted = Date.now();
@@ -41,7 +41,12 @@ export async function write(struct: RegStruct, { deleteUnspecifiedValues = false
 
         const deleteCommands = (!deleteUnspecifiedValues) ? [] :
             Object.entries(dataInExistingKey)
-                .filter(([name]) => !struct[k][name])
+                .filter(([name]) => !struct[k][name] && deleteUnspecifiedValues) // Get existing values that are not specified in the new struct
+                .filter(([name]) =>
+                    deleteUnspecifiedValues === 'all' ||
+                    (deleteUnspecifiedValues === 'allExceptDefault' && name !== `(Default)`) ||
+                    (deleteUnspecifiedValues === 'onlyDefault' && name === `(Default)`) ||
+                    (typeof deleteUnspecifiedValues === 'function' && deleteUnspecifiedValues(k, name, dataInExistingKey[name])))
                 .map(([name]) => del({ keyPath: k, ...nameOrDefault(name), timeout: timeleft }));
 
         return [...updateValuesCommands, ...deleteCommands];

@@ -1,8 +1,9 @@
 import { RegQueryErrorMalformedLine, RegErrorInvalidSyntax, RegQueryErrorReadTooWide, RegErrorUnknown, findCommonErrorInTrimmedStdErr } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
-import { RegType, RegValue, RegQuery, RegQuerySingleSingle, RegStruct, RegEntry, RegQueryResult, COMMAND_NAMES, TimeoutDefault } from "../types";
+import { RegType, RegValue, RegQuery, RegQuerySingleSingle, RegStruct, RegEntry, RegQueryResult } from "../types";
 import { getMinimumFoundIndex, VarArgsOrArray } from "../utils";
 import { execFile, ChildProcess } from "child_process"
+import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
 
 function parseRegValue(type: RegType, value: string | null, se: string): RegValue {
     if (type === 'REG_DWORD' || type === 'REG_QWORD') {
@@ -80,7 +81,7 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleSingl
             finish(res);
         }
 
-        setKiller(()=>finishSuccess());
+        setKiller(() => finishSuccess());
 
         const bestEffort = queryOpts.bestEffort || false;
 
@@ -189,7 +190,7 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleSingl
         } catch (e) {
             finish(e as Error);
         }
-    }, queryOpts?.timeout ?? TimeoutDefault);
+    }, queryOpts?.timeout ?? TIMEOUT_DEFAULT);
 }
 
 /**

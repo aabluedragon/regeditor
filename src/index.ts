@@ -6,3 +6,4 @@ export * from './errors';
 export * from './types';
 export * from './promise-stoppable';
 export * from './utils';
+export * from './constants';

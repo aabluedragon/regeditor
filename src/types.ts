@@ -1,3 +1,4 @@
+import { COMMAND_NAMES } from "./constants";
 
 export interface REG_SZ {
     type: 'REG_SZ';
@@ -32,11 +33,6 @@ export interface REG_NONE {
     value?: null
 }
 
-export const COMMAND_NAMES = Object.freeze({
-    ADD: 'ADD',
-    QUERY: 'QUERY',
-    DELETE: 'DELETE'
-})
 export type COMMAND_NAME = typeof COMMAND_NAMES[keyof typeof COMMAND_NAMES];
 
 export type RegEntry = REG_SZ | REG_EXPAND_SZ | REG_DWORD | REG_QWORD | REG_MULTI_SZ | REG_BINARY | REG_NONE;
@@ -269,7 +265,7 @@ export type RegDelete = { keyPath: string } & (RegDeleteV | RegDeleteVA | RegDel
 
 export type RegAdd = string | {
     keyPath: string;
-    
+
     /**
      * Passes the /d Data and /t Type arguments.
      * 
@@ -314,12 +310,13 @@ export type RegAdd = string | {
 
 export type RegUpsertOpts = {
     /**
-     * Delete values that were not given in the struct object.
+     * Delete values that were found in existing key but not given in the new struct object.
+     * 
+     * * false: don't delete any values (leave them as they are, this is the default).  
+     * * "all": delete all values that were found in the existing key but not in the given struct object.  
+     * * "allExceptDefault": delete all values that were found in the existing key but not in the given struct object, except the "(Default)" value.  
+     * * "onlyDefault": delete only the "(Default)" value if it was found in the existing key but not in the given struct object.  
+     * * function: a function that takes in the the existing key and value, and returns true if the value should be deleted (allows deciding upon deletions on the fly).  
      */
-    deleteUnspecifiedValues?: boolean
+    deleteUnspecifiedValues?: false | "all" | "allExceptDefault" | "onlyDefault" | ((key: string, name: string, value: RegEntry) => boolean)
 } & TimeoutOpt
-
-/**
- * Default timeout for all operations
- */
-export const TimeoutDefault = 30000;

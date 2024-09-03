@@ -1,7 +1,8 @@
 import { VarArgsOrArray } from "../utils";
 import { findCommonErrorInTrimmedStdErr, RegErrorUnknown } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
-import { COMMAND_NAMES, RegDelete, TimeoutDefault } from "../types";
+import { RegDelete } from "../types";
+import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
 import { execFile } from "child_process"
 
 type RegDeleteResultSingle = {
@@ -36,7 +37,7 @@ function delSingle(d: RegDelete): PromiseStoppable<RegDeleteResultSingle> {
             }
             resolve({});
         });
-    }, d?.timeout ?? TimeoutDefault);
+    }, d?.timeout ?? TIMEOUT_DEFAULT);
 }
 
 

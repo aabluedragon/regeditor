@@ -1,6 +1,7 @@
 import { execFile } from "child_process";
 import { PromiseStoppable } from "../promise-stoppable";
-import { COMMAND_NAMES, RegAdd, RegType, RegValue, TimeoutDefault } from "../types";
+import { RegAdd, RegType, RegValue } from "../types";
+import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
 import { findCommonErrorInTrimmedStdErr, RegErrorInvalidSyntax, RegErrorUnknown } from "../errors";
 import { VarArgsOrArray } from "../utils";
 
@@ -62,7 +63,7 @@ function addSingle(a: RegAdd): PromiseStoppable<void> {
         } catch (e) {
             reject(e)
         }
-    }, opts?.timeout ?? TimeoutDefault);
+    }, opts?.timeout ?? TIMEOUT_DEFAULT);
 }
 
 /**
