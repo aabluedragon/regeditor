@@ -7,7 +7,4 @@ export const COMMAND_NAMES = Object.freeze({
     DELETE: 'DELETE'
 })
 
-/**
- * Default timeout for all operations
- */
 export const TIMEOUT_DEFAULT = 30000;

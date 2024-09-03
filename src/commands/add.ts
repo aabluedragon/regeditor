@@ -1,11 +1,11 @@
 import { execFile } from "child_process";
 import { PromiseStoppable } from "../promise-stoppable";
-import { RegAdd, RegType, RegValue } from "../types";
+import { RegAdd, RegType, RegData } from "../types";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
 import { findCommonErrorInTrimmedStdErr, RegErrorInvalidSyntax, RegErrorUnknown } from "../errors";
 import { VarArgsOrArray } from "../utils";
 
-function serializeData(type: RegType, data: RegValue, separator: string): string | null {
+function serializeData(type: RegType, data: RegData, separator: string): string | null {
     switch (type) {
         case 'REG_DWORD':
         case 'REG_QWORD':
@@ -31,10 +31,10 @@ function addSingle(a: RegAdd): PromiseStoppable<void> {
             if (opts.reg32) args.push('/reg:32');
             if (opts.reg64) args.push('/reg:64');
             if (opts.s) args.push('/s', opts.s);
-            if (opts.data) {
-                args.push('/t', opts.data.type);
-                if (opts.data.type !== 'REG_NONE')
-                    args.push('/d', serializeData(opts.data.type, opts.data.value, opts.s || '\\0')!);
+            if (opts.value) {
+                args.push('/t', opts.value.type);
+                if (opts.value.type !== 'REG_NONE')
+                    args.push('/d', serializeData(opts.value.type, opts.value.data, opts.s || '\\0')!);
             }
             if (opts.v) args.push('/v', opts.v);
             if (opts.ve) args.push('/ve');

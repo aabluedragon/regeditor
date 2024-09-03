@@ -2,47 +2,47 @@ import { COMMAND_NAMES } from "./constants";
 
 export interface REG_SZ {
     type: 'REG_SZ';
-    value: string;
+    data: string;
 }
 export interface REG_EXPAND_SZ {
     type: 'REG_EXPAND_SZ';
-    value: string;
+    data: string;
 }
 
 export interface REG_DWORD {
     type: 'REG_DWORD';
-    value: number;
+    data: number;
 }
 
 export interface REG_QWORD {
     type: 'REG_QWORD';
-    value: number;
+    data: number;
 }
 
 export interface REG_MULTI_SZ {
     type: 'REG_MULTI_SZ';
-    value: string[];
+    data: string[];
 }
 
 export interface REG_BINARY {
     type: 'REG_BINARY';
-    value: number[];
+    data: number[];
 }
 export interface REG_NONE {
     type: 'REG_NONE';
-    value?: null
+    data?: null
 }
 
 export type COMMAND_NAME = typeof COMMAND_NAMES[keyof typeof COMMAND_NAMES];
 
-export type RegEntry = REG_SZ | REG_EXPAND_SZ | REG_DWORD | REG_QWORD | REG_MULTI_SZ | REG_BINARY | REG_NONE;
-export type RegType = RegEntry['type'];
-export type RegValue = RegEntry['value'];
+export type RegValue = REG_SZ | REG_EXPAND_SZ | REG_DWORD | REG_QWORD | REG_MULTI_SZ | REG_BINARY | REG_NONE;
+export type RegType = RegValue['type'];
+export type RegData = RegValue['data'];
 
 export type RegKey = string;
 export type RegName = string;
-export type RegDictionary = Record<RegName, RegEntry>
-export type RegStruct = Record<RegKey, RegDictionary>
+export type RegValues = Record<RegName, RegValue>
+export type RegStruct = Record<RegKey, RegValues>
 
 export type RegQuerySingleSingle = {
     struct: RegStruct,
@@ -281,7 +281,7 @@ export type RegAdd = string | {
      *   REG_DWORD | REG_QWORD    | REG_BINARY    | REG_NONE ]  
      * If omitted, REG_SZ is assumed.
      */
-    data?: RegEntry
+    value?: RegValue
 
     /**
      * /s Separator  
@@ -318,7 +318,7 @@ export type RegUpsertOpts = {
      * * "onlyDefault": delete only the "(Default)" value if it was found in the existing key but not in the given struct object.  
      * * function: a function that takes in the the existing key and value, and returns true if the value should be deleted (allows deciding upon deletions on the fly).  
      */
-    deleteUnspecifiedValues?: false | "all" | "allExceptDefault" | "onlyDefault" | ((key: string, name: string, value: RegEntry) => boolean)
+    deleteUnspecifiedValues?: false | "all" | "allExceptDefault" | "onlyDefault" | ((key: string, name: string, value: RegValue) => boolean)
 } & TimeoutOpt
 
 /**
@@ -331,9 +331,9 @@ export type RegCompareResult = {
     changedKeys: {
         [keyPath: string]: {
             [valueName: string]: (
-                { op: 'removed', previous: RegEntry, next?: Omitted } |
-                { op: 'added', previous?: Omitted, next: RegEntry } |
-                { op: 'updated', previous: RegEntry, next: RegEntry }
+                { op: 'removed', previous: RegValue, next?: Omitted } |
+                { op: 'added', previous?: Omitted, next: RegValue } |
+                { op: 'updated', previous: RegValue, next: RegValue }
             )
         }
     }

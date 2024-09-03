@@ -26,17 +26,17 @@ export function write(struct: RegStruct, { deleteUnspecifiedValues = false, time
             if (!Object.keys(values).length)
                 return add({ keyPath: k, timeout: timeleft }); // no values specified, just create key
             else
-                return Object.entries(values).map(([v, data]) => add({ keyPath: k, data, ...nameOrDefault(v), timeout: timeleft }))
+                return Object.entries(values).map(([v, value]) => add({ keyPath: k, value, ...nameOrDefault(v), timeout: timeleft }))
         }).flat();
 
         const existingKeysToUpdate = Object.keys(struct).filter(k => existingData.keysMissing.indexOf(k) === -1);
         const addUpdateAndDeleteCommands = existingKeysToUpdate.map(k => {
             const dataInExistingKey = existingData.struct[k];
-            const entriesInNewDict = Object.entries(struct[k]);
+            const entriesInNewValues = Object.entries(struct[k]);
 
-            const updateValuesCommands = entriesInNewDict
+            const updateValuesCommands = entriesInNewValues
                 .filter(([name, entry]) => !isEqual(dataInExistingKey[name], entry))
-                .map(([name, entry]) => add({ keyPath: k, data: entry, ...nameOrDefault(name), timeout: timeleft }));
+                .map(([name, value]) => add({ keyPath: k, value, ...nameOrDefault(name), timeout: timeleft }));
 
             const deleteCommands = (!deleteUnspecifiedValues) ? [] :
                 Object.entries(dataInExistingKey)

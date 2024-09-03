@@ -1,11 +1,11 @@
 import { RegQueryErrorMalformedLine, RegErrorInvalidSyntax, RegQueryErrorReadTooWide, RegErrorUnknown, findCommonErrorInTrimmedStdErr } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
-import { RegType, RegValue, RegQuery, RegQuerySingleSingle, RegStruct, RegEntry, RegQueryResult } from "../types";
+import { RegType, RegData, RegQuery, RegQuerySingleSingle, RegStruct, RegValue, RegQueryResult } from "../types";
 import { getMinimumFoundIndex, VarArgsOrArray } from "../utils";
 import { execFile, ChildProcess } from "child_process"
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
 
-function parseRegValue(type: RegType, value: string | null, se: string): RegValue {
+function parseRegValue(type: RegType, value: string | null, se: string): RegData {
     if (type === 'REG_DWORD' || type === 'REG_QWORD') {
         if (value == null) throw new RegQueryErrorMalformedLine('Value is null for ' + type);
         return parseInt(value, 16);
@@ -137,8 +137,8 @@ function querySingle(queryParam: RegQuery): PromiseStoppable<RegQuerySingleSingl
                             const type = val[1] as RegType;
                             const valueInStr = val?.[2] || null;
                             try {
-                                const value = parseRegValue(type, valueInStr, queryOpts?.se || '\\0');
-                                obj[currentKey][name] = { type, value } as RegEntry;
+                                const data = parseRegValue(type, valueInStr, queryOpts?.se || '\\0');
+                                obj[currentKey][name] = { type, data } as RegValue;
                             } catch (e) {
                                 if (!bestEffort) throw e;
                                 else { hadErrors = true; };
