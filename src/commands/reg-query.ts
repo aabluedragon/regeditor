@@ -101,14 +101,13 @@ function regQuerySingle(queryParam: RegQueryCmd): PromiseStoppable<RegQueryCmdRe
 
             let stdoutStr: string = '', stderrStr = '';
 
+            // Verbose line splitting part.
+            const nextValueInKey_Delimiter = new RegExp(`\r\n${INDENTATION_FOR_ENTRY_VALUE}.*(${REG_TYPES_ALL.join('|')}).*\r\n`);
+            const newKeyAfterKeyEmpty_Delimiter = new RegExp(`\r\n${regexEscape(queryKeyPath)}.*\r\n`, 'i');
+            const newKeyAfterKeyValuesFinished = new RegExp(`\r\n\r\n${regexEscape(queryKeyPath)}.*\r\n`, 'i'); // if \r\n\r\n, make sure next row is a key (otherwise it might be some very long, but legitimate entry value, e.g. REG_SZ)
             function parseStdout() {
                 const stdoutLines: string[] = [];
                 while (true) {
-                    // Tricky line splitting of output from "reg" tool, preventing some edge cases.
-                    const nextValueInKey_Delimiter = new RegExp(`\r\n${INDENTATION_FOR_ENTRY_VALUE}.*(${REG_TYPES_ALL.join('|')}).*\r\n`);
-                    const newKeyAfterKeyEmpty_Delimiter = new RegExp(`\r\n${regexEscape(queryKeyPath)}.*\r\n`, 'i');
-                    const newKeyAfterKeyValuesFinished = new RegExp(`\r\n\r\n${regexEscape(queryKeyPath)}.*\r\n`, 'i'); // if \r\n\r\n, make sure next row is a key (otherwise it might be some very long, but legitimate entry value, e.g. REG_SZ)
-
                     const { minIndex } = getMinimumFoundIndexStrOrRegex(stdoutStr, [newKeyAfterKeyValuesFinished, newKeyAfterKeyEmpty_Delimiter, nextValueInKey_Delimiter]);
                     if (minIndex === -1) break;
 
