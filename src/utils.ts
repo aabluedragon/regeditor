@@ -77,3 +77,24 @@ export function regexEscape(str: string) {
   // https://github.com/benjamingr/RegExp.escape/issues/37
   return str.replace(/[.*+\-?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
 };
+
+/**
+ * Resolves paths such as HKLM\\SOFTWARE to the full path, such as HKEY_LOCAL_MACHINE\\SOFTWARE
+ * @param keyPath The key path used
+ */
+export function regKeyResolveFullPathFromShortcuts(keyPath: string) {
+
+  const shortcuts = Object.freeze({
+    HKLM: 'HKEY_LOCAL_MACHINE',
+    HKCC: 'HKEY_CURRENT_CONFIG',
+    HKCR: 'HKEY_CLASSES_ROOT',
+    HKCU: 'HKEY_CURRENT_USER',
+    HKU: 'HKEY_USERS',
+  }) as Readonly<Record<string, string>>;
+
+  const indexOfShortcut = keyPath.startsWith('\\\\') ? 3 : 0; // In case starts with \\SomeComputer\ (example: \\SomeComputer\HKLM\Software)
+  const pathParts = keyPath.split('\\');
+  pathParts[indexOfShortcut] = shortcuts?.[pathParts?.[indexOfShortcut]?.toUpperCase?.()] ?? pathParts[indexOfShortcut];
+
+  return pathParts.join('\\');
+}

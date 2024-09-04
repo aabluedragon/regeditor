@@ -15,6 +15,14 @@ export class PromiseStoppable<T> extends Promise<T> {
         const p = new PromiseStoppable<T>((r, j) => {
             origResolve = r; origReject = j;
         })
+        
+        let timer: NodeJS.Timeout | null = null;
+        if (timeout != null) {
+            timer = setTimeout(() => {
+                wrappedReject(new PromiseStoppableTimeoutError('PromiseStoppable timed out'));
+                p.#stopper?.(true);
+            }, timeout);
+        }
 
         let finished = false;
         function wrappedResolve(r: TypeOrPromiseLikeType<T>) {
@@ -32,14 +40,6 @@ export class PromiseStoppable<T> extends Promise<T> {
         }
 
         fn(wrappedResolve, wrappedReject, k => p.#stopper = k)
-
-        let timer: NodeJS.Timeout | null = null;
-        if (timeout != null) {
-            timer = setTimeout(() => {
-                wrappedReject(new PromiseStoppableTimeoutError('PromiseStoppable timed out'));
-                p.#stopper?.(true);
-            }, timeout);
-        }
 
         return p;
     }

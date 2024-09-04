@@ -49,6 +49,15 @@ export type RegValues = Record<RegName, RegValue>
 export type RegStruct = Record<RegKey, RegValues>
 
 export type CommonOpts = OptionsReg64Or32 & TimeoutOpt & RegCmdExecParamsModifier
+export type RegCmdResultWithCmds = {
+    /**
+     * An array containing the commands that were executed to get the result.  
+     * e.g. 
+     * [["reg", ["query","HKEY_LOCAL_MACHINE\\Software\\Microsoft"]], ["reg", ["query","HKEY_LOCAL_MACHINE\\SOFTWARE\\Apple Inc.\\Bonjour","/s"]]
+    ]
+     */
+    cmds: ExecFileParameters[]
+}
 
 export type RegQueryCmdResult = {
     struct: RegStruct,
@@ -58,17 +67,26 @@ export type RegQueryCmdResult = {
      * May be set to true only if "bestEffort" is set to true in the query and errors were found
      */
     hadErrors?: boolean
-}
+} & RegCmdResultWithCmds
+
+export type RegAddCmdResult = RegCmdResultWithCmds;
+export type RegImportCmdResult = RegCmdResultWithCmds;
+export type RegWriteCmdResult = RegCmdResultWithCmds;
 
 export type RegDeleteCmdResult = {
     notFound: {
         commandObject: RegDeleteCmd,
         commandIndex: number,
     }[]
-}
+} & RegCmdResultWithCmds
 
+/**
+ * **UNTESTED**: parsing in REG QUERY may cause issues with this flag, use with caution.
+ */
 type OptionsReg64Or32 = ({
     /**
+     * **UNTESTED**: parsing in REG QUERY may cause issues with this flag, use with caution.
+     * 
      * /reg:32  
      * __msdocs:__  
      * Specifies the key should be accessed using the 32-bit registry view.
@@ -77,6 +95,8 @@ type OptionsReg64Or32 = ({
     reg64?: Omitted
 } | {
     /**
+     * **UNTESTED**: parsing in REG QUERY may cause issues with this flag, use with caution.
+     * 
      * /reg:64  
      * __msdocs:__  
      * Specifies the key should be accessed using the 64-bit registry view.

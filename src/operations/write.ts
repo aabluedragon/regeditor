@@ -1,5 +1,5 @@
 import { isEqual } from "../utils";
-import { CommonOpts, RegStruct, RegWriteOpts } from "../types";
+import { CommonOpts, RegCmdResultWithCmds, RegStruct, RegWriteCmdResult, RegWriteOpts } from "../types";
 import { regAdd } from "../commands/reg-add";
 import { regQuery } from "../commands/reg-query";
 import { regDelete } from "../commands/reg-delete";
@@ -15,7 +15,7 @@ function nameOrDefault(valueName: string) {
 /**
  * Merge the given object into the registry, only runs commands if changes were found (does one or more REG QUERY first for diffing)
  */
-export function writeRegStruct(struct: RegStruct, { deleteUnspecifiedValues = false, timeout = TIMEOUT_DEFAULT, cmdParamsModifier, reg32, reg64 }: RegWriteOpts = {}) {
+export function writeRegStruct(struct: RegStruct, { deleteUnspecifiedValues = false, timeout = TIMEOUT_DEFAULT, cmdParamsModifier, reg32, reg64 }: RegWriteOpts = {}): PromiseStoppable<RegWriteCmdResult> {
     const keyPaths = Object.keys(struct);
     const timeStarted = Date.now();
 
@@ -59,6 +59,6 @@ export function writeRegStruct(struct: RegStruct, { deleteUnspecifiedValues = fa
         }).flat();
 
         const allCommands = [...addMissingKeysCommands, ...addUpdateAndDeleteCommands];
-        return PromiseStoppable.allStoppable(allCommands as PromiseStoppable<any>[], r => { });
+        return PromiseStoppable.allStoppable(allCommands as PromiseStoppable<RegCmdResultWithCmds>[], r => ({ cmds: r.map(c => c.cmds).flat() }));
     })
 }

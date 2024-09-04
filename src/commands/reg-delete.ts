@@ -1,14 +1,15 @@
 import { applyParamsModifier, VarArgsOrArray } from "../utils";
 import { findCommonErrorInTrimmedStdErr, RegErrorUnknown } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
-import { RegDeleteCmd, RegDeleteCmdResult } from "../types";
+import { ExecFileParameters, RegDeleteCmd, RegDeleteCmdResult } from "../types";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
 import { execFile } from "child_process"
 
 const THIS_COMMAND = COMMAND_NAMES.DELETE;
 
 type RegDeleteCmdResultSingle = {
-    notFound?: boolean
+    notFound?: boolean,
+    cmd: ExecFileParameters
 }
 
 function regDeleteSingle(d: RegDeleteCmd): PromiseStoppable<RegDeleteCmdResultSingle> {
@@ -25,7 +26,7 @@ function regDeleteSingle(d: RegDeleteCmd): PromiseStoppable<RegDeleteCmdResultSi
     return PromiseStoppable.createStoppable((resolve, reject, setStopper) => {
         const proc = execFile(...params);
 
-        setStopper(()=>proc.kill());
+        setStopper(() => proc.kill());
 
         let stdoutStr = '', stderrStr = '';
         proc.stdout?.on('data', data => { stdoutStr += data.toString(); });
@@ -34,12 +35,12 @@ function regDeleteSingle(d: RegDeleteCmd): PromiseStoppable<RegDeleteCmdResultSi
         proc.on('exit', code => {
             if (code !== 0) {
                 const trimmed = stderrStr.trim();
-                if (trimmed === 'ERROR: The system was unable to find the specified registry key or value.') return resolve({ notFound: true });
+                if (trimmed === 'ERROR: The system was unable to find the specified registry key or value.') return resolve({ notFound: true, cmd: params });
                 const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmed);
-                if(commonError) return reject(commonError);
+                if (commonError) return reject(commonError);
                 return reject(new RegErrorUnknown(stderrStr));
             }
-            resolve({});
+            resolve({ cmd: params });
         });
     }, d?.timeout ?? TIMEOUT_DEFAULT);
 }
@@ -53,7 +54,7 @@ function regDeleteSingle(d: RegDeleteCmd): PromiseStoppable<RegDeleteCmdResultSi
 export function regDelete(...opts: VarArgsOrArray<RegDeleteCmd>): PromiseStoppable<RegDeleteCmdResult> {
     const requests = opts.flat();
     return PromiseStoppable.allStoppable(requests.map(regDeleteSingle), res => {
-        const response: RegDeleteCmdResult = { notFound: [] };
+        const response: RegDeleteCmdResult = { notFound: [], cmds: res.map(r => r.cmd) };
 
         for (let i = 0; i < res.length; i++) {
             if (res[i].notFound) response.notFound.push({

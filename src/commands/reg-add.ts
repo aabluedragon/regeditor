@@ -1,6 +1,6 @@
 import { execFile } from "child_process";
 import { PromiseStoppable } from "../promise-stoppable";
-import { RegAddCmd, RegType, RegData } from "../types";
+import { RegAddCmd, RegType, RegData, ExecFileParameters, RegAddCmdResult } from "../types";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
 import { findCommonErrorInTrimmedStdErr, RegErrorInvalidSyntax, RegErrorUnknown } from "../errors";
 import { applyParamsModifier, VarArgsOrArray } from "../utils";
@@ -13,6 +13,7 @@ function serializeData(type: RegType, data: RegData, separator: string): string 
         case 'REG_QWORD':
         case 'REG_SZ':
         case 'REG_EXPAND_SZ':
+            return data as string;
         case 'REG_MULTI_SZ':
             return (data as string[]).join(separator);
         case 'REG_BINARY':
@@ -23,7 +24,7 @@ function serializeData(type: RegType, data: RegData, separator: string): string 
     }
 }
 
-function regAddSingle(a: RegAddCmd): PromiseStoppable<void> {
+function regAddSingle(a: RegAddCmd): PromiseStoppable<{ cmd: ExecFileParameters }> {
     const opts = typeof a === 'string' ? { keyPath: a } : a;
     return PromiseStoppable.createStoppable((resolve, reject, setStopper) => {
         try {
@@ -59,7 +60,7 @@ function regAddSingle(a: RegAddCmd): PromiseStoppable<void> {
                 if (trimmedStdout !== 'The operation completed successfully.') {
                     return reject(new RegErrorUnknown(stderrStr || stdoutStr));
                 }
-                resolve();
+                resolve({ cmd: params });
             });
         } catch (e) {
             reject(e)
@@ -73,6 +74,6 @@ function regAddSingle(a: RegAddCmd): PromiseStoppable<void> {
  * @param addCommands one or more REG ADD commands
  * @returns void when successful, throws an error when failed
  */
-export function regAdd(...addCommands: VarArgsOrArray<RegAddCmd>): PromiseStoppable<void> {
-    return PromiseStoppable.allStoppable(addCommands.flat().map(regAddSingle), () => { });
+export function regAdd(...addCommands: VarArgsOrArray<RegAddCmd>): PromiseStoppable<RegAddCmdResult> {
+    return PromiseStoppable.allStoppable(addCommands.flat().map(regAddSingle), res => ({ cmds: res.map(r => r.cmd) }));
 }

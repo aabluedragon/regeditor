@@ -1,7 +1,7 @@
 import { RegQueryErrorMalformedLine, RegErrorInvalidSyntax, RegQueryErrorReadTooWide, RegErrorUnknown, findCommonErrorInTrimmedStdErr } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
-import { RegType, RegData, RegQueryCmd, RegStruct, RegValue, RegQueryCmdResult } from "../types";
-import { applyParamsModifier, getMinimumFoundIndex, getMinimumFoundIndexStrOrRegex, regexEscape, VarArgsOrArray } from "../utils";
+import { RegType, RegData, RegQueryCmd, RegStruct, RegValue, RegQueryCmdResult, ExecFileParameters } from "../types";
+import { applyParamsModifier, getMinimumFoundIndex, getMinimumFoundIndexStrOrRegex, regexEscape, regKeyResolveFullPathFromShortcuts, VarArgsOrArray } from "../utils";
 import { execFile, ChildProcess } from "child_process"
 import { TIMEOUT_DEFAULT, COMMAND_NAMES, REG_TYPES_ALL } from "../constants";
 
@@ -10,6 +10,7 @@ const THIS_COMMAND = COMMAND_NAMES.QUERY;
 type RegQueryCmdResultSingle = {
     struct: RegStruct,
     keyMissing?: boolean
+    cmd: ExecFileParameters
 
     /**
      * May be set to true only if "bestEffort" is set to true in the query and errors were found
@@ -39,13 +40,17 @@ function getQueryPathAndOpts(queryParam: RegQueryCmd) {
     return { queryOpts, queryKeyPath: queryOpts.keyPath };
 }
 
+
 const COLUMN_DELIMITER = '    ';
 const INDENTATION_FOR_ENTRY_VALUE = '    ';
 const INDENTATION_LENGTH_FOR_ENTRY_VALUE = INDENTATION_FOR_ENTRY_VALUE.length;
 
 function regQuerySingle(queryParam: RegQueryCmd): PromiseStoppable<RegQueryCmdResultSingle> {
 
-    const { queryKeyPath, queryOpts } = getQueryPathAndOpts(queryParam);
+    const { queryKeyPath: _queryKeyPathOriginal, queryOpts } = getQueryPathAndOpts(queryParam);
+
+    // Convert query keypath from shortcuts, this is important for the parsing part in parseStdout (see Regular Expressions used).
+    const queryKeyPath = regKeyResolveFullPathFromShortcuts(_queryKeyPathOriginal)
 
     const args = [] as string[];
     if (queryOpts.se) args.push('/se', queryOpts.se);;
@@ -85,7 +90,7 @@ function regQuerySingle(queryParam: RegQueryCmd): PromiseStoppable<RegQueryCmdRe
         }
 
         function finishSuccess(keyMissing = false) {
-            const res: RegQueryCmdResultSingle = { struct: obj };
+            const res: RegQueryCmdResultSingle = { struct: obj, cmd: params };
             if (keyMissing) res.keyMissing = true;
             if (hadErrors) res.hadErrors = true;
             finish(res);
@@ -195,7 +200,7 @@ function regQuerySingle(queryParam: RegQueryCmd): PromiseStoppable<RegQueryCmdRe
                     }
 
                     parseStdout();
-                    if(stdoutStr.length && stdoutStr.endsWith('\r\n')) {
+                    if (stdoutStr.length && stdoutStr.endsWith('\r\n')) {
                         handleDataChunk(stdoutStr.split('\r\n'));
                     }
 
@@ -230,6 +235,7 @@ export function regQuery(...queriesParam: VarArgsOrArray<RegQueryCmd>): PromiseS
             return {
                 struct: r.struct,
                 keysMissing: r?.keyMissing ? [q.queryKeyPath] : [],
+                cmds: [r.cmd],
                 ...(r.hadErrors ? { hadErrors: true } : {})
             }
         }
@@ -238,15 +244,17 @@ export function regQuery(...queriesParam: VarArgsOrArray<RegQueryCmd>): PromiseS
         const struct = {} as RegStruct;
         let keysMissing = [] as string[];
         let hadErrors = false;
+        const cmds = [] as ExecFileParameters[];
         for (let i = 0; i < results.length; i++) {
             const res = results[i];
+            cmds.push(res.cmd);
             if (res.keyMissing) keysMissing.push(queries[i].queryKeyPath);
             if (res.hadErrors && !hadErrors) hadErrors = true;
             for (const key in res.struct) {
                 struct[key] = { ...struct[key], ...res.struct[key] }
             }
         }
-        return { struct, keysMissing };
+        return { struct, keysMissing, cmds, ...(hadErrors ? { hadErrors: true } : {}) };
     })
 }
 
