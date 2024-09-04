@@ -10,6 +10,8 @@ function nameOrDefault(valueName: string) {
     return { ...(valueName === `(Default)` ? { ve: true } : { v: valueName }) }
 }
 
+// TODO: if REG ADD contians data in REG_NONE, fallback to .reg file, REG IMPORT command.
+
 /**
  * Merge the given object into the registry, only runs commands if changes were found (does one or more REG QUERY first for diffing)
  */

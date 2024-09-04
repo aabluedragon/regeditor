@@ -4,13 +4,12 @@ async function main() {
     try {
         // const p = regQuery(
         //     {
-
         //         keyPath: 'HKEY_LOCAL_MACHINE\\Software\\Microsoft',
         //         // f: '*',
         //         // keyPath: 'HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node',
         //         // s: true,
         //         // keyPath: 'HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Lenovo\\MachineInfo',
-        //         // timeout: 500,
+        //         timeout: 40000,
         //         // reg64: true,
         //         // d: true,
         //     },
@@ -27,17 +26,17 @@ async function main() {
         // const res = await p;
         // console.log(res)
 
-        // const p = add({
-            
-        //     keyPath:"HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\DirectPlay\\Service Providers\\IPX Connection For DirectPlay",
-        //     data: {
-        //         type: "REG_NONE"
-        //     },
-        //     v: "name"
-        // })
-        // // p.stop();
-        // const res = await p;
-        // console.log(res)
+        const p = regAdd({
+            keyPath:"HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\DirectPlay\\Service Providers\\IPX Connection For DirectPlay",
+            value: {
+                type: "REG_NONE",
+                data:[]
+            },
+            v: "name"
+        })
+        // p.stop();
+        const res = await p;
+        console.log(res)
 
 
         /*

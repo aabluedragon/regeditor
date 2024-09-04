@@ -13,13 +13,11 @@ function serializeData(type: RegType, data: RegData, separator: string): string 
         case 'REG_QWORD':
         case 'REG_SZ':
         case 'REG_EXPAND_SZ':
-            return `${data}`;
         case 'REG_MULTI_SZ':
             return (data as string[]).join(separator);
         case 'REG_BINARY':
             return (data as number[]).map(n => n.toString(16).padStart(2, '0')).join('');
-        case 'REG_NONE':
-            return null;
+        case 'REG_NONE': // REG_NONE data is not supported properly by the REG ADD command, instead of treating it as hex string as in REG_BINARY, REG ADD treats it as a UTF8 string, it can only be properly encoded using .reg files (use REG IMPORT instead of you need to put binary data here)
         default:
             throw new RegErrorInvalidSyntax(`Invalid data type: ${type}`);
     }
@@ -35,7 +33,7 @@ function regAddSingle(a: RegAddCmd): PromiseStoppable<void> {
             if (opts.s) args.push('/s', opts.s);
             if (opts.value) {
                 args.push('/t', opts.value.type);
-                if (opts.value.type !== 'REG_NONE')
+                if (opts.value.type !== 'REG_NONE') // Ignoring data for REG_NONE, as the REG ADD command cannot serialize it properly as binary data (only reading using REG QUERY is supported).
                     args.push('/d', serializeData(opts.value.type, opts.value.data, opts.s || '\\0')!);
             }
             if (opts.v) args.push('/v', opts.v);
@@ -44,7 +42,7 @@ function regAddSingle(a: RegAddCmd): PromiseStoppable<void> {
             const params = applyParamsModifier(THIS_COMMAND, ['reg', ['add', opts.keyPath, ...args]], opts.cmdParamsModifier);
             const proc = execFile(...params);
 
-            setStopper(()=>proc.kill());
+            setStopper(() => proc.kill());
 
             let stdoutStr = '', stderrStr = '';
             proc.stdout?.on('data', data => { stdoutStr += data.toString(); });

@@ -26,13 +26,11 @@ function parseRegValue(type: RegType, value: string | null, se: string): RegData
     } else if (type === 'REG_MULTI_SZ') {
         if (value == null) return [];
         return value.split(se);
-    } else if (type === 'REG_BINARY') {
+    } else if (type === 'REG_BINARY' || type === 'REG_NONE') { // REG_NONE treated as binary data as well.
         if ((value?.length || 0) % 2 !== 0) throw new RegQueryErrorMalformedLine(`${type} binary value length is not even: ${value}`);
         const m = value != null ? value.match(/../g) : null;
         if (m == null) return [];
         return m.map(h => parseInt(h, 16));
-    } else if (type === 'REG_NONE') {
-        return null;
     } else throw new RegQueryErrorMalformedLine('Unknown REG type: ' + type);
 }
 
@@ -108,20 +106,16 @@ function regQuerySingle(queryParam: RegQueryCmd): PromiseStoppable<RegQueryCmdRe
                 while (true) {
                     // Tricky line splitting of output from "reg" tool, preventing some edge cases.
                     const nextValueInKey_Delimiter = new RegExp(`\r\n${INDENTATION_FOR_ENTRY_VALUE}.*(${REG_TYPES_ALL.join('|')}).*\r\n`);
-                    const newKey_Delimiter = new RegExp(`\r\n\r\n${regexEscape(queryKeyPath)}\r\n`, 'i'); // if \r\n\r\n, make sure next row is a key (otherwise it might be some very long, but legitimate entry value, e.g. REG_SZ)
                     const newKeyAfterKeyEmpty_Delimiter = new RegExp(`\r\n${regexEscape(queryKeyPath)}.*\r\n`, 'i');
-                    const newKeyAfterKeyEmpty_Delimiter2 = new RegExp(`\r\n\r\n${regexEscape(queryKeyPath)}.*\r\n`, 'i');
+                    const newKeyAfterKeyValuesFinished = new RegExp(`\r\n\r\n${regexEscape(queryKeyPath)}.*\r\n`, 'i'); // if \r\n\r\n, make sure next row is a key (otherwise it might be some very long, but legitimate entry value, e.g. REG_SZ)
 
-                    const { minIndex, chosenPattern } = getMinimumFoundIndexStrOrRegex(stdoutStr, [newKeyAfterKeyEmpty_Delimiter2, newKeyAfterKeyEmpty_Delimiter, nextValueInKey_Delimiter, newKey_Delimiter]);
+                    const { minIndex } = getMinimumFoundIndexStrOrRegex(stdoutStr, [newKeyAfterKeyValuesFinished, newKeyAfterKeyEmpty_Delimiter, nextValueInKey_Delimiter]);
                     if (minIndex === -1) break;
 
                     const row = stdoutStr.substring(0, minIndex);
                     stdoutLines.push(row);
 
-                    if (chosenPattern === newKey_Delimiter || chosenPattern === newKeyAfterKeyEmpty_Delimiter2) {
-                        stdoutLines.push('')
-                        stdoutStr = stdoutStr.substring(minIndex + 4);
-                    } else stdoutStr = stdoutStr.substring(minIndex + 2);
+                    stdoutStr = stdoutStr.substring(minIndex + 2)
                 }
                 if (stdoutLines.length > 0) handleDataChunk(stdoutLines);
             }
@@ -229,7 +223,7 @@ export function regQuery(...queriesParam: VarArgsOrArray<RegQueryCmd>): PromiseS
     const queries = flattened.map(getQueryPathAndOpts);
     const promises = flattened.map(regQuerySingle);
 
-    return PromiseStoppable.allStoppable(promises, async (results) => {
+    return PromiseStoppable.allStoppable(promises, (results) => {
         // Skipping the merge logic if just a single query.
         if (results.length === 1) {
             const r = results[0];
