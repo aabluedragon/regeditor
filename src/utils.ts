@@ -1,3 +1,4 @@
+import { COMMAND_NAME, ExecFileParameters, RegCmdExecParamsModifier } from "./types";
 
 export type VarArgsOrArray<T> = T[] | T[][];
 
@@ -32,9 +33,9 @@ export function getMinimumFoundIndex(str: string, patterns: string[]): { minInde
  * @returns true if equal
  */
 export function isEqual(obj1: any, obj2: any): boolean {
-  if(typeof obj1 !== typeof obj2) return false;
-  if(obj1 === obj2) return true;
-  if(obj1 == null || obj2 == null) return false;
+  if (typeof obj1 !== typeof obj2) return false;
+  if (obj1 === obj2) return true;
+  if (obj1 == null || obj2 == null) return false;
 
   const obj1Keys = Object.keys(obj1);
   const obj2Keys = Object.keys(obj2);
@@ -58,3 +59,11 @@ export function isEqual(obj1: any, obj2: any): boolean {
 
   return true;
 };
+
+export function applyParamsModifier(cmd: COMMAND_NAME, params: ExecFileParameters, modifier: RegCmdExecParamsModifier['cmdParamsModifier']): ExecFileParameters {
+  if (modifier) {
+    const newParams = modifier(cmd, params);
+    if (newParams) return newParams;
+  }
+  return params;
+}

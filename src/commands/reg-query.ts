@@ -1,9 +1,11 @@
 import { RegQueryErrorMalformedLine, RegErrorInvalidSyntax, RegQueryErrorReadTooWide, RegErrorUnknown, findCommonErrorInTrimmedStdErr } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
 import { RegType, RegData, RegQueryCmd, RegStruct, RegValue, RegQueryCmdResult } from "../types";
-import { getMinimumFoundIndex, VarArgsOrArray } from "../utils";
+import { applyParamsModifier, getMinimumFoundIndex, VarArgsOrArray } from "../utils";
 import { execFile, ChildProcess } from "child_process"
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
+
+const THIS_COMMAND = COMMAND_NAMES.QUERY;
 
 type RegQueryCmdResultSingle = {
     struct: RegStruct,
@@ -95,8 +97,9 @@ function regQuerySingle(queryParam: RegQueryCmd): PromiseStoppable<RegQueryCmdRe
 
         const bestEffort = queryOpts.bestEffort || false;
 
+        const params = applyParamsModifier(THIS_COMMAND, ['reg', ['query', queryKeyPath, ...args]], queryOpts?.cmdParamsModifier);
         try {
-            proc = execFile('reg', ['query', queryKeyPath, ...args]);
+            proc = execFile(...params);
 
             let stdoutStr: string = '', stderrStr = '';
 
@@ -174,7 +177,7 @@ function regQuerySingle(queryParam: RegQueryCmd): PromiseStoppable<RegQueryCmdRe
                         if (stdoutStr.trim() === 'End of search: 0 match(es) found.') return finishSuccess(); // happens when using /f and having 0 results
                         const trimmedStdErr = stderrStr.trim();
                         if (trimmedStdErr === 'ERROR: The system was unable to find the specified registry key or value.') return finishSuccess(true);
-                        const commonError = findCommonErrorInTrimmedStdErr(COMMAND_NAMES.QUERY, trimmedStdErr);
+                        const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmedStdErr);
                         if (commonError) throw commonError;
                         throw new RegErrorUnknown(stderrStr);
                     }

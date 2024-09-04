@@ -3,7 +3,9 @@ import { PromiseStoppable } from "../promise-stoppable";
 import { RegAddCmd, RegType, RegData } from "../types";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
 import { findCommonErrorInTrimmedStdErr, RegErrorInvalidSyntax, RegErrorUnknown } from "../errors";
-import { VarArgsOrArray } from "../utils";
+import { applyParamsModifier, VarArgsOrArray } from "../utils";
+
+const THIS_COMMAND = COMMAND_NAMES.ADD;
 
 function serializeData(type: RegType, data: RegData, separator: string): string | null {
     switch (type) {
@@ -39,7 +41,8 @@ function regAddSingle(a: RegAddCmd): PromiseStoppable<void> {
             if (opts.v) args.push('/v', opts.v);
             if (opts.ve) args.push('/ve');
 
-            const proc = execFile('reg', ['add', opts.keyPath, ...args]);
+            const params = applyParamsModifier(THIS_COMMAND, ['reg', ['add', opts.keyPath, ...args]], opts.cmdParamsModifier);
+            const proc = execFile(...params);
 
             setStopper(()=>proc.kill());
 
@@ -50,7 +53,7 @@ function regAddSingle(a: RegAddCmd): PromiseStoppable<void> {
             proc.on('exit', code => {
                 if (code !== 0) {
                     const trimmedStdErr = stderrStr.trim();
-                    const commonError = findCommonErrorInTrimmedStdErr(COMMAND_NAMES.ADD, trimmedStdErr);
+                    const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmedStdErr);
                     if (commonError) return reject(commonError);
                     return reject(new RegErrorUnknown(stderrStr));
                 }

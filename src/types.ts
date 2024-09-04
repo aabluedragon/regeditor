@@ -44,6 +44,8 @@ export type RegName = string;
 export type RegValues = Record<RegName, RegValue>
 export type RegStruct = Record<RegKey, RegValues>
 
+export type CommonOpts = OptionsReg64Or32 & TimeoutOpt & RegCmdExecParamsModifier
+
 export type RegQueryCmdResult = {
     struct: RegStruct,
     keysMissing: string[],
@@ -79,11 +81,22 @@ type OptionsReg64Or32 = ({
     reg32?: Omitted
 });
 
-type TimeoutOpt = {
+export type TimeoutOpt = {
     /**
      * Milliseconds to wait for the command to finish before rejecting the promise.
      */
     timeout?: number
+}
+
+export type ExecFileParameters = [file: string, args?: readonly string[] | null];
+export type RegCmdExecParamsModifier = {
+    /**
+     * A function to be called just before execFile is executing a REG command, you may use this to read the params, or modify them before the command is executed.
+     * @param cmd The REG command to be executed
+     * @param execCmdParameters The parameters to be sent to the execFile function
+     * @returns undefined or null to remain unchanged, or a new params arrey to be sent to execFile
+     */
+    cmdParamsModifier?: (cmd: COMMAND_NAME, execCmdParameters: ExecFileParameters) => ExecFileParameters | undefined | null | void
 }
 
 type RegQueryCmdBase = {
@@ -140,7 +153,7 @@ type RegQueryCmdBase = {
      * Might be useful for long reads, e.g. when using the /s flag for recursive read.
      */
     onProgress?: (partialStruct: RegStruct, stop: () => void) => false | undefined | void
-} & TimeoutOpt
+} & CommonOpts
 
 /**
  * REG QUERY: A command to query (read) registry values.  
@@ -263,14 +276,14 @@ type RegDeleteVA = {
  * REG DELETE: A command to delete registry keys and values.  
  * The executable path is usually C:\Windows\System32\reg.exe
  */
-export type RegDeleteCmd = { keyPath: string } & (RegDeleteV | RegDeleteVA | RegDeleteVE) & OptionsReg64Or32 & TimeoutOpt
+export type RegDeleteCmd = { keyPath: string } & (RegDeleteV | RegDeleteVA | RegDeleteVE) & CommonOpts
 
 export type RegImportCmdOpts = {
     /**
      * The path to the .reg file to import.
      */
     fileName: string
-} & OptionsReg64Or32 & TimeoutOpt
+} & CommonOpts
 
 /**
  * REG IMPORT A single command to mutate multiple registry keys and values.  
@@ -325,7 +338,7 @@ export type RegAddCmd = string | {
      */
     ve?: boolean;
     v?: Omitted;
-}) & OptionsReg64Or32 & TimeoutOpt
+}) & CommonOpts
 
 export type RegWriteOpts = {
     /**
@@ -338,7 +351,7 @@ export type RegWriteOpts = {
      * * function: a function that takes in the the existing key and value, and returns true if the value should be deleted (allows deciding upon deletions on the fly).  
      */
     deleteUnspecifiedValues?: false | "all" | "allExceptDefault" | "onlyDefault" | ((key: string, name: string, value: RegValue) => boolean)
-} & TimeoutOpt
+} & CommonOpts
 
 /**
  * Result of comparing two registry structs.

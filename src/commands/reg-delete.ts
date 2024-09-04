@@ -1,9 +1,11 @@
-import { VarArgsOrArray } from "../utils";
+import { applyParamsModifier, VarArgsOrArray } from "../utils";
 import { findCommonErrorInTrimmedStdErr, RegErrorUnknown } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
 import { RegDeleteCmd, RegDeleteCmdResult } from "../types";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
 import { execFile } from "child_process"
+
+const THIS_COMMAND = COMMAND_NAMES.DELETE;
 
 type RegDeleteCmdResultSingle = {
     notFound?: boolean
@@ -18,8 +20,10 @@ function regDeleteSingle(d: RegDeleteCmd): PromiseStoppable<RegDeleteCmdResultSi
     if (d.va) args.push('/va');
     if (d.v) args.push('/v', d.v);
 
+    const params = applyParamsModifier(THIS_COMMAND, ['reg', ['delete', d.keyPath, ...args]], d?.cmdParamsModifier);
+
     return PromiseStoppable.createStoppable((resolve, reject, setStopper) => {
-        const proc = execFile('reg', ['delete', d.keyPath, ...args]);
+        const proc = execFile(...params);
 
         setStopper(()=>proc.kill());
 
@@ -31,7 +35,7 @@ function regDeleteSingle(d: RegDeleteCmd): PromiseStoppable<RegDeleteCmdResultSi
             if (code !== 0) {
                 const trimmed = stderrStr.trim();
                 if (trimmed === 'ERROR: The system was unable to find the specified registry key or value.') return resolve({ notFound: true });
-                const commonError = findCommonErrorInTrimmedStdErr(COMMAND_NAMES.DELETE, trimmed);
+                const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmed);
                 if(commonError) return reject(commonError);
                 return reject(new RegErrorUnknown(stderrStr));
             }

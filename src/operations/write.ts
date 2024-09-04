@@ -1,5 +1,5 @@
 import { isEqual } from "../utils";
-import { RegStruct, RegWriteOpts } from "../types";
+import { CommonOpts, RegStruct, RegWriteOpts } from "../types";
 import { regAdd } from "../commands/reg-add";
 import { regQuery } from "../commands/reg-query";
 import { regDelete } from "../commands/reg-delete";
@@ -13,20 +13,25 @@ function nameOrDefault(valueName: string) {
 /**
  * Merge the given object into the registry, only runs commands if changes were found (does one or more REG QUERY first for diffing)
  */
-export function writeRegStruct(struct: RegStruct, { deleteUnspecifiedValues = false, timeout = TIMEOUT_DEFAULT }: RegWriteOpts = {}) {
+export function writeRegStruct(struct: RegStruct, { deleteUnspecifiedValues = false, timeout = TIMEOUT_DEFAULT, cmdParamsModifier, reg32, reg64 }: RegWriteOpts = {}) {
     const keyPaths = Object.keys(struct);
     const timeStarted = Date.now();
 
-    return PromiseStoppable.allStoppable([regQuery(keyPaths.map(k => ({ keyPath: k, timeout })))], existingDataArray => {
+    const commonOpts: CommonOpts = { timeout, cmdParamsModifier } satisfies CommonOpts;
+    if (reg32) commonOpts.reg32 = true;
+    if (reg64) commonOpts.reg64 = true;
+
+    return PromiseStoppable.allStoppable([regQuery(keyPaths.map(k => ({ keyPath: k, ...commonOpts })))], existingDataArray => {
         const timeleft = timeout - (Date.now() - timeStarted);
+        commonOpts.timeout = timeleft;
 
         const existingData = existingDataArray[0];
         const addMissingKeysCommands = existingData.keysMissing.map(k => {
             const values = struct[k]
             if (!Object.keys(values).length)
-                return regAdd({ keyPath: k, timeout: timeleft }); // no values specified, just create key
+                return regAdd({ keyPath: k, ...commonOpts }); // no values specified, just create key
             else
-                return Object.entries(values).map(([v, value]) => regAdd({ keyPath: k, value, ...nameOrDefault(v), timeout: timeleft }))
+                return Object.entries(values).map(([v, value]) => regAdd({ keyPath: k, value, ...nameOrDefault(v), ...commonOpts }))
         }).flat();
 
         const existingKeysToUpdate = Object.keys(struct).filter(k => existingData.keysMissing.indexOf(k) === -1);
@@ -36,7 +41,7 @@ export function writeRegStruct(struct: RegStruct, { deleteUnspecifiedValues = fa
 
             const updateValuesCommands = entriesInNewValues
                 .filter(([name, entry]) => !isEqual(dataInExistingKey[name], entry))
-                .map(([name, value]) => regAdd({ keyPath: k, value, ...nameOrDefault(name), timeout: timeleft }));
+                .map(([name, value]) => regAdd({ keyPath: k, value, ...nameOrDefault(name), ...commonOpts }));
 
             const deleteCommands = (!deleteUnspecifiedValues) ? [] :
                 Object.entries(dataInExistingKey)
@@ -46,7 +51,7 @@ export function writeRegStruct(struct: RegStruct, { deleteUnspecifiedValues = fa
                         (deleteUnspecifiedValues === 'allExceptDefault' && name !== `(Default)`) ||
                         (deleteUnspecifiedValues === 'onlyDefault' && name === `(Default)`) ||
                         (typeof deleteUnspecifiedValues === 'function' && deleteUnspecifiedValues(k, name, dataInExistingKey[name])))
-                    .map(([name]) => regDelete({ keyPath: k, ...nameOrDefault(name), timeout: timeleft }));
+                    .map(([name]) => regDelete({ keyPath: k, ...nameOrDefault(name), ...commonOpts }));
 
             return [...updateValuesCommands, ...deleteCommands];
         }).flat();

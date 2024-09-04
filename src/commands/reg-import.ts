@@ -3,6 +3,9 @@ import { PromiseStoppable } from "../promise-stoppable";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
 import { execFile } from "child_process"
 import { RegImportCmd, RegImportCmdOpts } from "../types";
+import { applyParamsModifier } from "../utils";
+
+const THIS_COMMAND = COMMAND_NAMES.IMPORT;
 
 /**
  * Performs a REG IMPORT command to import a .reg file into the registry
@@ -16,8 +19,9 @@ export function regImport(cmd: RegImportCmd): PromiseStoppable<void> {
     if(opts.reg32) args.push('/reg:32');
     if(opts.reg64) args.push('/reg:64');
 
-    return PromiseStoppable.createStoppable((resolve, reject, setStopper) => {
-        const proc = execFile('reg', ["import", fileName, ...args]);
+    return PromiseStoppable.createStoppable(async (resolve, reject, setStopper) => {
+        const params = applyParamsModifier(THIS_COMMAND, ['reg', ["import", fileName, ...args]], opts?.cmdParamsModifier);
+        const proc = execFile(...params);
 
         setStopper(() => proc.kill());
 
@@ -28,7 +32,7 @@ export function regImport(cmd: RegImportCmd): PromiseStoppable<void> {
         proc.on('exit', code => {
             if (code !== 0) {
                 const trimmedStdErr = stderrStr.trim();
-                const commonError = findCommonErrorInTrimmedStdErr(COMMAND_NAMES.IMPORT, trimmedStdErr);
+                const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmedStdErr);
                 if (commonError) return reject(commonError);
                 if(trimmedStdErr === 'ERROR: Error opening the file. There may be a disk or file system error.') return reject(new RegImportErrorOpeningFile(trimmedStdErr))
                 if(trimmedStdErr === 'ERROR: Error accessing the registry.') return reject(new RegErrorAccessDenied(trimmedStdErr));
