@@ -6,8 +6,11 @@ export class RegErrorInvalidSyntax extends Error { constructor(message: string) 
 export class RegErrorUnknown extends Error { constructor(message: string) { super(message); this.name = 'RegErrorUnknown'; } }
 export class RegErrorInvalidKeyName extends Error { constructor(message: string) { super(message); this.name = 'RegErrorInvalidKeyName'; } }
 
-export class RegQueryErrorReadTooWide extends Error { constructor(message: string) { super(message); this.name = 'RegQueryErrorReadTooWide'; } }
 export class RegQueryErrorMalformedLine extends Error { constructor(message: string) { super(message); this.name = 'RegQueryErrorMalformedLine'; } }
+/**
+ * May be thrown after a while if using REG QUERY with the recursive search option /s (s:true) on a key close to the root of the registry, e.g. HKEY_LOCAL_MACHINE\Software\Microsoft
+ */
+export class RegQueryErrorReadTooWide extends Error { constructor(message: string) { super(message); this.name = 'RegQueryErrorReadTooWide'; } }
 
 export class RegImportErrorOpeningFile extends Error { constructor(message: string) { super(message); this.name = 'RegImportErrorOpeningFile'; } }
 

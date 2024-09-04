@@ -1,9 +1,9 @@
 import { RegQueryErrorMalformedLine, RegErrorInvalidSyntax, RegQueryErrorReadTooWide, RegErrorUnknown, findCommonErrorInTrimmedStdErr } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
 import { RegType, RegData, RegQueryCmd, RegStruct, RegValue, RegQueryCmdResult } from "../types";
-import { applyParamsModifier, getMinimumFoundIndex, VarArgsOrArray } from "../utils";
+import { applyParamsModifier, getMinimumFoundIndex, getMinimumFoundIndexStrOrRegex, regexEscape, VarArgsOrArray } from "../utils";
 import { execFile, ChildProcess } from "child_process"
-import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
+import { TIMEOUT_DEFAULT, COMMAND_NAMES, REG_TYPES_ALL } from "../constants";
 
 const THIS_COMMAND = COMMAND_NAMES.QUERY;
 
@@ -103,25 +103,32 @@ function regQuerySingle(queryParam: RegQueryCmd): PromiseStoppable<RegQueryCmdRe
 
             let stdoutStr: string = '', stderrStr = '';
 
-            proc.stdout?.on('data', data => {
-                stdoutStr += data.toString();
-
+            function parseStdout() {
                 const stdoutLines: string[] = [];
                 while (true) {
                     // Tricky line splitting of output from "reg" tool, preventing some edge cases.
-                    const nextValueInKey_Delimiter = `\r\n${INDENTATION_FOR_ENTRY_VALUE}`;
-                    const keyEnded_Delimiter = `\r\n${queryKeyPath}`; // if \r\n, make sure next row is a key (otherwise it might be some very long, but legitimate entry value, e.g. REG_SZ)
+                    const nextValueInKey_Delimiter = new RegExp(`\r\n${INDENTATION_FOR_ENTRY_VALUE}.*(${REG_TYPES_ALL.join('|')}).*\r\n`);
+                    const newKey_Delimiter = new RegExp(`\r\n\r\n${regexEscape(queryKeyPath)}\r\n`, 'i'); // if \r\n\r\n, make sure next row is a key (otherwise it might be some very long, but legitimate entry value, e.g. REG_SZ)
+                    const newKeyAfterKeyEmpty_Delimiter = new RegExp(`\r\n${regexEscape(queryKeyPath)}.*\r\n`, 'i');
+                    const newKeyAfterKeyEmpty_Delimiter2 = new RegExp(`\r\n\r\n${regexEscape(queryKeyPath)}.*\r\n`, 'i');
 
-                    const { minIndex, chosenPattern } = getMinimumFoundIndex(stdoutStr, [nextValueInKey_Delimiter, keyEnded_Delimiter]);
+                    const { minIndex, chosenPattern } = getMinimumFoundIndexStrOrRegex(stdoutStr, [newKeyAfterKeyEmpty_Delimiter2, newKeyAfterKeyEmpty_Delimiter, nextValueInKey_Delimiter, newKey_Delimiter]);
                     if (minIndex === -1) break;
 
                     const row = stdoutStr.substring(0, minIndex);
                     stdoutLines.push(row);
 
-                    if (chosenPattern === keyEnded_Delimiter) stdoutLines.push('');
-                    stdoutStr = stdoutStr.substring(minIndex + 2);
+                    if (chosenPattern === newKey_Delimiter || chosenPattern === newKeyAfterKeyEmpty_Delimiter2) {
+                        stdoutLines.push('')
+                        stdoutStr = stdoutStr.substring(minIndex + 4);
+                    } else stdoutStr = stdoutStr.substring(minIndex + 2);
                 }
                 if (stdoutLines.length > 0) handleDataChunk(stdoutLines);
+            }
+
+            proc.stdout?.on('data', data => {
+                stdoutStr += data.toString();
+                parseStdout();
             });
 
             proc.stderr?.on('data', data => { stderrStr += data; })
@@ -136,20 +143,22 @@ function regQuerySingle(queryParam: RegQueryCmd): PromiseStoppable<RegQueryCmdRe
                     for (const lineUntrimmed of stdoutLines) {
                         if (lineUntrimmed.length === 0) { updateCurrentKey(null); }
                         else if (lineUntrimmed.startsWith(' ')) {
-                            const val = lineUntrimmed.substring(INDENTATION_LENGTH_FOR_ENTRY_VALUE).split(COLUMN_DELIMITER);
                             if (!currentKey) {
                                 if (bestEffort) { hadErrors = true; continue };
                                 throw new RegQueryErrorMalformedLine('Unexpected value line (missing parent key)');
                             }
-                            if (!(currentKey in obj)) obj[currentKey] = {};
-                            if (val.length < 2 || val.length > 3) { // can be only 2 columns if there's no value in the entry, but it still exists (e.g an empty REG_BINARY)
+                            const delimiter = getMinimumFoundIndex(lineUntrimmed, REG_TYPES_ALL.map(t => `${COLUMN_DELIMITER}${t}${COLUMN_DELIMITER}`));
+                            if (delimiter.minIndex === -1 || !delimiter.chosenPattern) {
                                 if (bestEffort) { hadErrors = true; continue };
-                                throw new RegQueryErrorMalformedLine(`Unexpected value line, probably "${COLUMN_DELIMITER}" in value (${COLUMN_DELIMITER.length} spaces): "${lineUntrimmed}"`)
-                            };
-                            const name = val[0];
-                            const type = val[1] as RegType;
-                            const valueInStr = val?.[2] || null;
+                                throw new RegQueryErrorMalformedLine(`Unexpected value line, missing type delimiter "${COLUMN_DELIMITER}" in value: "${lineUntrimmed}"`)
+                            }
+
+                            if (!(currentKey in obj)) obj[currentKey] = {};
+
+                            const name = lineUntrimmed.substring(INDENTATION_LENGTH_FOR_ENTRY_VALUE, delimiter.minIndex);
+                            const type = delimiter.chosenPattern.trim() as RegType;
                             try {
+                                const valueInStr = lineUntrimmed.substring(delimiter.minIndex + delimiter.chosenPattern.length) || null
                                 const data = parseRegValue(type, valueInStr, queryOpts?.se || '\\0');
                                 obj[currentKey][name] = { type, data } as RegValue;
                             } catch (e) {
@@ -192,7 +201,10 @@ function regQuerySingle(queryParam: RegQueryCmd): PromiseStoppable<RegQueryCmdRe
                         }
                     }
 
-                    handleDataChunk(stdoutStr.split('\r\n')); // Handle the remaining data, if any.
+                    parseStdout();
+                    if(stdoutStr.length && stdoutStr.endsWith('\r\n')) {
+                        handleDataChunk(stdoutStr.split('\r\n'));
+                    }
 
                     finishSuccess();
 

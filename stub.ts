@@ -2,7 +2,7 @@ import { regQuery, regDelete, regAdd, writeRegStruct, regImport } from './src/in
 
 async function main() {
     try {
-        // const p = query(
+        // const p = regQuery(
         //     {
 
         //         keyPath: 'HKEY_LOCAL_MACHINE\\Software\\Microsoft',
@@ -67,7 +67,7 @@ async function main() {
         // }, {deleteUnspecifiedValues: 'all'})
 
         
-        regImport("directplay-win64.reg");
+        // regImport("directplay-win64.reg");
 
     } catch (e) {
         console.error(e);

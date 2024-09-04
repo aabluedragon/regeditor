@@ -10,13 +10,17 @@ export type AddParameters<
   ...args: [...Parameters<TFunction>, ...TParameters]
 ) => ReturnType<TFunction>;
 
+
 export function getMinimumFoundIndex(str: string, patterns: string[]): { minIndex: number, chosenPattern: string | null } {
+  return getMinimumFoundIndexStrOrRegex(str, patterns) as { minIndex: number, chosenPattern: string | null };
+}
+export function getMinimumFoundIndexStrOrRegex(str: string, patterns: (string | RegExp)[]): { minIndex: number, chosenPattern: string | RegExp | null } {
 
   let minIndex: number = -1;
-  let chosenPattern: string | null = null;
+  let chosenPattern: string | RegExp | null = null;
 
   for (const p of patterns) {
-    const idx = str.indexOf(p);
+    const idx = p instanceof RegExp ? str.search(p) : (typeof str === 'string' ? str.indexOf(p) : -1)
     if (idx !== -1 && (minIndex === -1 || idx < minIndex)) {
       minIndex = idx;
       chosenPattern = p;
@@ -67,3 +71,9 @@ export function applyParamsModifier(cmd: COMMAND_NAME, params: ExecFileParameter
   }
   return params;
 }
+
+export function regexEscape(str: string) {
+  // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions#Escaping
+  // https://github.com/benjamingr/RegExp.escape/issues/37
+  return str.replace(/[.*+\-?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+};
