@@ -44,8 +44,8 @@ export type RegType = RegValue['type'];
 export type RegData = RegValue['data'];
 
 export type RegKey = string;
-export type RegName = string;
-export type RegValues = Record<RegName, RegValue>
+export type RegValueName = string;
+export type RegValues = Record<RegValueName, RegValue>
 export type RegStruct = Record<RegKey, RegValues>
 
 export type CommonOpts = OptionsReg64Or32 & TimeoutOpt & RegCmdExecParamsModifier
