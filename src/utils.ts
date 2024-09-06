@@ -1,7 +1,8 @@
-import { COMMAND_NAME, ExecFileParameters, RegCmdExecParamsModifier, RegStruct } from "./types";
+import { COMMAND_NAME, ElevatedSudoPromptOpts, ExecFileParameters, RegCmdExecParamsModifier, RegStruct } from "./types";
 import { exec as sudo } from '@vscode/sudo-prompt'
 import { type ChildProcess, execFile } from 'child_process'
 import { platform } from "os";
+import { PACKAGE_DISPLAY_NAME } from "./constants";
 
 export const isWindows = platform() === 'win32';
 
@@ -109,11 +110,12 @@ export function findValueByNameLowerCaseInStruct(struct: RegStruct, key: string,
   return values && Object.entries(values).find(([v]) => v.toLowerCase() === valueName.toLowerCase())?.[1]
 }
 
-export function execFileUtil(params: ExecFileParameters, opts: { onStdOut?: (str: string) => void, onStdErr?: (str: string) => void, onExit?: (code?:number|null) => void }, elevated = false): ChildProcess | null {
+export function execFileUtil(params: ExecFileParameters, opts: { onStdOut?: (str: string) => void, onStdErr?: (str: string) => void, onExit?: (code?: number | null) => void }, elevated: ElevatedSudoPromptOpts = false): ChildProcess | null {
   if (elevated) {
     const cmd = escapeShellArg(params[0]);
     const args = (params?.[1] || []).map(escapeShellArg).join(' ');
-    sudo(cmd + ' ' + args, { name: 'regedit' }, (err, stdout, stderr) => {
+    const elevatedOpts: ElevatedSudoPromptOpts = typeof elevated === 'object' && elevated !== null && elevated?.name?.length ? elevated : { name: PACKAGE_DISPLAY_NAME };
+    sudo(cmd + ' ' + args, elevatedOpts, (err, stdout, stderr) => {
       opts?.onStdErr?.(stderr?.toString() || '');
       opts?.onStdOut?.(stdout?.toString() || '');
       opts?.onExit?.();

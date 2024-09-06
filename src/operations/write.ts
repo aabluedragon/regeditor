@@ -3,7 +3,7 @@ import { CommonOpts, RegCmdResultWithCmds, RegData, RegKey, RegStruct, RegType, 
 import { regAdd } from "../commands/reg-add";
 import { regQuery } from "../commands/reg-query";
 import { regDelete } from "../commands/reg-delete";
-import { REG_VALUE_DEFAULT, TIMEOUT_DEFAULT } from "../constants";
+import { PACKAGE_DISPLAY_NAME, REG_VALUE_DEFAULT, TIMEOUT_DEFAULT } from "../constants";
 import { PromiseStoppable } from "../promise-stoppable";
 import { RegErrorInvalidSyntax } from "../errors";
 import { tmpdir } from 'os'
@@ -172,7 +172,7 @@ export function writeRegStruct(struct: RegStruct, { deleteUnspecifiedValues = fa
                     fileString += '\r\n'
                 }
 
-                const tmpFilePath = path_join(tmpdir(), `_regeditor_${`${Math.random()}`.split('.')[1]}.reg`);
+                const tmpFilePath = path_join(tmpdir(), `_${PACKAGE_DISPLAY_NAME}_${`${Math.random()}`.split('.')[1]}.reg`);
                 await writeFile(tmpFilePath, fileString, 'utf8');
                 return [regImport({ fileName: tmpFilePath, ...commonOpts }).finally(() => rm(tmpFilePath))];
             })();

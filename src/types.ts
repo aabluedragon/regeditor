@@ -53,7 +53,7 @@ export type RegValueName = string;
 export type RegValues = Record<RegValueName, RegValue>
 export type RegStruct = Record<RegKey, RegValues>
 
-export type RegCmdOptElevated = { elevated?: boolean }
+export type RegCmdOptElevated = { elevated?: ElevatedSudoPromptOpts }
 export type CommonOpts = OptionsReg64Or32 & TimeoutOpt & RegCmdExecParamsModifier & RegCmdOptElevated
 export type RegCmdResultWithCmds = {
     /**
@@ -424,4 +424,19 @@ export type RegCompareResult = {
      * Keys existing in next, but not in previous.
      */
     addedKeys: RegStruct;
+}
+
+/**
+ * __From the `sudo-prompt` package:__
+ * 
+ * sudo-prompt will use process.title as options.name if options.name is not provided.  
+ * options.name must be alphanumeric only (spaces are supported) and at most 70 characters.
+ *
+ * sudo-prompt will preserve the current working directory on all platforms.  
+ * Environment variables can be set explicitly using options.env.
+ */
+export type ElevatedSudoPromptOpts = boolean | void | null | {
+    name?: string,
+    icns?: string,
+    env?: { [key: string]: string }
 }
