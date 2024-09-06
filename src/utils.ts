@@ -1,4 +1,9 @@
 import { COMMAND_NAME, ExecFileParameters, RegCmdExecParamsModifier, RegStruct } from "./types";
+import { exec as sudo } from '@vscode/sudo-prompt'
+import { type ChildProcess, execFile } from 'child_process'
+import { platform } from "os";
+
+export const isWindows = platform() === 'win32';
 
 export type VarArgsOrArray<T> = T[] | T[][];
 
@@ -102,4 +107,56 @@ export function regKeyResolveFullPathFromShortcuts(keyPath: string) {
 export function findValueByNameLowerCaseInStruct(struct: RegStruct, key: string, valueName: string) {
   const values = Object.entries(struct).find(([k]) => k.toLowerCase() === key.toLowerCase())?.[1]
   return values && Object.entries(values).find(([v]) => v.toLowerCase() === valueName.toLowerCase())?.[1]
+}
+
+export function execFileUtil(params: ExecFileParameters, opts: { onStdOut?: (str: string) => void, onStdErr?: (str: string) => void, onExit?: (code?:number|null) => void }, elevated = false): ChildProcess | null {
+  if (elevated) {
+    const cmd = escapeShellArg(params[0]);
+    const args = (params?.[1] || []).map(escapeShellArg).join(' ');
+    sudo(cmd + ' ' + args, { name: 'regedit' }, (err, stdout, stderr) => {
+      opts?.onStdErr?.(stderr?.toString() || '');
+      opts?.onStdOut?.(stdout?.toString() || '');
+      opts?.onExit?.();
+    });
+    return null;
+  } else {
+    const proc = execFile(...params);
+    if (opts?.onStdErr) proc.stderr?.on('data', stdErr => opts?.onStdErr?.(stdErr?.toString()));
+    if (opts?.onStdOut) proc.stdout?.on('data', stdOut => opts?.onStdOut?.(stdOut?.toString()));
+    if (opts?.onExit) proc.on('exit', opts?.onExit);
+    return proc;
+  };
+}
+
+export function containsWhitespace(str: string) {
+  return /\s/.test(str);
+}
+
+export function escapeShellArg(arg: string) {
+  const escapeChar = isWindows ? '^' : '\\';
+  let escaped = arg;
+
+  if (!isWindows) {
+    // unix
+    escaped = escaped.
+      replaceAll('"', '\\"');
+  }
+
+  if (isWindows) {
+    escaped = escaped.
+      replaceAll('^', "^^").
+      replaceAll('"', '""');
+  }
+
+  escaped = escaped.
+    replaceAll('&', escapeChar + "&").
+    replaceAll('<', escapeChar + "<").
+    replaceAll('>', escapeChar + ">").
+    replaceAll('|', escapeChar + "|");
+
+  if (containsWhitespace(escaped)) {
+    escaped = isWindows ? `"${escaped}"` : `'${escaped}'`;
+  }
+
+  return escaped;
 }

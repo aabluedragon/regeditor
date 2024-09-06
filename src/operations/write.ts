@@ -41,14 +41,14 @@ type ExecutionStep = { op: 'ADD', key: string, value?: { name: string, content: 
 /**
  * Merge the given object into the registry, only runs commands if changes were found (does one or more REG QUERY first for diffing)
  */
-export function writeRegStruct(struct: RegStruct, { deleteUnspecifiedValues = false, timeout = TIMEOUT_DEFAULT, cmdParamsModifier, reg32, reg64, deleteKeys: normalDeleteKeys, deleteValues: origDeleteValues, forceCmdMode }: RegWriteOpts = {}): PromiseStoppable<RegWriteCmdResult> {
+export function writeRegStruct(struct: RegStruct, { deleteUnspecifiedValues = false, timeout = TIMEOUT_DEFAULT, cmdParamsModifier, elevated = false, reg32, reg64, deleteKeys: normalDeleteKeys, deleteValues: origDeleteValues, forceCmdMode }: RegWriteOpts = {}): PromiseStoppable<RegWriteCmdResult> {
 
     struct = Object.entries(struct).reduce((acc, [k, v]) => ({ ...acc, [regKeyResolveFullPathFromShortcuts(k)]: v }), {} as RegStruct); // Normalize keys to lowercase
 
     const keyPaths = Object.keys(struct);
     const timeStarted = Date.now();
 
-    const commonOpts: CommonOpts = { timeout, cmdParamsModifier } satisfies CommonOpts;
+    const commonOpts: CommonOpts = { timeout, cmdParamsModifier, elevated } satisfies CommonOpts;
     if (reg32) commonOpts.reg32 = true;
     if (reg64) commonOpts.reg64 = true;
 
@@ -132,50 +132,50 @@ export function writeRegStruct(struct: RegStruct, { deleteUnspecifiedValues = fa
                 }
             }
         }).filter(c => c != null) :
-        // REG IMPORT mode
-        await (async () => {
-            let fileString = 'Windows Registry Editor Version 5.00\r\n\r\n';
-            const newRegStruct = {} as { [key: RegKey]: { [valueName: string]: string } };
-            const deleteKeys = [] as string[];
-            for (const step of executionPlan) {
-                if (step.op === 'ADD') {
-                    const { key, value } = step;
-                    if (value) {
-                        const { name, content } = value;
-                        newRegStruct[key] = newRegStruct[key] || {};
-                        const prefix = name === REG_VALUE_DEFAULT ? `@` : `"${name}"`;
-                        newRegStruct[key][name] = `${prefix}=${serializeDataForRegFile(content.type, content.data)}`
-                    } else {
-                        newRegStruct[key] = {};
-                    }
-                } else if (step.op === 'DELETE') {
-                    const { key, valueName } = step;
-                    if (valueName) {
-                        newRegStruct[key] = newRegStruct[key] || {};
-                        const prefix = valueName === REG_VALUE_DEFAULT ? `@` : `"${name}"`;
-                        newRegStruct[key][valueName] = `${prefix}=-`
-                    } else {
-                        deleteKeys.push(key);
+            // REG IMPORT mode
+            await (async () => {
+                let fileString = 'Windows Registry Editor Version 5.00\r\n\r\n';
+                const newRegStruct = {} as { [key: RegKey]: { [valueName: string]: string } };
+                const deleteKeys = [] as string[];
+                for (const step of executionPlan) {
+                    if (step.op === 'ADD') {
+                        const { key, value } = step;
+                        if (value) {
+                            const { name, content } = value;
+                            newRegStruct[key] = newRegStruct[key] || {};
+                            const prefix = name === REG_VALUE_DEFAULT ? `@` : `"${name}"`;
+                            newRegStruct[key][name] = `${prefix}=${serializeDataForRegFile(content.type, content.data)}`
+                        } else {
+                            newRegStruct[key] = {};
+                        }
+                    } else if (step.op === 'DELETE') {
+                        const { key, valueName } = step;
+                        if (valueName) {
+                            newRegStruct[key] = newRegStruct[key] || {};
+                            const prefix = valueName === REG_VALUE_DEFAULT ? `@` : `"${valueName}"`;
+                            newRegStruct[key][valueName] = `${prefix}=-`
+                        } else {
+                            deleteKeys.push(key);
+                        }
                     }
                 }
-            }
 
-            for (const key of deleteKeys) {
-                fileString += `[-${key}]\r\n\r\n`
-            }
-
-            for (const key in newRegStruct) {
-                fileString += `[${key}]\r\n`
-                for (const valueName in newRegStruct[key]) {
-                    fileString += newRegStruct[key][valueName] + '\r\n'
+                for (const key of deleteKeys) {
+                    fileString += `[-${key}]\r\n\r\n`
                 }
-                fileString += '\r\n'
-            }
 
-            const tmpFilePath = path_join(tmpdir(), `_regeditor_${`${Math.random()}`.split('.')[1]}.reg`);
-            await writeFile(tmpFilePath, fileString, 'utf8');
-            return [regImport({fileName:tmpFilePath, ...commonOpts}).finally(() => rm(tmpFilePath))];
-        })();
+                for (const key in newRegStruct) {
+                    fileString += `[${key}]\r\n`
+                    for (const valueName in newRegStruct[key]) {
+                        fileString += newRegStruct[key][valueName] + '\r\n'
+                    }
+                    fileString += '\r\n'
+                }
+
+                const tmpFilePath = path_join(tmpdir(), `_regeditor_${`${Math.random()}`.split('.')[1]}.reg`);
+                await writeFile(tmpFilePath, fileString, 'utf8');
+                return [regImport({ fileName: tmpFilePath, ...commonOpts }).finally(() => rm(tmpFilePath))];
+            })();
 
         return PromiseStoppable.allStoppable(allCommands as PromiseStoppable<RegCmdResultWithCmds>[], r => ({ cmds: [...existingData.cmds, ...r.map(c => c.cmds).flat()] }));
     })

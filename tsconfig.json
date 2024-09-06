@@ -12,8 +12,13 @@
     "strict": true,
     "esModuleInterop": true,
     "strictNullChecks": true,
+    "lib": [
+      "ES2021.String"
+    ],
     "paths": {
-      "*": ["./typings/*"]
+      "*": [
+        "./typings/*"
+      ]
     },
     "resolveJsonModule": true
   },

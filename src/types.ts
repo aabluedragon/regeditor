@@ -53,7 +53,8 @@ export type RegValueName = string;
 export type RegValues = Record<RegValueName, RegValue>
 export type RegStruct = Record<RegKey, RegValues>
 
-export type CommonOpts = OptionsReg64Or32 & TimeoutOpt & RegCmdExecParamsModifier
+export type RegCmdOptElevated = { elevated?: boolean }
+export type CommonOpts = OptionsReg64Or32 & TimeoutOpt & RegCmdExecParamsModifier & RegCmdOptElevated
 export type RegCmdResultWithCmds = {
     /**
      * An array containing the commands that were executed to get the result.  

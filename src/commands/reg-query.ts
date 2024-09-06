@@ -1,8 +1,8 @@
 import { RegQueryErrorMalformedLine, RegErrorInvalidSyntax, RegQueryErrorReadTooWide, RegErrorUnknown, findCommonErrorInTrimmedStdErr } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
 import { RegType, RegData, RegQueryCmd, RegStruct, RegValue, RegQueryCmdResult, ExecFileParameters } from "../types";
-import { applyParamsModifier, getMinimumFoundIndex, getMinimumFoundIndexStrOrRegex, regexEscape, regKeyResolveFullPathFromShortcuts, VarArgsOrArray } from "../utils";
-import { execFile, ChildProcess } from "child_process"
+import { applyParamsModifier, execFileUtil, getMinimumFoundIndex, getMinimumFoundIndexStrOrRegex, regexEscape, regKeyResolveFullPathFromShortcuts, VarArgsOrArray } from "../utils";
+import { type ChildProcess } from "child_process"
 import { TIMEOUT_DEFAULT, COMMAND_NAMES, REG_TYPES_ALL } from "../constants";
 
 const THIS_COMMAND = COMMAND_NAMES.QUERY;
@@ -102,7 +102,43 @@ function regQuerySingle(queryParam: RegQueryCmd): PromiseStoppable<RegQueryCmdRe
 
         const params = applyParamsModifier(THIS_COMMAND, ['reg', ['query', queryKeyPath, ...args]], queryOpts?.cmdParamsModifier);
         try {
-            proc = execFile(...params);
+            proc = execFileUtil(params, {
+                onStdOut(str) {
+                    stdoutStr += str;
+                    parseStdout();
+                },
+                onStdErr(str) { stderrStr += str; },
+                onExit: (code?: number | null) => {
+                    proc = null;
+                    try {
+                        if (stdoutStr.trim() === 'End of search: 0 match(es) found.') return finishSuccess(); // happens when using /f and having 0 results
+                        const trimmedStdErr = stderrStr.trim();
+                        if (trimmedStdErr === 'ERROR: The system was unable to find the specified registry key or value.') return finishSuccess(true);
+                        const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmedStdErr);
+                        if (commonError) throw commonError;
+                        if (stderrStr.length) throw new RegErrorUnknown(stderrStr);
+                        if (code === null && stderrStr.length === 0) { throw new RegQueryErrorReadTooWide('Read too wide') }
+
+                        // Might happen if using the /f "somestr" argument, and there are 1 or more results.
+                        if (stdoutStr.endsWith('match(es) found.\r\n')) {
+                            const matchIndex = stdoutStr.lastIndexOf('End of search: ');
+                            if (matchIndex !== -1) {
+                                stdoutStr = stdoutStr.substring(0, matchIndex);
+                            }
+                        }
+
+                        parseStdout();
+                        if (stdoutStr.length && stdoutStr.endsWith('\r\n')) {
+                            handleDataChunk(stdoutStr.split('\r\n'));
+                        }
+
+                        finishSuccess();
+
+                    } catch (e) {
+                        finish(e as Error);
+                    }
+                }
+            }, queryOpts?.elevated);
 
             let stdoutStr: string = '', stderrStr = '';
 
@@ -123,13 +159,6 @@ function regQuerySingle(queryParam: RegQueryCmd): PromiseStoppable<RegQueryCmdRe
                 }
                 if (stdoutLines.length > 0) handleDataChunk(stdoutLines);
             }
-
-            proc.stdout?.on('data', data => {
-                stdoutStr += data.toString();
-                parseStdout();
-            });
-
-            proc.stderr?.on('data', data => { stderrStr += data; })
 
             function updateCurrentKey(key: string | null) {
                 if (currentKey && !obj[currentKey]) obj[currentKey] = {}; // When reading keys and not their entries, and not run in recursive mode (/s), still add the key names to the struct
@@ -176,40 +205,6 @@ function regQuerySingle(queryParam: RegQueryCmd): PromiseStoppable<RegQueryCmdRe
                     finish(error as Error);
                 }
             }
-
-            proc.on('exit', code => {
-                proc = null;
-                try {
-                    if (code === 1) {
-                        if (stdoutStr.trim() === 'End of search: 0 match(es) found.') return finishSuccess(); // happens when using /f and having 0 results
-                        const trimmedStdErr = stderrStr.trim();
-                        if (trimmedStdErr === 'ERROR: The system was unable to find the specified registry key or value.') return finishSuccess(true);
-                        const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmedStdErr);
-                        if (commonError) throw commonError;
-                        throw new RegErrorUnknown(stderrStr);
-                    }
-                    if (code === null && stderrStr.length === 0) { throw new RegQueryErrorReadTooWide('Read too wide') }
-                    if (code !== 0 || stderrStr) { throw new RegErrorUnknown(stderrStr || 'Failed to read registry') }
-
-                    // Might happen if using the /f "somestr" argument, and there are 1 or more results.
-                    if (stdoutStr.endsWith('match(es) found.\r\n')) {
-                        const matchIndex = stdoutStr.lastIndexOf('End of search: ');
-                        if (matchIndex !== -1) {
-                            stdoutStr = stdoutStr.substring(0, matchIndex);
-                        }
-                    }
-
-                    parseStdout();
-                    if (stdoutStr.length && stdoutStr.endsWith('\r\n')) {
-                        handleDataChunk(stdoutStr.split('\r\n'));
-                    }
-
-                    finishSuccess();
-
-                } catch (e) {
-                    finish(e as Error);
-                }
-            });
         } catch (e) {
             finish(e as Error);
         }

@@ -1,9 +1,8 @@
-import { applyParamsModifier, VarArgsOrArray } from "../utils";
+import { applyParamsModifier, execFileUtil, VarArgsOrArray } from "../utils";
 import { findCommonErrorInTrimmedStdErr, RegErrorUnknown } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
 import { ExecFileParameters, RegDeleteCmd, RegDeleteCmdResult } from "../types";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
-import { execFile } from "child_process"
 
 const THIS_COMMAND = COMMAND_NAMES.DELETE;
 
@@ -24,24 +23,22 @@ function regDeleteSingle(d: RegDeleteCmd): PromiseStoppable<RegDeleteCmdResultSi
     const params = applyParamsModifier(THIS_COMMAND, ['reg', ['delete', d.keyPath, ...args]], d?.cmdParamsModifier);
 
     return PromiseStoppable.createStoppable((resolve, reject, setStopper) => {
-        const proc = execFile(...params);
-
-        setStopper(() => proc.kill());
-
         let stdoutStr = '', stderrStr = '';
-        proc.stdout?.on('data', data => { stdoutStr += data.toString(); });
-        proc.stderr?.on('data', data => { stderrStr += data.toString(); });
-
-        proc.on('exit', code => {
-            if (code !== 0) {
+        const proc = execFileUtil(params, {
+            onStdErr(data) { stderrStr += data; },
+            onStdOut(data) { stdoutStr += data; },
+            onExit() {
                 const trimmed = stderrStr.trim();
                 if (trimmed === 'ERROR: The system was unable to find the specified registry key or value.') return resolve({ notFound: true, cmd: params });
                 const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmed);
                 if (commonError) return reject(commonError);
-                return reject(new RegErrorUnknown(stderrStr));
+                if (stderrStr.length) return reject(new RegErrorUnknown(stderrStr));
+                resolve({ cmd: params });
             }
-            resolve({ cmd: params });
-        });
+        }, d.elevated);
+
+        setStopper(() => proc?.kill());
+
     }, d?.timeout ?? TIMEOUT_DEFAULT);
 }
 

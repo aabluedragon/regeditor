@@ -1,9 +1,8 @@
-import { execFile } from "child_process";
 import { PromiseStoppable } from "../promise-stoppable";
 import { RegAddCmd, RegType, RegData, ExecFileParameters, RegAddCmdResult } from "../types";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
 import { findCommonErrorInTrimmedStdErr, RegErrorInvalidSyntax, RegErrorUnknown } from "../errors";
-import { applyParamsModifier, VarArgsOrArray } from "../utils";
+import { applyParamsModifier, execFileUtil, VarArgsOrArray } from "../utils";
 
 const THIS_COMMAND = COMMAND_NAMES.ADD;
 
@@ -41,27 +40,26 @@ function regAddSingle(a: RegAddCmd): PromiseStoppable<{ cmd: ExecFileParameters 
             if (opts.ve) args.push('/ve');
 
             const params = applyParamsModifier(THIS_COMMAND, ['reg', ['add', opts.keyPath, ...args]], opts.cmdParamsModifier);
-            const proc = execFile(...params);
-
-            setStopper(() => proc.kill());
 
             let stdoutStr = '', stderrStr = '';
-            proc.stdout?.on('data', data => { stdoutStr += data.toString(); });
-            proc.stderr?.on('data', data => { stderrStr += data.toString(); });
-
-            proc.on('exit', code => {
-                if (code !== 0) {
+            const proc = execFileUtil(params, {
+                onStdErr(data) { stderrStr += data },
+                onStdOut(data) { stdoutStr += data },
+                onExit() {
                     const trimmedStdErr = stderrStr.trim();
                     const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmedStdErr);
                     if (commonError) return reject(commonError);
-                    return reject(new RegErrorUnknown(stderrStr));
+                    if (trimmedStdErr.length) return reject(new RegErrorUnknown(stderrStr));
+
+                    const trimmedStdout = stdoutStr.trim();
+                    if (trimmedStdout !== 'The operation completed successfully.') {
+                        return reject(new RegErrorUnknown(stderrStr || stdoutStr));
+                    }
+                    resolve({ cmd: params });
                 }
-                const trimmedStdout = stdoutStr.trim();
-                if (trimmedStdout !== 'The operation completed successfully.') {
-                    return reject(new RegErrorUnknown(stderrStr || stdoutStr));
-                }
-                resolve({ cmd: params });
-            });
+            }, opts.elevated);
+
+            setStopper(() => proc?.kill());
         } catch (e) {
             reject(e)
         }

@@ -36,5 +36,8 @@
   "bugs": {
     "url": "https://github.com/aabluedragon/regeditor/issues"
   },
-  "homepage": "https://github.com/aabluedragon/regeditor#readme"
+  "homepage": "https://github.com/aabluedragon/regeditor#readme",
+  "dependencies": {
+    "@vscode/sudo-prompt": "^9.3.1"
+  }
 }
