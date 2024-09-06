@@ -298,7 +298,7 @@ type RegDeleteVA = {
      * __msdocs:__
      * delete all values under this key.
      */
-    va: boolean
+    va?: boolean
 }
 
 /**
@@ -379,7 +379,21 @@ export type RegWriteOpts = {
      * * "onlyDefault": delete only the "(Default)" value if it was found in the existing key but not in the given struct object.  
      * * function: a function that takes in the the existing key and value, and returns true if the value should be deleted (allows deciding upon deletions on the fly).  
      */
-    deleteUnspecifiedValues?: false | "all" | "allExceptDefault" | "onlyDefault" | ((key: string, name: string, value: RegValue) => boolean)
+    deleteUnspecifiedValues?: false | "all" | "allExceptDefault" | "onlyDefault" | ((key: string, name: string, value: RegValue) => boolean),
+    deleteKeys?: RegKey[],
+    deleteValues?: { key: RegKey, valueName: string }[]
+
+    /**
+     * Whether to run one REG IMPORT (.reg file) command instaed of a combination of REG ADD/DELETE commands for each value or key.
+     * By default, will use this only if there are multiple modifications to be made, or by the edge case of writing a value of type REG_NONE with contents.
+     */
+    useRegImport?: boolean,
+
+    /**
+     * Skips the REG QUERY before the writing operation, and just perform the write regardless if there weren't any differences.
+     * false by default to prevent unnecessary writes and UAC elevation prompts.
+     */
+    skipQuery?: boolean
 } & CommonOpts
 
 /**

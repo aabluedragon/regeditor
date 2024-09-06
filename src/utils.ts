@@ -1,4 +1,4 @@
-import { COMMAND_NAME, ExecFileParameters, RegCmdExecParamsModifier } from "./types";
+import { COMMAND_NAME, ExecFileParameters, RegCmdExecParamsModifier, RegStruct } from "./types";
 
 export type VarArgsOrArray<T> = T[] | T[][];
 
@@ -97,4 +97,9 @@ export function regKeyResolveFullPathFromShortcuts(keyPath: string) {
   pathParts[indexOfShortcut] = shortcuts?.[pathParts?.[indexOfShortcut]?.toUpperCase?.()] ?? pathParts[indexOfShortcut];
 
   return pathParts.join('\\');
+}
+
+export function findValueByNameLowerCaseInStruct(struct: RegStruct, key: string, valueName: string) {
+  const values = Object.entries(struct).find(([k]) => k.toLowerCase() === key.toLowerCase())?.[1]
+  return values && Object.entries(values).find(([v]) => v.toLowerCase() === valueName.toLowerCase())?.[1]
 }
