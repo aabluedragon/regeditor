@@ -57,7 +57,7 @@ export function writeRegStruct(struct: RegStruct, { deleteUnspecifiedValues = fa
 
         // Add missing keys and all values in them
         executionPlan.push(...(lKeysMissing.map(k => {
-            const valueEntries = Object.entries(struct).find(([k]) => k.toLowerCase() === k.toLowerCase())?.[1] || {};
+            const valueEntries = Object.entries(struct).find(([ik]) => ik.toLowerCase() === k.toLowerCase())?.[1] || {};
             if (!Object.keys(valueEntries).length)
                 return { op: "ADD", key: k } as ExecutionStep; // no values specified, just create key
             else
