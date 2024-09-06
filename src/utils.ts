@@ -1,5 +1,5 @@
 import { COMMAND_NAME, ElevatedSudoPromptOpts, ExecFileParameters, RegCmdExecParamsModifier, RegStruct } from "./types";
-import { exec as sudo } from '@vscode/sudo-prompt'
+import { exec as sudo } from '@emrivero/sudo-prompt'
 import { type ChildProcess, execFile } from 'child_process'
 import { platform } from "os";
 import { PACKAGE_DISPLAY_NAME } from "./constants";

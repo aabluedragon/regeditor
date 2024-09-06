@@ -38,6 +38,6 @@
   },
   "homepage": "https://github.com/aabluedragon/regeditor#readme",
   "dependencies": {
-    "@vscode/sudo-prompt": "^9.3.1"
+    "@emrivero/sudo-prompt": "^1.1.2"
   }
 }
