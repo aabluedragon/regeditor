@@ -130,6 +130,22 @@ export function execFileUtil(params: ExecFileParameters, opts: { onStdOut?: (str
   };
 }
 
+export function stringToUTF16LE(str:string) {
+  let bytes = [] as number[];
+
+  // Encode the string into UTF-16 code units
+  for (let i = 0; i < str.length; i++) {
+    let codeUnit = str.charCodeAt(i);
+    let lowByte = codeUnit & 0xFF;
+    let highByte = (codeUnit >> 8) & 0xFF;
+
+    bytes.push(lowByte);
+    bytes.push(highByte);
+  }
+
+  return bytes;
+}
+
 export function containsWhitespace(str: string) {
   return /\s/.test(str);
 }
