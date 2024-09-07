@@ -1,42 +1,31 @@
-import { regQuery, regDelete, regAdd, writeRegStruct, regImport } from './src/index';
+import { regCmdQuery, regCmdDelete, regCmdAdd, regApply, regCmdImport } from './src/index';
 
 async function main() {
+
     try {
-        // const p = regQuery(
-        //     {
-        //         keyPath: 'HKEY_LOCAL_MACHINE\\Software\\Microsoft',
-        //         // f: '*',
-        //         // keyPath: 'HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node',
-        //         // s: true,
-        //         // keyPath: 'HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Lenovo\\MachineInfo',
-        //         timeout: 40000,
-        //         // reg64: true,
-        //         // d: true,
-        //     },
-        //     {keyPath:'HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\DirectPlay', s:true},
+        // const p = regCmdQuery(
+        //     {keyPath:'HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\DirectPlay', elevated:false, s:true},
         // )
         // const res = await p;
         // console.log(JSON.stringify(res, null, 4));
 
-        // const p = del({
-        //     keyPath:"HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\DirectPlay\\Service Providers\\IPX Connection For DirectPlay",
-        //     v:"name",
+        // const p = regCmdDelete({
+        //     keyPath:"HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\DirectPlay\\Service Providers\\IPX Connection For DirectPlay\\name",
         // })
         // // p.stop();
         // const res = await p;
         // console.log(res)
 
-        const p = regAdd({
-            keyPath:"HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\DirectPlay\\Service Providers\\IPX Connection For DirectPlay",
-            value: {
-                type: "REG_NONE",
-                data:[]
-            },
-            v: "name"
-        })
-        // p.stop();
-        const res = await p;
-        console.log(res)
+        // const p = regCmdAdd({
+        //     keyPath:"HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\DirectPlay\\Service Providers\\IPX Connection For DirectPlay",
+        //     value: {
+        //         type: "REG_NONE",
+        //     },
+        //     v: "name"
+        // })
+        // // p.stop();
+        // const res = await p;
+        // console.log(res)
 
 
         /*
@@ -47,9 +36,10 @@ async function main() {
 
          */
 
-        // writeRegStruct({
-        //     "HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\Microsoft\\DirectPlay\\Service Providers\\IPX Connection For DirectPlay": {
-        //         "(Default)": {type:"REG_SZ", data: "Akkkk"},
+        // regApply({
+        //     "HKLM\\SOFTWARE\\Wow6432Node\\Microsoft\\DirectPlay\\Service Providers\\IPX Connection For DirectPlay": {
+        //         // "(Default)": {type:"REG_SZ", data: "cool"},
+        //         what: {type:"REG_SZ", data: "cool"},
         //         dwReserved1: {type:"REG_DWORD", data: 0x32},
         //         dwReserved2: {type:"REG_DWORD", data: 0x0},
         //         Guid: {type:"REG_SZ", data: "{685BC400-9D2C-11cf-A9CD-00AA006886E3}"},
@@ -63,10 +53,10 @@ async function main() {
         //     },
         //     "HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\Microsoft\\DirectPlay\\Services\\{5146ab8cb6b1ce11920c00aa006c4972}\\Players": {},
         //     "HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\Microsoft\\DirectPlay\\Services\\{5146ab8cb6b1ce11920c00aa006c4972}\\Sessions": {}
-        // }, {deleteUnspecifiedValues: 'all'})
+        // }, {deleteUnspecifiedValues: false, forceCmdMode:"import", elevated:true})
 
         
-        // regImport("directplay-win64.reg");
+        regCmdImport({elevated:true, fileName:"directplay-win64.reg"});
 
     } catch (e) {
         console.error(e);

@@ -1,15 +1,15 @@
 import { findValueByNameLowerCaseInStruct, isEqual, regKeyResolveFullPathFromShortcuts } from "../utils";
 import { CommonOpts, RegCmdResultWithCmds, RegData, RegKey, RegStruct, RegType, RegValue, RegValues, RegWriteCmdMode, RegWriteCmdResult, RegWriteOpts } from "../types";
-import { regAdd } from "../commands/reg-add";
-import { regQuery } from "../commands/reg-query";
-import { regDelete } from "../commands/reg-delete";
+import { regCmdAdd } from "../commands/reg-cmd-add";
+import { regCmdQuery } from "../commands/reg-cmd-query";
+import { regCmdDelete } from "../commands/reg-cmd-delete";
 import { PACKAGE_DISPLAY_NAME, REG_VALUE_DEFAULT, TIMEOUT_DEFAULT } from "../constants";
 import { PromiseStoppable } from "../promise-stoppable";
 import { RegErrorInvalidSyntax } from "../errors";
 import { tmpdir } from 'os'
 import { join as path_join } from "path";
 import { writeFile, rm } from 'fs/promises'
-import { regImport } from "../commands/reg-import";
+import { regCmdImport } from "../commands/reg-cmd-import";
 
 function nameOrDefault(valueName: string) {
     return { ...(valueName === REG_VALUE_DEFAULT ? { ve: true } : { v: valueName }) }
@@ -41,7 +41,7 @@ type ExecutionStep = { op: 'ADD', key: string, value?: { name: string, content: 
 /**
  * Merge the given object into the registry, only runs commands if changes were found (does one or more REG QUERY first for diffing)
  */
-export function writeRegStruct(struct: RegStruct, { deleteUnspecifiedValues = false, timeout = TIMEOUT_DEFAULT, cmdParamsModifier, elevated = false, reg32, reg64, deleteKeys: normalDeleteKeys, deleteValues: origDeleteValues, forceCmdMode }: RegWriteOpts = {}): PromiseStoppable<RegWriteCmdResult> {
+export function regApply(struct: RegStruct, { deleteUnspecifiedValues = false, timeout = TIMEOUT_DEFAULT, cmdParamsModifier, elevated = false, reg32, reg64, deleteKeys: normalDeleteKeys, deleteValues: origDeleteValues, forceCmdMode }: RegWriteOpts = {}): PromiseStoppable<RegWriteCmdResult> {
 
     struct = Object.entries(struct).reduce((acc, [k, v]) => ({ ...acc, [regKeyResolveFullPathFromShortcuts(k)]: v }), {} as RegStruct); // Normalize keys to lowercase
 
@@ -58,7 +58,7 @@ export function writeRegStruct(struct: RegStruct, { deleteUnspecifiedValues = fa
     const allKeyPaths = [...new Set([...keyPaths, ...(lDeleteKeys || [])])];
     const queryForKeys = allKeyPaths.map(k => ({ keyPath: k, ...commonOpts }))
 
-    return PromiseStoppable.allStoppable([regQuery(queryForKeys)], async query => {
+    return PromiseStoppable.allStoppable([regCmdQuery(queryForKeys)], async query => {
         const timeleft = timeout - (Date.now() - timeStarted);
         commonOpts.timeout = timeleft;
 
@@ -119,16 +119,16 @@ export function writeRegStruct(struct: RegStruct, { deleteUnspecifiedValues = fa
                 const { key, value } = cmd;
                 if (value) {
                     const { name, content } = value;
-                    return regAdd({ keyPath: key, ...nameOrDefault(name), value: content.type === 'REG_NONE' ? { type: 'REG_NONE', data: undefined } : content, ...commonOpts });
+                    return regCmdAdd({ keyPath: key, ...nameOrDefault(name), value: content.type === 'REG_NONE' ? { type: 'REG_NONE', data: undefined } : content, ...commonOpts });
                 } else {
-                    return regAdd({ keyPath: key, ...commonOpts });
+                    return regCmdAdd({ keyPath: key, ...commonOpts });
                 }
             } else if (cmd.op === "DELETE") {
                 const { key, valueName } = cmd;
                 if (valueName) {
-                    return regDelete({ keyPath: key, ...nameOrDefault(valueName), ...commonOpts });
+                    return regCmdDelete({ keyPath: key, ...nameOrDefault(valueName), ...commonOpts });
                 } else {
-                    return regDelete({ keyPath: key, ...commonOpts });
+                    return regCmdDelete({ keyPath: key, ...commonOpts });
                 }
             }
         }).filter(c => c != null) :
@@ -174,7 +174,7 @@ export function writeRegStruct(struct: RegStruct, { deleteUnspecifiedValues = fa
 
                 const tmpFilePath = path_join(tmpdir(), `_${PACKAGE_DISPLAY_NAME}_${`${Math.random()}`.split('.')[1]}.reg`);
                 await writeFile(tmpFilePath, fileString, 'utf8');
-                return [regImport({ fileName: tmpFilePath, ...commonOpts }).finally(() => rm(tmpFilePath))];
+                return [regCmdImport({ fileName: tmpFilePath, ...commonOpts }).finally(() => rm(tmpFilePath))];
             })();
 
         return PromiseStoppable.allStoppable(allCommands as PromiseStoppable<RegCmdResultWithCmds>[], r => ({ cmds: [...existingData.cmds, ...r.map(c => c.cmds).flat()] }));

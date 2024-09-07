@@ -45,7 +45,7 @@ const COLUMN_DELIMITER = '    ';
 const INDENTATION_FOR_ENTRY_VALUE = '    ';
 const INDENTATION_LENGTH_FOR_ENTRY_VALUE = INDENTATION_FOR_ENTRY_VALUE.length;
 
-function regQuerySingle(queryParam: RegQueryCmd): PromiseStoppable<RegQueryCmdResultSingle> {
+function regCmdQuerySingle(queryParam: RegQueryCmd): PromiseStoppable<RegQueryCmdResultSingle> {
 
     const { queryKeyPath: _queryKeyPathOriginal, queryOpts } = getQueryPathAndOpts(queryParam);
 
@@ -217,10 +217,10 @@ function regQuerySingle(queryParam: RegQueryCmd): PromiseStoppable<RegQueryCmdRe
  * @param queryParam one or more queries to perform
  * @returns struct representing the registry entries
  */
-export function regQuery(...queriesParam: VarArgsOrArray<RegQueryCmd>): PromiseStoppable<RegQueryCmdResult> {
+export function regCmdQuery(...queriesParam: VarArgsOrArray<RegQueryCmd>): PromiseStoppable<RegQueryCmdResult> {
     const flattened = queriesParam.flat();
     const queries = flattened.map(getQueryPathAndOpts);
-    const promises = flattened.map(regQuerySingle);
+    const promises = flattened.map(regCmdQuerySingle);
 
     return PromiseStoppable.allStoppable(promises, (results) => {
         // Skipping the merge logic if just a single query.

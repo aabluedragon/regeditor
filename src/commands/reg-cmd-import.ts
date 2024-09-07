@@ -11,7 +11,7 @@ const THIS_COMMAND = COMMAND_NAMES.IMPORT;
  * @param cmd The import command path, or options object.
  * @returns void when successful, otherwise an error is thrown.
  */
-export function regImport(cmd: RegImportCmd): PromiseStoppable<RegImportCmdResult> {
+export function regCmdImport(cmd: RegImportCmd): PromiseStoppable<RegImportCmdResult> {
     const opts: RegImportCmdOpts = typeof cmd === 'string' ? { fileName: cmd } : cmd;
     const fileName = opts.fileName;
     const args = [] as string[];

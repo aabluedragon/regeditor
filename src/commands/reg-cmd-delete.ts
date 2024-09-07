@@ -11,7 +11,7 @@ type RegDeleteCmdResultSingle = {
     cmd: ExecFileParameters
 }
 
-function regDeleteSingle(d: RegDeleteCmd): PromiseStoppable<RegDeleteCmdResultSingle> {
+function regCmdDeleteSingle(d: RegDeleteCmd): PromiseStoppable<RegDeleteCmdResultSingle> {
 
     const args = ['/f'] as string[];
     if (d.reg32) args.push('/reg:32');
@@ -48,9 +48,9 @@ function regDeleteSingle(d: RegDeleteCmd): PromiseStoppable<RegDeleteCmdResultSi
  * @param opts paramters for the REG DELETE command
  * @returns nothing. throws on errors such as access denied.
  */
-export function regDelete(...opts: VarArgsOrArray<RegDeleteCmd>): PromiseStoppable<RegDeleteCmdResult> {
+export function regCmdDelete(...opts: VarArgsOrArray<RegDeleteCmd>): PromiseStoppable<RegDeleteCmdResult> {
     const requests = opts.flat();
-    return PromiseStoppable.allStoppable(requests.map(regDeleteSingle), res => {
+    return PromiseStoppable.allStoppable(requests.map(regCmdDeleteSingle), res => {
         const response: RegDeleteCmdResult = { notFound: [], cmds: res.map(r => r.cmd) };
 
         for (let i = 0; i < res.length; i++) {

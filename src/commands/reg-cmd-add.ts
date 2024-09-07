@@ -23,7 +23,7 @@ function serializeData(type: RegType, data: RegData, separator: string): string 
     }
 }
 
-function regAddSingle(a: RegAddCmd): PromiseStoppable<{ cmd: ExecFileParameters }> {
+function regCmdAddSingle(a: RegAddCmd): PromiseStoppable<{ cmd: ExecFileParameters }> {
     const opts = typeof a === 'string' ? { keyPath: a } : a;
     return PromiseStoppable.createStoppable((resolve, reject, setStopper) => {
         try {
@@ -72,6 +72,6 @@ function regAddSingle(a: RegAddCmd): PromiseStoppable<{ cmd: ExecFileParameters 
  * @param addCommands one or more REG ADD commands
  * @returns void when successful, throws an error when failed
  */
-export function regAdd(...addCommands: VarArgsOrArray<RegAddCmd>): PromiseStoppable<RegAddCmdResult> {
-    return PromiseStoppable.allStoppable(addCommands.flat().map(regAddSingle), res => ({ cmds: res.map(r => r.cmd) }));
+export function regCmdAdd(...addCommands: VarArgsOrArray<RegAddCmd>): PromiseStoppable<RegAddCmdResult> {
+    return PromiseStoppable.allStoppable(addCommands.flat().map(regCmdAddSingle), res => ({ cmds: res.map(r => r.cmd) }));
 }

@@ -7,7 +7,7 @@ import { isEqual } from "../utils";
  * @param next Next registry struct.
  * @returns a RegCompareResult object describing the differences.
  */
-export function compareRegStructs(previous: RegStruct, next: RegStruct): RegCompareResult {
+export function regCompare(previous: RegStruct, next: RegStruct): RegCompareResult {
     const prevKeys = Object.keys(previous);
     const nextKeys = Object.keys(next);
 
