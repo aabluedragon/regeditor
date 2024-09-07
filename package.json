@@ -4,10 +4,6 @@
   "description": "A simplistic windows registry manager",
   "main": "lib/index",
   "types": "lib/index.d.ts",
-  "devDependencies": {
-    "@types/node": "*",
-    "typescript": "*"
-  },
   "scripts": {
     "prepare": "npm run build",
     "build": "npx tsc --project tsconfig.json"
@@ -39,5 +35,9 @@
   "homepage": "https://github.com/aabluedragon/regeditor#readme",
   "dependencies": {
     "@emrivero/sudo-prompt": "^1.1.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.4",
+    "typescript": "^5.5.4"
   }
 }
