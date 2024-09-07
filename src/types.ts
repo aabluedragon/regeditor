@@ -179,6 +179,8 @@ type RegQueryCmdBase = {
     bestEffort?: boolean
 
     /**
+     * Only usable when not using the "elevated" option.
+     * 
      * Use to observe the value of the the result registry struct before it has finished reading, call stop() or return false to stop reading.  
      * Might be useful for long reads, e.g. when using the /s flag for recursive read.
      */
