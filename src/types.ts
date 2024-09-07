@@ -77,7 +77,7 @@ export type RegQueryCmdResult = {
 
 export type RegAddCmdResult = RegCmdResultWithCmds;
 export type RegImportCmdResult = RegCmdResultWithCmds;
-export type RegWriteCmdResult = RegCmdResultWithCmds;
+export type RegApplyCmdResult = RegCmdResultWithCmds;
 
 export type RegDeleteCmdResult = {
     notFound: {
@@ -372,8 +372,8 @@ export type RegAddCmd = string | {
     v?: Omitted;
 }) & CommonOpts
 
-export type RegWriteCmdMode = 'import' | 'add-delete';
-export type RegWriteOpts = {
+export type RegApplyCmdMode = 'import' | 'add-delete';
+export type RegApplyOpts = {
     /**
      * Delete values that were found in existing key but not given in the new struct object.  
      * Only applicable when not using "skipQuery".
@@ -392,7 +392,7 @@ export type RegWriteOpts = {
      * Whether to run one REG IMPORT (.reg file) command instaed of a combination of REG ADD/DELETE commands for each value or key.
      * By default, will use this only if there are multiple modifications to be made, or by the edge case of writing a value of type REG_NONE with contents.
      */
-    forceCmdMode?: RegWriteCmdMode | false | void | null,
+    forceCmdMode?: RegApplyCmdMode | false | void | null,
 
     /**
      * Skips the REG QUERY before the writing operation, and just perform the write regardless if there weren't any differences.

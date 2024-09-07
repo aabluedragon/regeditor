@@ -1,5 +1,5 @@
 import { findValueByNameLowerCaseInStruct, isEqual, regKeyResolveFullPathFromShortcuts, stringToUTF16LE } from "../utils";
-import { CommonOpts, RegCmdResultWithCmds, RegData, RegKey, RegQueryCmdResult, RegStruct, RegType, RegValue, RegValues, RegWriteCmdMode, RegWriteCmdResult, RegWriteOpts } from "../types";
+import { CommonOpts, RegCmdResultWithCmds, RegData, RegKey, RegQueryCmdResult, RegStruct, RegType, RegValue, RegValues, RegApplyCmdMode, RegApplyCmdResult, RegApplyOpts } from "../types";
 import { regCmdAdd } from "../commands/reg-cmd-add";
 import { regCmdQuery } from "../commands/reg-cmd-query";
 import { regCmdDelete } from "../commands/reg-cmd-delete";
@@ -42,7 +42,7 @@ type ExecutionStep = { op: 'ADD', key: string, value?: { name: string, content: 
 /**
  * Merge the given object into the registry, only runs commands if changes were found (does one or more REG QUERY first for diffing)
  */
-export function regApply(struct: RegStruct, { deleteUnspecifiedValues = false, timeout = TIMEOUT_DEFAULT, cmdParamsModifier, elevated = false, reg32, reg64, deleteKeys: normalDeleteKeys, deleteValues: origDeleteValues, forceCmdMode, skipQuery = false }: RegWriteOpts = {}): PromiseStoppable<RegWriteCmdResult> {
+export function regApply(struct: RegStruct, { deleteUnspecifiedValues = false, timeout = TIMEOUT_DEFAULT, cmdParamsModifier, elevated = false, reg32, reg64, deleteKeys: normalDeleteKeys, deleteValues: origDeleteValues, forceCmdMode, skipQuery = false }: RegApplyOpts = {}): PromiseStoppable<RegApplyCmdResult> {
 
     struct = Object.entries(struct).reduce((acc, [k, v]) => ({ ...acc, [regKeyResolveFullPathFromShortcuts(k)]: v }), {} as RegStruct); // Normalize keys to lowercase
 
@@ -109,7 +109,7 @@ export function regApply(struct: RegStruct, { deleteUnspecifiedValues = false, t
             return [...updateValuesCommands, ...deleteCommands];
         }).flat() as ExecutionStep[]);
 
-        const _preferredMode: RegWriteCmdMode = (executionPlan.length > 1 || executionPlan.findIndex(c => c.op === "ADD" && c.value?.content?.type === 'REG_NONE' && c.value?.content?.data != null)) !== -1 ? "import" : "add-delete";
+        const _preferredMode: RegApplyCmdMode = (executionPlan.length > 1 || executionPlan.findIndex(c => c.op === "ADD" && c.value?.content?.type === 'REG_NONE' && c.value?.content?.data != null)) !== -1 ? "import" : "add-delete";
         const useCmdMode = forceCmdMode || _preferredMode;
 
         const allCommands = useCmdMode === 'add-delete' ? executionPlan.map(cmd => {
