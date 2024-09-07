@@ -1,14 +1,14 @@
-import { findValueByNameLowerCaseInStruct, isEqual, regKeyResolveFullPathFromShortcuts, stringToUTF16LE } from "../utils";
+import { findValueByNameLowerCaseInStruct, generateRegFileName, isEqual, regKeyResolveFullPathFromShortcuts, stringToUTF16LE } from "../utils";
 import { CommonOpts, RegCmdResultWithCmds, RegData, RegKey, RegQueryCmdResult, RegStruct, RegType, RegValue, RegValues, RegApplyCmdMode, RegApplyCmdResult, RegApplyOpts } from "../types";
 import { regCmdAdd } from "../commands/reg-cmd-add";
 import { regCmdQuery } from "../commands/reg-cmd-query";
 import { regCmdDelete } from "../commands/reg-cmd-delete";
-import { PACKAGE_DISPLAY_NAME, REG_VALUE_DEFAULT, TIMEOUT_DEFAULT } from "../constants";
+import { REG_VALUE_DEFAULT, TIMEOUT_DEFAULT } from "../constants";
 import { PromiseStoppable } from "../promise-stoppable";
 import { RegErrorInvalidSyntax } from "../errors";
 import { tmpdir } from 'os'
-import { join as path_join } from "path";
-import { writeFileSync, rmSync } from 'fs'
+import { join as path_join, dirname as path_dirname, basename as path_basename } from "path";
+import { writeFileSync, rmSync, mkdirSync, existsSync } from 'fs'
 import { regCmdImport } from "../commands/reg-cmd-import";
 
 function nameOrDefault(valueName: string) {
@@ -25,7 +25,7 @@ function serializeDataForRegFile(type: RegType, data: RegData): string {
         case 'REG_SZ':
             return `"${data}"`;
         case 'REG_MULTI_SZ':
-            const bytesArray = [...(data as string[]).map(str=>[...stringToUTF16LE(str), 0, 0]).flat(), 0, 0];
+            const bytesArray = [...(data as string[]).map(str => [...stringToUTF16LE(str), 0, 0]).flat(), 0, 0];
             const hexString = bytesArray.map(n => n.toString(16).padStart(2, '0')).join(',');
             return `hex(7):${hexString}`;
         case 'REG_BINARY':
@@ -42,7 +42,7 @@ type ExecutionStep = { op: 'ADD', key: string, value?: { name: string, content: 
 /**
  * Merge the given object into the registry, only runs commands if changes were found (does one or more REG QUERY first for diffing)
  */
-export function regApply(struct: RegStruct, { deleteUnspecifiedValues = false, timeout = TIMEOUT_DEFAULT, cmdParamsModifier, elevated = false, reg32, reg64, deleteKeys: normalDeleteKeys, deleteValues: origDeleteValues, forceCmdMode, skipQuery = false }: RegApplyOpts = {}): PromiseStoppable<RegApplyCmdResult> {
+export function regApply(struct: RegStruct, { deleteUnspecifiedValues = false, timeout = TIMEOUT_DEFAULT, cmdParamsModifier, elevated = false, reg32, reg64, deleteKeys: normalDeleteKeys, deleteValues: origDeleteValues, forceCmdMode, skipQuery = false, tmpPath }: RegApplyOpts = {}): PromiseStoppable<RegApplyCmdResult> {
 
     struct = Object.entries(struct).reduce((acc, [k, v]) => ({ ...acc, [regKeyResolveFullPathFromShortcuts(k)]: v }), {} as RegStruct); // Normalize keys to lowercase
 
@@ -170,7 +170,24 @@ export function regApply(struct: RegStruct, { deleteUnspecifiedValues = false, t
                     fileString += '\r\n'
                 }
 
-                const tmpFilePath = path_join(tmpdir(), `_${PACKAGE_DISPLAY_NAME}_${`${Math.random()}`.split('.')[1]}.reg`);
+                let tmpFileName: string | null = null;
+                let tmpDir: string | null = null;
+                if (tmpPath) {
+                    if (tmpPath.type === 'dir') {
+                        tmpDir = tmpPath.path;
+                    } else if (tmpPath.type === 'file') {
+                        // todo put filename
+                        tmpDir = path_dirname(tmpPath.path);
+                        tmpFileName = path_basename(tmpPath.path);
+                    }
+                    if (tmpDir?.length && !existsSync(tmpDir)) {
+                        mkdirSync(tmpDir, { recursive: true });
+                    }
+                }
+                if (!tmpDir) tmpDir = tmpdir();
+                if (!tmpFileName) tmpFileName = generateRegFileName();
+
+                const tmpFilePath = path_join(tmpDir, tmpFileName);
                 writeFileSync(tmpFilePath, fileString, 'utf8');
                 return [regCmdImport({ fileName: tmpFilePath, ...commonOpts }).finally(() => rmSync(tmpFilePath))];
             })();

@@ -178,3 +178,7 @@ export function escapeShellArg(arg: string) {
 
   return escaped;
 }
+
+export function generateRegFileName() {
+  return `_${PACKAGE_DISPLAY_NAME}_${`${Math.random()}`.split('.')[1]}.reg`;
+}

@@ -395,6 +395,13 @@ export type RegApplyOpts = {
     forceCmdMode?: RegApplyCmdMode | false | void | null,
 
     /**
+     * When command mode is "import" (either automatically or by setting "forceCmdMode" to "import"),  
+     * The given path will be used to create the temporary .reg file (and then delete it after the command is executed).  
+     * By default, os.tmpdir() will be used.
+     */
+    tmpPath?: {type:'dir'|'file', path: string}  
+
+    /**
      * Skips the REG QUERY before the writing operation, and just perform the write regardless if there weren't any differences.
      * false by default to prevent unnecessary writes and UAC elevation prompts.
      */
