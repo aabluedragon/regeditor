@@ -373,7 +373,8 @@ export type RegAddCmd = string | {
 export type RegWriteCmdMode = 'import' | 'add-delete';
 export type RegWriteOpts = {
     /**
-     * Delete values that were found in existing key but not given in the new struct object.
+     * Delete values that were found in existing key but not given in the new struct object.  
+     * Only applicable when not using "skipQuery".
      * 
      * * false: don't delete any values (leave them as they are, this is the default).  
      * * "all": delete all values that were found in the existing key but not in the given struct object.  

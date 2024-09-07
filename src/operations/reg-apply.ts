@@ -1,5 +1,5 @@
 import { findValueByNameLowerCaseInStruct, isEqual, regKeyResolveFullPathFromShortcuts } from "../utils";
-import { CommonOpts, RegCmdResultWithCmds, RegData, RegKey, RegStruct, RegType, RegValue, RegValues, RegWriteCmdMode, RegWriteCmdResult, RegWriteOpts } from "../types";
+import { CommonOpts, RegCmdResultWithCmds, RegData, RegKey, RegQueryCmdResult, RegStruct, RegType, RegValue, RegValues, RegWriteCmdMode, RegWriteCmdResult, RegWriteOpts } from "../types";
 import { regCmdAdd } from "../commands/reg-cmd-add";
 import { regCmdQuery } from "../commands/reg-cmd-query";
 import { regCmdDelete } from "../commands/reg-cmd-delete";
@@ -8,7 +8,7 @@ import { PromiseStoppable } from "../promise-stoppable";
 import { RegErrorInvalidSyntax } from "../errors";
 import { tmpdir } from 'os'
 import { join as path_join } from "path";
-import { writeFile, rm } from 'fs/promises'
+import { writeFileSync, rmSync } from 'fs'
 import { regCmdImport } from "../commands/reg-cmd-import";
 
 function nameOrDefault(valueName: string) {
@@ -41,7 +41,7 @@ type ExecutionStep = { op: 'ADD', key: string, value?: { name: string, content: 
 /**
  * Merge the given object into the registry, only runs commands if changes were found (does one or more REG QUERY first for diffing)
  */
-export function regApply(struct: RegStruct, { deleteUnspecifiedValues = false, timeout = TIMEOUT_DEFAULT, cmdParamsModifier, elevated = false, reg32, reg64, deleteKeys: normalDeleteKeys, deleteValues: origDeleteValues, forceCmdMode }: RegWriteOpts = {}): PromiseStoppable<RegWriteCmdResult> {
+export function regApply(struct: RegStruct, { deleteUnspecifiedValues = false, timeout = TIMEOUT_DEFAULT, cmdParamsModifier, elevated = false, reg32, reg64, deleteKeys: normalDeleteKeys, deleteValues: origDeleteValues, forceCmdMode, skipQuery = false }: RegWriteOpts = {}): PromiseStoppable<RegWriteCmdResult> {
 
     struct = Object.entries(struct).reduce((acc, [k, v]) => ({ ...acc, [regKeyResolveFullPathFromShortcuts(k)]: v }), {} as RegStruct); // Normalize keys to lowercase
 
@@ -58,11 +58,8 @@ export function regApply(struct: RegStruct, { deleteUnspecifiedValues = false, t
     const allKeyPaths = [...new Set([...keyPaths, ...(lDeleteKeys || [])])];
     const queryForKeys = allKeyPaths.map(k => ({ keyPath: k, ...commonOpts }))
 
-    return PromiseStoppable.allStoppable([regCmdQuery(queryForKeys)], async query => {
-        const timeleft = timeout - (Date.now() - timeStarted);
-        commonOpts.timeout = timeleft;
-
-        const existingData = query[0];
+    function handleAfterQuery(existingData?: RegQueryCmdResult) {
+        if (existingData == null) existingData = { cmds: [], struct: {}, keysMissing: Object.keys(struct) }
         const lKeysMissing = existingData.keysMissing
 
         // Delete values specified in deleteValues that are not already missing
@@ -133,7 +130,7 @@ export function regApply(struct: RegStruct, { deleteUnspecifiedValues = false, t
             }
         }).filter(c => c != null) :
             // REG IMPORT mode
-            await (async () => {
+            (() => {
                 let fileString = 'Windows Registry Editor Version 5.00\r\n\r\n';
                 const newRegStruct = {} as { [key: RegKey]: { [valueName: string]: string } };
                 const deleteKeys = [] as string[];
@@ -173,10 +170,19 @@ export function regApply(struct: RegStruct, { deleteUnspecifiedValues = false, t
                 }
 
                 const tmpFilePath = path_join(tmpdir(), `_${PACKAGE_DISPLAY_NAME}_${`${Math.random()}`.split('.')[1]}.reg`);
-                await writeFile(tmpFilePath, fileString, 'utf8');
-                return [regCmdImport({ fileName: tmpFilePath, ...commonOpts }).finally(() => rm(tmpFilePath))];
+                writeFileSync(tmpFilePath, fileString, 'utf8');
+                return [regCmdImport({ fileName: tmpFilePath, ...commonOpts }).finally(() => rmSync(tmpFilePath))];
             })();
 
         return PromiseStoppable.allStoppable(allCommands as PromiseStoppable<RegCmdResultWithCmds>[], r => ({ cmds: [...existingData.cmds, ...r.map(c => c.cmds).flat()] }));
+    }
+
+    if (skipQuery) return handleAfterQuery();
+    else return PromiseStoppable.allStoppable([regCmdQuery(queryForKeys)], async query => {
+        const timeleft = timeout - (Date.now() - timeStarted);
+        commonOpts.timeout = timeleft;
+
+        const existingData = query[0];
+        return handleAfterQuery(existingData);
     })
 }
