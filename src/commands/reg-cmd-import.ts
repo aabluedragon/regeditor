@@ -1,4 +1,4 @@
-import { findCommonErrorInTrimmedStdErr, RegErrorAccessDenied, RegErrorUnknown, RegImportErrorOpeningFile } from "../errors";
+import { findCommonErrorInTrimmedStdErr, RegErrorAccessDenied, RegErrorUnknown } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
 import { RegImportCmd, RegImportCmdOpts, RegImportCmdResult } from "../types";
@@ -29,8 +29,7 @@ export function regCmdImport(cmd: RegImportCmd): PromiseStoppable<RegImportCmdRe
                 const trimmedStdErr = stderrStr.trim();
                 const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmedStdErr);
                 if (commonError) return reject(commonError);
-                if (trimmedStdErr === 'ERROR: Error opening the file. There may be a disk or file system error.') return reject(new RegImportErrorOpeningFile(trimmedStdErr))
-                if (trimmedStdErr === 'ERROR: Error accessing the registry.') return reject(new RegErrorAccessDenied(trimmedStdErr));
+                if (trimmedStdErr === 'ERROR: Error opening the file. There may be a disk or file system error.' || trimmedStdErr === 'ERROR: Error accessing the registry.') return reject(new RegErrorAccessDenied(trimmedStdErr));
                 if (trimmedStdErr.length && trimmedStdErr !== 'The operation completed successfully.') return reject(new RegErrorUnknown(stderrStr)); // REG IMPORT writes a success message into stderr.
                 resolve({ cmds: [params] });
             },
