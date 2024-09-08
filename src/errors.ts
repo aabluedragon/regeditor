@@ -12,6 +12,11 @@ export class RegQueryErrorMalformedLine extends Error { constructor(message: str
  */
 export class RegQueryErrorReadTooWide extends Error { constructor(message: string) { super(message); this.name = 'RegQueryErrorReadTooWide'; } }
 
+/**
+ * Thrown if using non-windows platforms, and wine is not found.
+ */
+export class RegErrorWineNotFound extends Error { constructor(message: string) { super(message); this.name = 'RegErrorWineNotFound'; } }
+
 export function findCommonErrorInTrimmedStdErr(command: COMMAND_NAME, trimmedStdErr: string) {
     if (trimmedStdErr === `ERROR: Invalid key name.\r\nType "REG ${command} /?" for usage.`) return new RegErrorInvalidKeyName(trimmedStdErr);
     if (trimmedStdErr === 'ERROR: Access is denied.') return new RegErrorAccessDenied(trimmedStdErr);

@@ -3,8 +3,9 @@ import { exec as sudo } from '@emrivero/sudo-prompt'
 import { type ChildProcess, execFile } from 'child_process'
 import { platform } from "os";
 import { PACKAGE_DISPLAY_NAME } from "./constants";
-import { RegErrorAccessDenied } from "./errors";
+import { RegErrorAccessDenied, RegErrorWineNotFound } from "./errors";
 import { PromiseStoppable } from "./promise-stoppable";
+import { lookpathSync } from "./lookpath-sync";
 
 export const isWindows = platform() === 'win32';
 
@@ -72,15 +73,25 @@ export function isEqual(obj1: any, obj2: any): boolean {
   return true;
 };
 
+let wineFound: string | false = false;
+function getWine() {
+  if (wineFound) return wineFound;
+  const found = ['wine', 'wine64'].find(w => lookpathSync(w));
+  wineFound = found || false;
+  return wineFound;
+}
+
 export function applyParamsModifier(cmd: COMMAND_NAME, params: ExecFileParameters, modifier: RegCmdExecParamsModifier['cmdParamsModifier']): ExecFileParameters {
   const useWine = !isWindows;
-  if(useWine) {
+  if (useWine) {
+    const wineExec = getWine()
+    if (!wineExec) throw new RegErrorWineNotFound('wine and wine64 not found');
     const file = params[0];
     const args = params?.[1] || [];
-    params[0] = 'wine';
+    params[0] = wineExec;
     params[1] = [file, ...args];
   }
-  
+
   if (modifier) {
     const newParams = modifier(cmd, params, useWine);
     if (newParams) return newParams;
