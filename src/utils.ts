@@ -1,13 +1,19 @@
 import { COMMAND_NAME, CommonOpts, ElevatedSudoPromptOpts, ExecFileParameters, RegCmdExecParamsModifier, RegStruct } from "./types";
 import { exec as sudo } from '@emrivero/sudo-prompt'
 import { type ChildProcess, execFile } from 'child_process'
-import { platform } from "os";
-import { PACKAGE_DISPLAY_NAME } from "./constants";
+import { platform, homedir } from "os";
+import { PACKAGE_DISPLAY_NAME, WINE_FLATPAK_PACKAGE_ID } from "./constants";
 import { RegErrorAccessDenied, RegErrorWineNotFound } from "./errors";
 import { PromiseStoppable } from "./promise-stoppable";
 import { lookpathSync } from "./lookpath-sync";
+import { existsSync } from "fs";
+import { join as path_join } from 'path'
 
-export const isWindows = platform() === 'win32';
+const thisProcess = require('process');
+
+export const currentPlatform = platform();
+export const isWindows = currentPlatform === 'win32';
+export const isLinux = currentPlatform === 'linux';
 
 export type VarArgsOrArray<T> = T[] | T[][];
 
@@ -73,23 +79,37 @@ export function isEqual(obj1: any, obj2: any): boolean {
   return true;
 };
 
-let wineFound: string | false = false;
-function getWine() {
-  if (wineFound) return wineFound;
+type WineFoundResult = { type: 'path' | 'flatpak', value: string } | false;
+let cacheWineFound: WineFoundResult = false;
+function getWine(): { type: 'path' | 'flatpak', value: string } | false {
+  if (cacheWineFound) return cacheWineFound;
   const found = ['wine', 'wine64'].find(w => lookpathSync(w));
-  wineFound = found || false;
-  return wineFound;
+  if (found) {
+    cacheWineFound = { type: 'path', value: found };
+  }
+  // flatpak wine support disabled for now, because it often hangs when running multiple REG commands consequtively (e.g. using the regApply function)
+  // else if (isPackageInstalledOnFlatpakSync(WINE_FLATPAK_PACKAGE_ID)) {
+  //   cacheWineFound = { type: 'flatpak', value: WINE_FLATPAK_PACKAGE_ID };
+  // }
+  return cacheWineFound;
 }
 
 export function applyParamsModifier(cmd: COMMAND_NAME, params: ExecFileParameters, modifier: RegCmdExecParamsModifier['cmdParamsModifier']): ExecFileParameters {
   const useWine = !isWindows;
   if (useWine) {
-    const wineExec = getWine()
-    if (!wineExec) throw new RegErrorWineNotFound('wine and wine64 not found');
+    const wineFound = getWine()
+    if (!wineFound) throw new RegErrorWineNotFound('wine and wine64 not found');
     const file = params[0];
     const args = params?.[1] || [];
-    params[0] = wineExec;
-    params[1] = [file, ...args];
+
+    if (wineFound.type === 'path') {
+      params[0] = wineFound.value;
+      params[1] = [file, ...args];
+    } else if (wineFound.type === 'flatpak') {
+      params[0] = 'flatpak';
+      params[1] = ['run', '--filesystem=host', '--die-with-parent', wineFound.value, file, ...args]; // without --die-with-parent, flatpak's wine hangs a little more often when running multiple REG commands consequtively.
+    } else throw new RegErrorWineNotFound('Unknown wine type');
+
   }
 
   if (modifier) {
@@ -221,4 +241,18 @@ export function optionalElevateCmdCall<T, O extends CommonOpts | string>(paramOr
     }
     throw e;
   }) as PromiseStoppable<T>;
+}
+
+export function resolvePosixFilePathWithEnvVarsAndTilde(filepath: string) {
+  if (filepath[0] === '~') {
+    filepath = path_join(homedir(), filepath.slice(1));
+  }
+  // Modified from https://stackoverflow.com/a/58173283/230637
+  filepath = filepath.replace(/\$([A-Z_]+[A-Z0-9_]*)|\${([A-Z0-9_]*)}/ig, (_, a, b) => thisProcess?.env?.[a || b] || '')
+  return filepath;
+}
+
+export function isPackageInstalledOnFlatpakSync(packageId?: string): boolean {
+  if (!packageId?.length || !isLinux) return false;
+  return existsSync(`/var/lib/flatpak/app/${packageId}`) || existsSync(resolvePosixFilePathWithEnvVarsAndTilde(`~/.local/share/flatpak/app/${packageId}`));
 }

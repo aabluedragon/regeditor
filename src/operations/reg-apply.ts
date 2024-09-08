@@ -65,10 +65,10 @@ export function regApply(struct: RegStruct, { deleteUnspecifiedValues = false, t
 
         // Delete values specified in deleteValues that are not already missing
         const lDeleteValues = origDeleteValues?.
-            map(({ key, valueName }) => ({ key: regKeyResolveFullPathFromShortcuts(key).toLowerCase(), valueName: Array.isArray(valueName)? valueName:[valueName] }))
+            map(({ key, valueName }) => ({ key: regKeyResolveFullPathFromShortcuts(key).toLowerCase(), valueName: Array.isArray(valueName) ? valueName : [valueName] }))
             .filter(({ key }) => !lDeleteKeys?.includes(key) && !lKeysMissing.includes(key));
         if (lDeleteValues?.length) {
-            const tasksDeleteValues = lDeleteValues.map(({ key, valueName:valueNames }) => valueNames.map(valueName=>({ op: "DELETE", key, valueName }) as ExecutionStep));
+            const tasksDeleteValues = lDeleteValues.map(({ key, valueName: valueNames }) => valueNames.map(valueName => ({ op: "DELETE", key, valueName }) as ExecutionStep));
             executionPlan.push(...tasksDeleteValues.flat())
         }
 
@@ -189,7 +189,7 @@ export function regApply(struct: RegStruct, { deleteUnspecifiedValues = false, t
 
                 const tmpFilePath = path_join(tmpDir, tmpFileName);
                 writeFileSync(tmpFilePath, fileString, 'utf8');
-                return [regCmdImport({ fileName: tmpFilePath, ...commonOpts }).finally(() => rmSync(tmpFilePath))];
+                return [regCmdImport({ fileName: tmpFilePath, ...commonOpts }).finally(() => { try { rmSync(tmpFilePath) } catch (e) { } })];
             })();
 
         return PromiseStoppable.allStoppable(allCommands as PromiseStoppable<RegCmdResultWithCmds>[], r => ({ cmds: [...existingData.cmds, ...r.map(c => c.cmds).flat()] }));

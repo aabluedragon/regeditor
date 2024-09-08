@@ -23,3 +23,5 @@ export const REG_TYPES_ALL = Object.freeze(['REG_BINARY', 'REG_DWORD', 'REG_EXPA
 export const REG_VALUE_DEFAULT = "(Default)"
 
 export const PACKAGE_DISPLAY_NAME = "regeditor"
+
+export const WINE_FLATPAK_PACKAGE_ID = "org.winehq.Wine"
