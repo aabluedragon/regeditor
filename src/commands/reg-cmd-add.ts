@@ -39,7 +39,7 @@ function regCmdAddSingle(a: RegAddCmd, elevated: ElevatedSudoPromptOpts): Promis
             if (opts.v) args.push('/v', opts.v);
             if (opts.ve) args.push('/ve');
 
-            const params = applyParamsModifier(THIS_COMMAND, ['reg', ['add', opts.keyPath, ...args]], opts.cmdParamsModifier);
+            const params = applyParamsModifier(THIS_COMMAND, ['reg', ['add', opts.keyPath, ...args]], opts?.wine||false, opts.cmdParamsModifier);
 
             let stdoutStr = '', stderrStr = '';
             const proc = execFileUtil(params, {
@@ -52,7 +52,7 @@ function regCmdAddSingle(a: RegAddCmd, elevated: ElevatedSudoPromptOpts): Promis
                     if (trimmedStdErr.length) return reject(new RegErrorUnknown(stderrStr));
 
                     const trimmedStdout = stdoutStr.trim();
-                    if (trimmedStdout !== 'The operation completed successfully.') {
+                    if (trimmedStdout !== 'The operation completed successfully.' && trimmedStdout !== 'reg: The operation completed successfully') {
                         return reject(new RegErrorUnknown(stderrStr || stdoutStr));
                     }
                     resolve({ cmd: params });

@@ -53,6 +53,14 @@ export type RegValueName = string;
 export type RegValues = Record<RegValueName, RegValue>
 export type RegStruct = Record<RegKey, RegValues>
 
+export type WineOpt = {
+    /**
+     * Automatically modify the command before execution to run on wine.
+     * If unspecified, and the command is run on a non-windows system, it will attempt to run the command on wine.
+     */
+    wine?: boolean
+}
+
 export type RegCmdOptElevated = {
     elevated?: {
         /**
@@ -78,7 +86,7 @@ export type RegCmdOptElevated = {
         hookBeforeElevation?: Omitted
     }
 }
-export type CommonOpts = OptionsReg64Or32 & TimeoutOpt & RegCmdExecParamsModifier & RegCmdOptElevated
+export type CommonOpts = OptionsReg64Or32 & TimeoutOpt & RegCmdExecParamsModifier & RegCmdOptElevated & WineOpt
 export type RegCmdResultWithCmds = {
     /**
      * An array containing the commands that were executed to get the result.  
@@ -150,7 +158,7 @@ export type RegCmdExecParamsModifier = {
      * @param execCmdParameters The parameters to be sent to the execFile function
      * @returns undefined or null to remain unchanged, or a new params arrey to be sent to execFile
      */
-    cmdParamsModifier?: (cmd: COMMAND_NAME, execCmdParameters: ExecFileParameters) => ExecFileParameters | undefined | null | void
+    cmdParamsModifier?: (cmd: COMMAND_NAME, execCmdParameters: ExecFileParameters, wine:boolean) => ExecFileParameters | undefined | null | void
 }
 
 type RegQueryCmdBase = {
