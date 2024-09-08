@@ -1,4 +1,4 @@
-// Modified from the "lookpath" npm package https://www.npmjs.com/package/lookpath
+// Modified to run sync from the "lookpath" npm package https://www.npmjs.com/package/lookpath
 
 import * as fs from 'fs';
 import * as path from 'path';
