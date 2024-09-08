@@ -72,8 +72,9 @@ export function isEqual(obj1: any, obj2: any): boolean {
   return true;
 };
 
-export function applyParamsModifier(cmd: COMMAND_NAME, params: ExecFileParameters, wine:boolean, modifier: RegCmdExecParamsModifier['cmdParamsModifier']): ExecFileParameters {
-  if(wine || !isWindows) {
+export function applyParamsModifier(cmd: COMMAND_NAME, params: ExecFileParameters, modifier: RegCmdExecParamsModifier['cmdParamsModifier']): ExecFileParameters {
+  const useWine = !isWindows;
+  if(useWine) {
     const file = params[0];
     const args = params?.[1] || [];
     params[0] = 'wine';
@@ -81,7 +82,7 @@ export function applyParamsModifier(cmd: COMMAND_NAME, params: ExecFileParameter
   }
   
   if (modifier) {
-    const newParams = modifier(cmd, params, wine);
+    const newParams = modifier(cmd, params, useWine);
     if (newParams) return newParams;
   }
   return params;

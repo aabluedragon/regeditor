@@ -65,11 +65,11 @@ export function regApply(struct: RegStruct, { deleteUnspecifiedValues = false, t
 
         // Delete values specified in deleteValues that are not already missing
         const lDeleteValues = origDeleteValues?.
-            map(({ key, valueName }) => ({ key: regKeyResolveFullPathFromShortcuts(key).toLowerCase(), valueName: valueName.toLowerCase() }))
+            map(({ key, valueName }) => ({ key: regKeyResolveFullPathFromShortcuts(key).toLowerCase(), valueName: Array.isArray(valueName)? valueName:[valueName] }))
             .filter(({ key }) => !lDeleteKeys?.includes(key) && !lKeysMissing.includes(key));
         if (lDeleteValues?.length) {
-            const tasksDeleteValues = lDeleteValues.map(({ key, valueName }) => ({ op: "DELETE", key, valueName } as ExecutionStep));
-            executionPlan.push(...tasksDeleteValues)
+            const tasksDeleteValues = lDeleteValues.map(({ key, valueName:valueNames }) => valueNames.map(valueName=>({ op: "DELETE", key, valueName }) as ExecutionStep));
+            executionPlan.push(...tasksDeleteValues.flat())
         }
 
         // Delete keys specified in deleteKeys that are not already missing

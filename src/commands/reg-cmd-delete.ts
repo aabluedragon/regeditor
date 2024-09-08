@@ -20,7 +20,7 @@ function regCmdDeleteSingle(d: RegDeleteCmd, elevated: ElevatedSudoPromptOpts): 
     if (d.va) args.push('/va');
     if (d.v) args.push('/v', d.v);
 
-    const params = applyParamsModifier(THIS_COMMAND, ['reg', ['delete', d.keyPath, ...args]], d?.wine||false, d?.cmdParamsModifier);
+    const params = applyParamsModifier(THIS_COMMAND, ['reg', ['delete', d.keyPath, ...args]], d?.cmdParamsModifier);
 
     return PromiseStoppable.createStoppable((resolve, reject, setStopper) => {
         let stdoutStr = '', stderrStr = '';

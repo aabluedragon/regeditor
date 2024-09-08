@@ -53,14 +53,6 @@ export type RegValueName = string;
 export type RegValues = Record<RegValueName, RegValue>
 export type RegStruct = Record<RegKey, RegValues>
 
-export type WineOpt = {
-    /**
-     * Automatically modify the command before execution to run on wine.
-     * If unspecified, and the command is run on a non-windows system, it will attempt to run the command on wine.
-     */
-    wine?: boolean
-}
-
 export type RegCmdOptElevated = {
     elevated?: {
         /**
@@ -86,7 +78,7 @@ export type RegCmdOptElevated = {
         hookBeforeElevation?: Omitted
     }
 }
-export type CommonOpts = OptionsReg64Or32 & TimeoutOpt & RegCmdExecParamsModifier & RegCmdOptElevated & WineOpt
+export type CommonOpts = OptionsReg64Or32 & TimeoutOpt & RegCmdExecParamsModifier & RegCmdOptElevated
 export type RegCmdResultWithCmds = {
     /**
      * An array containing the commands that were executed to get the result.  
@@ -418,7 +410,7 @@ export type RegApplyOpts = {
      */
     deleteUnspecifiedValues?: false | "all" | "allExceptDefault" | "onlyDefault" | ((key: string, name: string, value: RegValue) => boolean),
     deleteKeys?: RegKey[],
-    deleteValues?: { key: RegKey, valueName: string }[]
+    deleteValues?: { key: RegKey, valueName: string|string[] }[]
 
     /**
      * Whether to run one REG IMPORT (.reg file) command instaed of a combination of REG ADD/DELETE commands for each value or key.

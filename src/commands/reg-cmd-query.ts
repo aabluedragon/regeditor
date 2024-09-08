@@ -100,7 +100,7 @@ function regCmdQuerySingle(queryParam: RegQueryCmd, elevated: ElevatedSudoPrompt
 
         const bestEffort = queryOpts.bestEffort || false;
 
-        const params = applyParamsModifier(THIS_COMMAND, ['reg', ['query', queryKeyPath, ...args]], queryOpts?.wine||false, queryOpts?.cmdParamsModifier);
+        const params = applyParamsModifier(THIS_COMMAND, ['reg', ['query', queryKeyPath, ...args]], queryOpts?.cmdParamsModifier);
         try {
             proc = execFileUtil(params, {
                 onStdOut(str) {
