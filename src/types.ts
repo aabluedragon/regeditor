@@ -55,11 +55,27 @@ export type RegStruct = Record<RegKey, RegValues>
 
 export type RegCmdOptElevated = {
     elevated?: {
-        mode?: 'fallback' | 'forced',
-        opts?: ElevatedSudoPromptOpts
+        /**
+         * 'fallback' is the default.
+         * 
+         * First attempt without elevation, then if the command failed due to access denied, retry with elevation.
+         */
+        mode?: 'fallback',
+        opts?: ElevatedSudoPromptOpts,
+
+        /**
+         * A hook to be called just before the elevation is attempted, you may use this to read the notify the user about the elevation request.
+         * @returns false to stop the elevation and throw AccessDenied error, or undefined to continue with the elevation.
+         */
+        hookBeforeElevation?: () => Promise<boolean | void> | boolean | void
+    } | {
+        mode?: 'forced',
+        opts?: ElevatedSudoPromptOpts,
+        hookBeforeElevation?: Omitted
     } | {
         mode: 'disabled',
         opts?: Omitted
+        hookBeforeElevation?: Omitted
     }
 }
 export type CommonOpts = OptionsReg64Or32 & TimeoutOpt & RegCmdExecParamsModifier & RegCmdOptElevated
