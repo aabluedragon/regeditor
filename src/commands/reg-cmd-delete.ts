@@ -1,7 +1,7 @@
-import { applyParamsModifier, execFileUtil, VarArgsOrArray } from "../utils";
+import { applyParamsModifier, execFileUtil, optionalElevateCmdCall, VarArgsOrArray } from "../utils";
 import { findCommonErrorInTrimmedStdErr, RegErrorUnknown } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
-import { ExecFileParameters, RegDeleteCmd, RegDeleteCmdResult } from "../types";
+import { ElevatedSudoPromptOpts, ExecFileParameters, RegDeleteCmd, RegDeleteCmdResult } from "../types";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
 
 const THIS_COMMAND = COMMAND_NAMES.DELETE;
@@ -11,7 +11,7 @@ type RegDeleteCmdResultSingle = {
     cmd: ExecFileParameters
 }
 
-function regCmdDeleteSingle(d: RegDeleteCmd): PromiseStoppable<RegDeleteCmdResultSingle> {
+function regCmdDeleteSingle(d: RegDeleteCmd, elevated: ElevatedSudoPromptOpts): PromiseStoppable<RegDeleteCmdResultSingle> {
 
     const args = ['/f'] as string[];
     if (d.reg32) args.push('/reg:32');
@@ -35,7 +35,7 @@ function regCmdDeleteSingle(d: RegDeleteCmd): PromiseStoppable<RegDeleteCmdResul
                 if (stderrStr.length) return reject(new RegErrorUnknown(stderrStr));
                 resolve({ cmd: params });
             }
-        }, d.elevated);
+        }, elevated);
 
         setStopper(() => proc?.kill());
 
@@ -50,7 +50,7 @@ function regCmdDeleteSingle(d: RegDeleteCmd): PromiseStoppable<RegDeleteCmdResul
  */
 export function regCmdDelete(...opts: VarArgsOrArray<RegDeleteCmd>): PromiseStoppable<RegDeleteCmdResult> {
     const requests = opts.flat();
-    return PromiseStoppable.allStoppable(requests.map(regCmdDeleteSingle), res => {
+    return PromiseStoppable.allStoppable(requests.map(o => optionalElevateCmdCall(o, regCmdDeleteSingle)), res => {
         const response: RegDeleteCmdResult = { notFound: [], cmds: res.map(r => r.cmd) };
 
         for (let i = 0; i < res.length; i++) {

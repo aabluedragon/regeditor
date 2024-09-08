@@ -53,7 +53,15 @@ export type RegValueName = string;
 export type RegValues = Record<RegValueName, RegValue>
 export type RegStruct = Record<RegKey, RegValues>
 
-export type RegCmdOptElevated = { elevated?: ElevatedSudoPromptOpts }
+export type RegCmdOptElevated = {
+    elevated?: {
+        mode?: 'fallback' | 'forced',
+        opts?: ElevatedSudoPromptOpts
+    } | {
+        mode: 'disabled',
+        opts?: Omitted
+    }
+}
 export type CommonOpts = OptionsReg64Or32 & TimeoutOpt & RegCmdExecParamsModifier & RegCmdOptElevated
 export type RegCmdResultWithCmds = {
     /**
@@ -399,7 +407,7 @@ export type RegApplyOpts = {
      * The given path will be used to create the temporary .reg file (and then delete it after the command is executed).  
      * By default, os.tmpdir() will be used.
      */
-    tmpPath?: {type:'dir'|'file', path: string}  
+    tmpPath?: { type: 'dir' | 'file', path: string }
 
     /**
      * Skips the REG QUERY before the writing operation, and just perform the write regardless if there weren't any differences.
@@ -445,8 +453,8 @@ export type RegCompareResult = {
  * sudo-prompt will preserve the current working directory on all platforms.  
  * Environment variables can be set explicitly using options.env.
  */
-export type ElevatedSudoPromptOpts = boolean | void | null | {
+export type ElevatedSudoPromptOpts = {
     name?: string,
     icns?: string,
     env?: { [key: string]: string }
-}
+} | boolean

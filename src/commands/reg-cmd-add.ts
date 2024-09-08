@@ -1,8 +1,8 @@
 import { PromiseStoppable } from "../promise-stoppable";
-import { RegAddCmd, RegType, RegData, ExecFileParameters, RegAddCmdResult } from "../types";
+import { RegAddCmd, RegType, RegData, ExecFileParameters, RegAddCmdResult, ElevatedSudoPromptOpts } from "../types";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
 import { findCommonErrorInTrimmedStdErr, RegErrorInvalidSyntax, RegErrorUnknown } from "../errors";
-import { applyParamsModifier, execFileUtil, VarArgsOrArray } from "../utils";
+import { applyParamsModifier, execFileUtil, optionalElevateCmdCall, VarArgsOrArray } from "../utils";
 
 const THIS_COMMAND = COMMAND_NAMES.ADD;
 
@@ -23,7 +23,7 @@ function serializeData(type: RegType, data: RegData, separator: string): string 
     }
 }
 
-function regCmdAddSingle(a: RegAddCmd): PromiseStoppable<{ cmd: ExecFileParameters }> {
+function regCmdAddSingle(a: RegAddCmd, elevated: ElevatedSudoPromptOpts): PromiseStoppable<{ cmd: ExecFileParameters }> {
     const opts = typeof a === 'string' ? { keyPath: a } : a;
     return PromiseStoppable.createStoppable((resolve, reject, setStopper) => {
         try {
@@ -57,7 +57,7 @@ function regCmdAddSingle(a: RegAddCmd): PromiseStoppable<{ cmd: ExecFileParamete
                     }
                     resolve({ cmd: params });
                 }
-            }, opts.elevated);
+            }, elevated);
 
             setStopper(() => proc?.kill());
         } catch (e) {
@@ -73,5 +73,5 @@ function regCmdAddSingle(a: RegAddCmd): PromiseStoppable<{ cmd: ExecFileParamete
  * @returns void when successful, throws an error when failed
  */
 export function regCmdAdd(...addCommands: VarArgsOrArray<RegAddCmd>): PromiseStoppable<RegAddCmdResult> {
-    return PromiseStoppable.allStoppable(addCommands.flat().map(regCmdAddSingle), res => ({ cmds: res.map(r => r.cmd) }));
+    return PromiseStoppable.allStoppable(addCommands.flat().map(o => optionalElevateCmdCall(o, regCmdAddSingle)), res => ({ cmds: res.map(r => r.cmd) }));
 }

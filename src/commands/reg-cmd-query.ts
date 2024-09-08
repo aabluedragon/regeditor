@@ -1,7 +1,7 @@
 import { RegQueryErrorMalformedLine, RegErrorInvalidSyntax, RegQueryErrorReadTooWide, RegErrorUnknown, findCommonErrorInTrimmedStdErr } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
-import { RegType, RegData, RegQueryCmd, RegStruct, RegValue, RegQueryCmdResult, ExecFileParameters } from "../types";
-import { applyParamsModifier, execFileUtil, getMinimumFoundIndex, getMinimumFoundIndexStrOrRegex, regexEscape, regKeyResolveFullPathFromShortcuts, VarArgsOrArray } from "../utils";
+import { RegType, RegData, RegQueryCmd, RegStruct, RegValue, RegQueryCmdResult, ExecFileParameters, ElevatedSudoPromptOpts } from "../types";
+import { applyParamsModifier, execFileUtil, getMinimumFoundIndex, getMinimumFoundIndexStrOrRegex, optionalElevateCmdCall, regexEscape, regKeyResolveFullPathFromShortcuts, VarArgsOrArray } from "../utils";
 import { type ChildProcess } from "child_process"
 import { TIMEOUT_DEFAULT, COMMAND_NAMES, REG_TYPES_ALL } from "../constants";
 
@@ -45,7 +45,7 @@ const COLUMN_DELIMITER = '    ';
 const INDENTATION_FOR_ENTRY_VALUE = '    ';
 const INDENTATION_LENGTH_FOR_ENTRY_VALUE = INDENTATION_FOR_ENTRY_VALUE.length;
 
-function regCmdQuerySingle(queryParam: RegQueryCmd): PromiseStoppable<RegQueryCmdResultSingle> {
+function regCmdQuerySingle(queryParam: RegQueryCmd, elevated: ElevatedSudoPromptOpts): PromiseStoppable<RegQueryCmdResultSingle> {
 
     const { queryKeyPath: _queryKeyPathOriginal, queryOpts } = getQueryPathAndOpts(queryParam);
 
@@ -138,7 +138,7 @@ function regCmdQuerySingle(queryParam: RegQueryCmd): PromiseStoppable<RegQueryCm
                         finish(e as Error);
                     }
                 }
-            }, queryOpts?.elevated);
+            }, elevated);
 
             let stdoutStr: string = '', stderrStr = '';
 
@@ -220,7 +220,7 @@ function regCmdQuerySingle(queryParam: RegQueryCmd): PromiseStoppable<RegQueryCm
 export function regCmdQuery(...queriesParam: VarArgsOrArray<RegQueryCmd>): PromiseStoppable<RegQueryCmdResult> {
     const flattened = queriesParam.flat();
     const queries = flattened.map(getQueryPathAndOpts);
-    const promises = flattened.map(regCmdQuerySingle);
+    const promises = flattened.map(o => optionalElevateCmdCall(o, regCmdQuerySingle));
 
     return PromiseStoppable.allStoppable(promises, (results) => {
         // Skipping the merge logic if just a single query.

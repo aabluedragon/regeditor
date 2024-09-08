@@ -1,8 +1,10 @@
-import { COMMAND_NAME, ElevatedSudoPromptOpts, ExecFileParameters, RegCmdExecParamsModifier, RegStruct } from "./types";
+import { COMMAND_NAME, CommonOpts, ElevatedSudoPromptOpts, ExecFileParameters, RegCmdExecParamsModifier, RegStruct } from "./types";
 import { exec as sudo } from '@emrivero/sudo-prompt'
 import { type ChildProcess, execFile } from 'child_process'
 import { platform } from "os";
 import { PACKAGE_DISPLAY_NAME } from "./constants";
+import { RegErrorAccessDenied } from "./errors";
+import { PromiseStoppable } from "./promise-stoppable";
 
 export const isWindows = platform() === 'win32';
 
@@ -110,7 +112,7 @@ export function findValueByNameLowerCaseInStruct(struct: RegStruct, key: string,
   return values && Object.entries(values).find(([v]) => v.toLowerCase() === valueName.toLowerCase())?.[1]
 }
 
-export function execFileUtil(params: ExecFileParameters, opts: { onStdOut?: (str: string) => void, onStdErr?: (str: string) => void, onExit?: (code?: number | null) => void }, elevated: ElevatedSudoPromptOpts = false): ChildProcess | null {
+export function execFileUtil(params: ExecFileParameters, opts: { onStdOut?: (str: string) => void, onStdErr?: (str: string) => void, onExit?: (code?: number | null) => void }, elevated: ElevatedSudoPromptOpts | boolean = false): ChildProcess | null {
   if (elevated) {
     const cmd = escapeShellArg(params[0]);
     const args = (params?.[1] || []).map(escapeShellArg).join(' ');
@@ -130,7 +132,7 @@ export function execFileUtil(params: ExecFileParameters, opts: { onStdOut?: (str
   };
 }
 
-export function stringToUTF16LE(str:string) {
+export function stringToUTF16LE(str: string) {
   let bytes = [] as number[];
 
   // Encode the string into UTF-16 code units
@@ -181,4 +183,18 @@ export function escapeShellArg(arg: string) {
 
 export function generateRegFileName() {
   return `_${PACKAGE_DISPLAY_NAME}_${`${Math.random()}`.split('.')[1]}.reg`;
+}
+
+export function optionalElevateCmdCall<T, O extends CommonOpts | string>(paramOrOpts: O, fn: (opts: O, elevated: ElevatedSudoPromptOpts) => PromiseStoppable<T>): PromiseStoppable<T> {
+  const isFallback = typeof paramOrOpts === 'string' || paramOrOpts?.elevated?.mode === 'fallback' || paramOrOpts?.elevated == null;
+  const isForced = typeof paramOrOpts !== 'string' && paramOrOpts?.elevated?.mode === 'forced';
+
+  if (isForced) return fn(paramOrOpts, paramOrOpts?.elevated?.opts ?? true);
+
+  return fn(paramOrOpts, false).catch(e => {
+    if (e instanceof RegErrorAccessDenied && isFallback) {
+      return fn(paramOrOpts, typeof paramOrOpts === 'string' ? true : (paramOrOpts?.elevated?.opts ?? true));
+    }
+    throw e;
+  }) as PromiseStoppable<T>;
 }
