@@ -9,3 +9,4 @@ export * from './types';
 export * from './promise-stoppable';
 export * from './utils';
 export * from './constants';
+export * from './lookpath-sync'

@@ -30,7 +30,7 @@ export interface REG_BINARY {
 }
 
 /**
- * REG_NONE contains binary data, but the REG ADD command does not encode it properly, instead it treats it as a UTF8 string. if you need to add binary data, use .reg files instead (REG IMPORT).
+ * REG_NONE contains binary data, but the REG ADD command does not encode it properly, instead it treats it as a string. if you need to add binary data, use .reg files instead (REG IMPORT). if you use the regApply(...) function, it should work as expected.
  */
 export interface REG_NONE {
     type: 'REG_NONE';
@@ -150,7 +150,7 @@ export type RegCmdExecParamsModifier = {
      * @param execCmdParameters The parameters to be sent to the execFile function
      * @returns undefined or null to remain unchanged, or a new params arrey to be sent to execFile
      */
-    cmdParamsModifier?: (cmd: COMMAND_NAME, execCmdParameters: ExecFileParameters) => ExecFileParameters | undefined | null | void
+    cmdParamsModifier?: (cmd: COMMAND_NAME, execCmdParameters: ExecFileParameters, wine:boolean) => ExecFileParameters | undefined | null | void
 }
 
 type RegQueryCmdBase = {
@@ -410,7 +410,7 @@ export type RegApplyOpts = {
      */
     deleteUnspecifiedValues?: false | "all" | "allExceptDefault" | "onlyDefault" | ((key: string, name: string, value: RegValue) => boolean),
     deleteKeys?: RegKey[],
-    deleteValues?: { key: RegKey, valueName: string }[]
+    deleteValues?: { key: RegKey, valueName: string|string[] }[]
 
     /**
      * Whether to run one REG IMPORT (.reg file) command instaed of a combination of REG ADD/DELETE commands for each value or key.

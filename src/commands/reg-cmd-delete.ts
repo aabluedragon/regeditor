@@ -28,9 +28,14 @@ function regCmdDeleteSingle(d: RegDeleteCmd, elevated: ElevatedSudoPromptOpts): 
             onStdErr(data) { stderrStr += data; },
             onStdOut(data) { stdoutStr += data; },
             onExit() {
-                const trimmed = stderrStr.trim();
-                if (trimmed === 'ERROR: The system was unable to find the specified registry key or value.') return resolve({ notFound: true, cmd: params });
-                const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmed);
+                const trimmedStdErr = stderrStr.trim();
+                const trimmedStdOut = stdoutStr.trim();
+
+                if (trimmedStdErr === 'ERROR: The system was unable to find the specified registry key or value.' || // windows
+                    trimmedStdOut === 'reg: Unable to find the specified registry value') // wine
+                    return resolve({ notFound: true, cmd: params });
+                
+                const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmedStdErr);
                 if (commonError) return reject(commonError);
                 if (stderrStr.length) return reject(new RegErrorUnknown(stderrStr));
                 resolve({ cmd: params });

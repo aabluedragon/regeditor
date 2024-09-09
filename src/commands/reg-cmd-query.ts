@@ -111,9 +111,12 @@ function regCmdQuerySingle(queryParam: RegQueryCmd, elevated: ElevatedSudoPrompt
                 onExit: (code?: number | null) => {
                     proc = null;
                     try {
-                        if (stdoutStr.trim() === 'End of search: 0 match(es) found.') return finishSuccess(); // happens when using /f and having 0 results
+                        const trimmedStdOut = stdoutStr.trim();
+                        if (trimmedStdOut === 'End of search: 0 match(es) found.') return finishSuccess(); // happens when using /f and having 0 results
                         const trimmedStdErr = stderrStr.trim();
-                        if (trimmedStdErr === 'ERROR: The system was unable to find the specified registry key or value.') return finishSuccess(true);
+                        if (trimmedStdErr === 'ERROR: The system was unable to find the specified registry key or value.' // windows
+                            || trimmedStdOut === 'reg: Unable to find the specified registry key' // wine
+                        ) return finishSuccess(true);
                         const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmedStdErr);
                         if (commonError) throw commonError;
                         if (stderrStr.length) throw new RegErrorUnknown(stderrStr);
@@ -129,7 +132,7 @@ function regCmdQuerySingle(queryParam: RegQueryCmd, elevated: ElevatedSudoPrompt
 
                         parseStdout();
                         if (stdoutStr.length && stdoutStr.endsWith('\r\n')) {
-                            handleDataChunk(stdoutStr.split('\r\n'));
+                            parseStdout(true);
                         }
 
                         finishSuccess();
@@ -146,16 +149,17 @@ function regCmdQuerySingle(queryParam: RegQueryCmd, elevated: ElevatedSudoPrompt
             const nextValueInKey_Delimiter = new RegExp(`\r\n${INDENTATION_FOR_ENTRY_VALUE}.*(${REG_TYPES_ALL.join('|')}).*\r\n`);
             const newKeyAfterKeyEmpty_Delimiter = new RegExp(`\r\n${regexEscape(queryKeyPath)}.*\r\n`, 'i');
             const newKeyAfterKeyValuesFinished = new RegExp(`\r\n\r\n${regexEscape(queryKeyPath)}.*\r\n`, 'i'); // if \r\n\r\n, make sure next row is a key (otherwise it might be some very long, but legitimate entry value, e.g. REG_SZ)
-            function parseStdout() {
+            function parseStdout(isLastLine = false) {
                 const stdoutLines: string[] = [];
                 while (true) {
-                    const { minIndex } = getMinimumFoundIndexStrOrRegex(stdoutStr, [newKeyAfterKeyValuesFinished, newKeyAfterKeyEmpty_Delimiter, nextValueInKey_Delimiter]);
+                    const { minIndex } = getMinimumFoundIndexStrOrRegex(stdoutStr, [newKeyAfterKeyValuesFinished, newKeyAfterKeyEmpty_Delimiter, nextValueInKey_Delimiter, ...(isLastLine ? ['\r\n'] : [])]);
                     if (minIndex === -1) break;
 
                     const row = stdoutStr.substring(0, minIndex);
                     stdoutLines.push(row);
 
                     stdoutStr = stdoutStr.substring(minIndex + 2)
+                    if(isLastLine) break;
                 }
                 if (stdoutLines.length > 0) handleDataChunk(stdoutLines);
             }
