@@ -80,25 +80,32 @@ export function isEqual(obj1: any, obj2: any): boolean {
 };
 
 type WineFoundResult = { type: 'path' | 'flatpak', value: string } | false;
-let cacheWineFound: WineFoundResult = false;
-function getWine(): { type: 'path' | 'flatpak', value: string } | false {
-  if (cacheWineFound) return cacheWineFound;
-  const found = ['wine', 'wine64'].find(w => lookpathSync(w));
-  if (found) {
-    cacheWineFound = { type: 'path', value: found };
-  }
-  // flatpak wine support disabled for now, because it often hangs when running multiple REG commands consequtively (e.g. using the regApply function)
-  // else if (isPackageInstalledOnFlatpakSync(WINE_FLATPAK_PACKAGE_ID)) {
-  //   cacheWineFound = { type: 'flatpak', value: WINE_FLATPAK_PACKAGE_ID };
-  // }
-  return cacheWineFound;
-}
 
-export function applyParamsModifier(cmd: COMMAND_NAME, params: ExecFileParameters, modifier: RegCmdExecParamsModifier['cmdParamsModifier']): ExecFileParameters {
+const getWine = (() => {
+  let cacheWineFound: WineFoundResult = false;
+
+  return (winePath?: string|null): { type: 'path' | 'flatpak', value: string } | false => {
+    if (winePath && existsSync(winePath)) return { type: 'path', value: winePath };
+
+    if (cacheWineFound) return cacheWineFound;
+    const found = ['wine', 'wine64'].find(w => lookpathSync(w));
+    if (found) {
+      cacheWineFound = { type: 'path', value: found };
+    }
+    // flatpak wine support disabled for now, because it often hangs when running multiple REG commands consequtively (e.g. using the regApply function)
+    // else if (isPackageInstalledOnFlatpakSync(WINE_FLATPAK_PACKAGE_ID)) {
+    //   cacheWineFound = { type: 'flatpak', value: WINE_FLATPAK_PACKAGE_ID };
+    // }
+    return cacheWineFound;
+  }
+})();
+
+
+export function applyParamsModifier(cmd: COMMAND_NAME, params: ExecFileParameters, modifier: RegCmdExecParamsModifier['cmdParamsModifier'], winePath?: string|null): ExecFileParameters {
   const useWine = !isWindows;
   if (useWine) {
-    const wineFound = getWine()
-    if (!wineFound) throw new RegErrorWineNotFound('wine and wine64 not found');
+    const wineFound = getWine(winePath)
+    if (!wineFound) throw new RegErrorWineNotFound((winePath || 'wine and wine64') + ' not found');
     const file = params[0];
     const args = params?.[1] || [];
 

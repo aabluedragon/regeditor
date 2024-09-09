@@ -57,14 +57,14 @@ function valueProperlySupportedOnWineRegImport(value: RegValue): boolean {
 /**
  * Merge the given object into the registry, only runs commands if changes were found (does one or more REG QUERY first for diffing)
  */
-export function regApply(struct: RegStruct, { deleteUnspecifiedValues = false, timeout = TIMEOUT_DEFAULT, cmdParamsModifier, elevated, reg32, reg64, deleteKeys: normalDeleteKeys, deleteValues: origDeleteValues, forceCmdMode, skipQuery = false, tmpPath }: RegApplyOpts = {}): PromiseStoppable<RegApplyCmdResult> {
+export function regApply(struct: RegStruct, { deleteUnspecifiedValues = false, timeout = TIMEOUT_DEFAULT, cmdParamsModifier, elevated, reg32, reg64, deleteKeys: normalDeleteKeys, deleteValues: origDeleteValues, forceCmdMode, skipQuery = false, tmpPath, winePath }: RegApplyOpts = {}): PromiseStoppable<RegApplyCmdResult> {
 
     struct = Object.entries(struct).reduce((acc, [k, v]) => ({ ...acc, [regKeyResolveFullPathFromShortcuts(k)]: v }), {} as RegStruct); // Normalize keys to lowercase
 
     const keyPaths = Object.keys(struct);
     const timeStarted = Date.now();
 
-    const commonOpts: CommonOpts = { timeout, cmdParamsModifier, elevated } satisfies CommonOpts;
+    const commonOpts: CommonOpts = { timeout, cmdParamsModifier, elevated, winePath } satisfies CommonOpts;
     if (reg32) commonOpts.reg32 = true;
     if (reg64) commonOpts.reg64 = true;
 
@@ -132,7 +132,7 @@ export function regApply(struct: RegStruct, { deleteUnspecifiedValues = false, t
                 const { key, value } = cmd;
                 if (value) {
                     const { name, content } = value;
-                    return regCmdAdd({ keyPath: key, ...nameOrDefault(name), value: content.type === 'REG_NONE' ? { type: 'REG_NONE', data: undefined } : content, ...commonOpts });
+                    return regCmdAdd({ keyPath: key, ...nameOrDefault(name), value: content, ...commonOpts });
                 } else {
                     return regCmdAdd({ keyPath: key, ...commonOpts });
                 }
@@ -210,7 +210,7 @@ export function regApply(struct: RegStruct, { deleteUnspecifiedValues = false, t
 
                 const tmpFilePath = path_join(tmpDir, tmpFileName);
                 writeFileSync(tmpFilePath, fileString, 'utf8');
-                return [...commandsAddDelete, regCmdImport({ fileName: tmpFilePath, ...commonOpts }).finally(() => { })];
+                return [...commandsAddDelete, regCmdImport({ fileName: tmpFilePath, ...commonOpts }).finally(() => { try { rmSync(tmpFilePath) } catch { } })];
             })();
 
         return PromiseStoppable.allStoppable(allCommands as PromiseStoppable<RegCmdResultWithCmds>[], r => ({ cmds: [...existingData.cmds, ...r.map(c => c.cmds).flat()] }));

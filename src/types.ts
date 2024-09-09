@@ -78,7 +78,17 @@ export type RegCmdOptElevated = {
         hookBeforeElevation?: Omitted
     }
 }
-export type CommonOpts = OptionsReg64Or32 & TimeoutOpt & RegCmdExecParamsModifier & RegCmdOptElevated
+
+export type RegCmdOptWinePath = {
+    /**
+     * Applicable only for non-windows platforms.
+     * 
+     * When unspecified, it will look for wine and wine64 in the PATH environment variable.  
+     * If specified, it will first try to use this path, and only if not found, it will look in the PATH environment variable.
+     */
+    winePath?: string | null
+}
+export type CommonOpts = OptionsReg64Or32 & TimeoutOpt & RegCmdExecParamsModifier & RegCmdOptElevated & RegCmdOptWinePath
 export type RegCmdResultWithCmds = {
     /**
      * An array containing the commands that were executed to get the result.  
@@ -150,7 +160,7 @@ export type RegCmdExecParamsModifier = {
      * @param execCmdParameters The parameters to be sent to the execFile function
      * @returns undefined or null to remain unchanged, or a new params arrey to be sent to execFile
      */
-    cmdParamsModifier?: (cmd: COMMAND_NAME, execCmdParameters: ExecFileParameters, wine:boolean) => ExecFileParameters | undefined | null | void
+    cmdParamsModifier?: (cmd: COMMAND_NAME, execCmdParameters: ExecFileParameters, wine: boolean) => ExecFileParameters | undefined | null | void
 }
 
 type RegQueryCmdBase = {
@@ -369,7 +379,7 @@ export type RegAddCmd = string | {
      *   REG_DWORD | REG_QWORD    | REG_BINARY    | REG_NONE ]  
      * If omitted, REG_SZ is assumed.
      */
-    value?: Exclude<RegValue, REG_NONE> | REG_NONE_IN_REG_ADD_CMD;
+    value?: RegValue;
 
     /**
      * /s Separator  
@@ -410,7 +420,7 @@ export type RegApplyOpts = {
      */
     deleteUnspecifiedValues?: false | "all" | "allExceptDefault" | "onlyDefault" | ((key: string, name: string, value: RegValue) => boolean),
     deleteKeys?: RegKey[],
-    deleteValues?: { key: RegKey, valueName: string|string[] }[]
+    deleteValues?: { key: RegKey, valueName: string | string[] }[]
 
     /**
      * Whether to run one REG IMPORT (.reg file) command instaed of a combination of REG ADD/DELETE commands for each value or key.

@@ -21,7 +21,7 @@ export function regCmdImport(cmd: RegImportCmd): PromiseStoppable<RegImportCmdRe
 
     function run(_:RegImportCmd, elevated: ElevatedSudoPromptOpts) {
         return PromiseStoppable.createStoppable<RegImportCmdResult>((resolve, reject, setStopper) => {
-            const params = applyParamsModifier(THIS_COMMAND, ['reg', ["import", fileName, ...args]], opts?.cmdParamsModifier);
+            const params = applyParamsModifier(THIS_COMMAND, ['reg', ["import", fileName, ...args]], opts?.cmdParamsModifier, opts?.winePath);
     
             let stdoutStr = '', stderrStr = '';
             const proc = execFileUtil(params, {

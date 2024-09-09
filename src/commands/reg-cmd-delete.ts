@@ -20,9 +20,8 @@ function regCmdDeleteSingle(d: RegDeleteCmd, elevated: ElevatedSudoPromptOpts): 
     if (d.va) args.push('/va');
     if (d.v) args.push('/v', d.v);
 
-    const params = applyParamsModifier(THIS_COMMAND, ['reg', ['delete', d.keyPath, ...args]], d?.cmdParamsModifier);
-
     return PromiseStoppable.createStoppable((resolve, reject, setStopper) => {
+        const params = applyParamsModifier(THIS_COMMAND, ['reg', ['delete', d.keyPath, ...args]], d?.cmdParamsModifier, d?.winePath);
         let stdoutStr = '', stderrStr = '';
         const proc = execFileUtil(params, {
             onStdErr(data) { stderrStr += data; },
@@ -43,7 +42,6 @@ function regCmdDeleteSingle(d: RegDeleteCmd, elevated: ElevatedSudoPromptOpts): 
         }, elevated);
 
         setStopper(() => proc?.kill());
-
     }, d?.timeout ?? TIMEOUT_DEFAULT);
 }
 
