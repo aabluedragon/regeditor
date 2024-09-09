@@ -1,4 +1,4 @@
-import { findValueByNameLowerCaseInStruct, generateRegFileName, isEqual, regKeyResolveFullPathFromShortcuts } from "../utils";
+import { findValueByNameLowerCaseInStruct, generateRegFileName, isEqual, isWindows, regKeyResolveFullPathFromShortcuts } from "../utils";
 import { CommonOpts, RegCmdResultWithCmds, RegData, RegKey, RegQueryCmdResult, RegStruct, RegType, RegValue, RegValues, RegApplyCmdMode, RegApplyCmdResult, RegApplyOpts } from "../types";
 import { regCmdAdd } from "../commands/reg-cmd-add";
 import { regCmdQuery } from "../commands/reg-cmd-query";
@@ -61,12 +61,12 @@ export function regApply(struct: RegStruct, { deleteUnspecifiedValues = false, t
 
     function handleAfterQuery(existingData?: RegQueryCmdResult) {
         if (existingData == null) existingData = { cmds: [], struct: {}, keysMissing: Object.keys(struct) }
-        const lKeysMissing = existingData.keysMissing
+        const lKeysMissing = existingData.keysMissing.map(k => k.toLowerCase())
 
         // Delete values specified in deleteValues that are not already missing
         const lDeleteValues = origDeleteValues?.
             map(({ key, valueName }) => ({ key: regKeyResolveFullPathFromShortcuts(key).toLowerCase(), valueName: Array.isArray(valueName) ? valueName : [valueName] }))
-            .filter(({ key }) => !lDeleteKeys?.includes(key) && !lKeysMissing.includes(key));
+            .filter(({ key }) => !lDeleteKeys?.includes(key.toLowerCase()) && !lKeysMissing.includes(key.toLowerCase()));
         if (lDeleteValues?.length) {
             const tasksDeleteValues = lDeleteValues.map(({ key, valueName: valueNames }) => valueNames.map(valueName => ({ op: "DELETE", key, valueName }) as ExecutionStep));
             executionPlan.push(...tasksDeleteValues.flat())
@@ -79,7 +79,7 @@ export function regApply(struct: RegStruct, { deleteUnspecifiedValues = false, t
         }
 
         // Add missing keys and all values in them
-        executionPlan.push(...(lKeysMissing.map(k => {
+        executionPlan.push(...(existingData.keysMissing.map(k => {
             const valueEntries = Object.entries(struct).find(([ik]) => ik.toLowerCase() === k.toLowerCase())?.[1] || {};
             if (!Object.keys(valueEntries).length)
                 return { op: "ADD", key: k } as ExecutionStep; // no values specified, just create key
@@ -135,14 +135,21 @@ export function regApply(struct: RegStruct, { deleteUnspecifiedValues = false, t
                 let fileString = 'Windows Registry Editor Version 5.00\r\n\r\n';
                 const newRegStruct = {} as { [key: RegKey]: { [valueName: string]: string } };
                 const deleteKeys = [] as string[];
+
+                const commandsAddDelete = [] as PromiseStoppable<RegCmdResultWithCmds>[];
                 for (const step of executionPlan) {
                     if (step.op === 'ADD') {
                         const { key, value } = step;
                         if (value) {
                             const { name, content } = value;
-                            newRegStruct[key] = newRegStruct[key] || {};
-                            const prefix = name === REG_VALUE_DEFAULT ? `@` : `"${name}"`;
-                            newRegStruct[key][name] = `${prefix}=${serializeDataForRegFile(content.type, content.data)}`
+                            if (isWindows || (content.type !== 'REG_MULTI_SZ' && content.type !== 'REG_EXPAND_SZ' && content.type !== 'REG_SZ')) {
+                                newRegStruct[key] = newRegStruct[key] || {};
+                                const prefix = name === REG_VALUE_DEFAULT ? `@` : `"${name}"`;
+                                newRegStruct[key][name] = `${prefix}=${serializeDataForRegFile(content.type, content.data)}`
+                            } else {
+                                // Used in case of REG_MULTI_SZ, REG_EXPAND_SZ and REG_SZ in WINE, it's not working properly there with .reg and with non-english characters.
+                                commandsAddDelete.push(regCmdAdd({ keyPath: key, ...nameOrDefault(name), value: content, ...commonOpts }));
+                            }
                         } else {
                             newRegStruct[key] = {};
                         }
@@ -189,7 +196,7 @@ export function regApply(struct: RegStruct, { deleteUnspecifiedValues = false, t
 
                 const tmpFilePath = path_join(tmpDir, tmpFileName);
                 writeFileSync(tmpFilePath, fileString, 'utf8');
-                return [regCmdImport({ fileName: tmpFilePath, ...commonOpts }).finally(() => { try { rmSync(tmpFilePath) } catch (e) { } })];
+                return [...commandsAddDelete, regCmdImport({ fileName: tmpFilePath, ...commonOpts }).finally(() => { })];
             })();
 
         return PromiseStoppable.allStoppable(allCommands as PromiseStoppable<RegCmdResultWithCmds>[], r => ({ cmds: [...existingData.cmds, ...r.map(c => c.cmds).flat()] }));
