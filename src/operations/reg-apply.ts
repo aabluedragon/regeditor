@@ -39,6 +39,21 @@ function serializeDataForRegFile(type: RegType, data: RegData): string {
 
 type ExecutionStep = { op: 'ADD', key: string, value?: { name: string, content: RegValue } } | { op: "DELETE", key: string, valueName?: string };
 
+function valueProperlySupportedOnWineRegImport(value: RegValue): boolean {
+
+    if (value.type == 'REG_MULTI_SZ')
+        return false;
+
+    function isSupportedAsciiChar(n: number) {
+        return (n >= 32 && n <= 126)
+    }
+
+    if (value.type == 'REG_EXPAND_SZ' || value.type == 'REG_SZ')
+        return Buffer.from(value.data).every(isSupportedAsciiChar);
+
+    return true;
+}
+
 /**
  * Merge the given object into the registry, only runs commands if changes were found (does one or more REG QUERY first for diffing)
  */
@@ -142,7 +157,7 @@ export function regApply(struct: RegStruct, { deleteUnspecifiedValues = false, t
                         const { key, value } = step;
                         if (value) {
                             const { name, content } = value;
-                            if (isWindows || (content.type !== 'REG_MULTI_SZ' && content.type !== 'REG_EXPAND_SZ' && content.type !== 'REG_SZ')) {
+                            if (isWindows || (valueProperlySupportedOnWineRegImport(content) || content.type === 'REG_NONE')) {
                                 newRegStruct[key] = newRegStruct[key] || {};
                                 const prefix = name === REG_VALUE_DEFAULT ? `@` : `"${name}"`;
                                 newRegStruct[key][name] = `${prefix}=${serializeDataForRegFile(content.type, content.data)}`
@@ -183,7 +198,6 @@ export function regApply(struct: RegStruct, { deleteUnspecifiedValues = false, t
                     if (tmpPath.type === 'dir') {
                         tmpDir = tmpPath.path;
                     } else if (tmpPath.type === 'file') {
-                        // todo put filename
                         tmpDir = path_dirname(tmpPath.path);
                         tmpFileName = path_basename(tmpPath.path);
                     }
