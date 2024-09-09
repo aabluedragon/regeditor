@@ -18,7 +18,7 @@ function nameOrDefault(valueName: string) {
 function serializeDataForRegFile(type: RegType, data: RegData): string {
     switch (type) {
         case 'REG_DWORD':
-            return `dword:${data}`;
+            return `dword:${data.toString(16).padStart(2, '0')}`;
         case 'REG_QWORD':
             return 'hex(b):' + (data as number[]).map(n => n.toString(16).padStart(2, '0')).join(',')
         case 'REG_EXPAND_SZ':
