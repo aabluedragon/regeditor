@@ -19,7 +19,11 @@ export class RegErrorWineNotFound extends Error { constructor(message: string) {
 
 export function findCommonErrorInTrimmedStdErr(command: COMMAND_NAME, trimmedStdErr: string) {
     if (trimmedStdErr === `ERROR: Invalid key name.\r\nType "REG ${command} /?" for usage.`) return new RegErrorInvalidKeyName(trimmedStdErr);
-    if (trimmedStdErr === 'ERROR: Access is denied.') return new RegErrorAccessDenied(trimmedStdErr);
+    if (trimmedStdErr === 'ERROR: Access is denied.' || // windows access denied
+        trimmedStdErr.toLowerCase().endsWith('permission denied') // linux access denied
+    ) {
+        return new RegErrorAccessDenied(trimmedStdErr); 
+    }
     if (trimmedStdErr === `ERROR: Invalid syntax.\r\nType "REG ${command} /?" for usage.` || trimmedStdErr === 'ERROR: The parameter is incorrect.') return new RegErrorInvalidSyntax(trimmedStdErr);
     return null;
 }
