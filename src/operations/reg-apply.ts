@@ -39,21 +39,6 @@ function serializeDataForRegFile(type: RegType, data: RegData): string {
 
 type ExecutionStep = { op: 'ADD', key: string, value?: { name: string, content: RegValue } } | { op: "DELETE", key: string, valueName?: string };
 
-function valueProperlySupportedOnWineRegImport(value: RegValue): boolean {
-
-    if (value.type == 'REG_MULTI_SZ')
-        return false;
-
-    function isSupportedAsciiChar(n: number) {
-        return (n >= 32 && n <= 126)
-    }
-
-    if (value.type == 'REG_EXPAND_SZ' || value.type == 'REG_SZ')
-        return Buffer.from(value.data).every(isSupportedAsciiChar);
-
-    return true;
-}
-
 /**
  * Merge the given object into the registry, only runs commands if changes were found (does one or more REG QUERY first for diffing)
  */
@@ -157,12 +142,12 @@ export function regApply(struct: RegStruct, { deleteUnspecifiedValues = false, t
                         const { key, value } = step;
                         if (value) {
                             const { name, content } = value;
-                            if (isWindows || (valueProperlySupportedOnWineRegImport(content) || content.type === 'REG_NONE')) {
+                            if (isWindows || content.type != 'REG_MULTI_SZ') {
                                 newRegStruct[key] = newRegStruct[key] || {};
                                 const prefix = name === REG_VALUE_DEFAULT ? `@` : `"${name}"`;
                                 newRegStruct[key][name] = `${prefix}=${serializeDataForRegFile(content.type, content.data)}`
                             } else {
-                                // Used in case of REG_MULTI_SZ, REG_EXPAND_SZ and REG_SZ in WINE, it's not working properly there with .reg and with non-english characters.
+                                // Used in case of REG_MULTI_SZ in WINE, it's not working properly there with .reg and with non-english characters.
                                 commandsAddDelete.push(regCmdAdd({ keyPath: key, ...nameOrDefault(name), value: content, ...commonOpts }));
                             }
                         } else {
