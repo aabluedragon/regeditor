@@ -1,4 +1,4 @@
-import { findValueByNameLowerCaseInStruct, generateRegFileName, isEqual, regKeyResolveFullPathFromShortcuts, stringToUTF16LE } from "../utils";
+import { findValueByNameLowerCaseInStruct, generateRegFileName, isEqual, regKeyResolveFullPathFromShortcuts } from "../utils";
 import { CommonOpts, RegCmdResultWithCmds, RegData, RegKey, RegQueryCmdResult, RegStruct, RegType, RegValue, RegValues, RegApplyCmdMode, RegApplyCmdResult, RegApplyOpts } from "../types";
 import { regCmdAdd } from "../commands/reg-cmd-add";
 import { regCmdQuery } from "../commands/reg-cmd-query";
@@ -25,7 +25,7 @@ function serializeDataForRegFile(type: RegType, data: RegData): string {
         case 'REG_SZ':
             return `"${data}"`;
         case 'REG_MULTI_SZ':
-            const bytesArray = [...(data as string[]).map(str => [...stringToUTF16LE(str), 0, 0]).flat(), 0, 0];
+            const bytesArray = [...(data as string[]).map(str => [...Buffer.from(str, 'utf16le'), 0, 0]).flat(), 0, 0];
             const hexString = bytesArray.map(n => n.toString(16).padStart(2, '0')).join(',');
             return `hex(7):${hexString}`;
         case 'REG_BINARY':
