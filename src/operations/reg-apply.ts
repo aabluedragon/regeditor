@@ -23,7 +23,9 @@ function serializeDataForRegFile(type: RegType, data: RegData): string {
             return 'hex(b):' + (data as number[]).map(n => n.toString(16).padStart(2, '0')).join(',')
         case 'REG_EXPAND_SZ':
         case 'REG_SZ':
-            return `"${data}"`;
+            const szByteArr = [...Buffer.from(data as string, 'utf16le')];
+            const szHexString = szByteArr.map(n => n.toString(16).padStart(2, '0')).join(',');
+            return isWindows ? `hex(${type === 'REG_EXPAND_SZ' ? 2 : 1}):${szHexString}`: `"${data}"`;
         case 'REG_MULTI_SZ':
             const bytesArray = [...(data as string[]).map(str => [...Buffer.from(str, 'utf16le'), 0, 0]).flat(), 0, 0];
             const hexString = bytesArray.map(n => n.toString(16).padStart(2, '0')).join(',');
