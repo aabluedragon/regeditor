@@ -151,21 +151,36 @@ function regCmdQuerySingle(queryParam: RegQueryCmd, elevated: ElevatedSudoPrompt
             const newKeyAfterKeyValuesFinished = new RegExp(`\r\n\r\n${regexEscape(queryKeyPath)}.*\r\n`, 'i'); // if \r\n\r\n, make sure next row is a key (otherwise it might be some very long, but legitimate entry value, e.g. REG_SZ)
             function parseStdout(isLastLine = false) {
                 const stdoutLines: string[] = [];
-                while (true) {
-                    const { minIndex } = getMinimumFoundIndexStrOrRegex(stdoutStr, [newKeyAfterKeyValuesFinished, newKeyAfterKeyEmpty_Delimiter, nextValueInKey_Delimiter, ...(isLastLine ? ['\r\n'] : [])]);
+                if (!isLastLine) while (true) {
+                    const { minIndex } = getMinimumFoundIndexStrOrRegex(stdoutStr, [newKeyAfterKeyValuesFinished, newKeyAfterKeyEmpty_Delimiter, nextValueInKey_Delimiter]);
                     if (minIndex === -1) break;
 
                     const row = stdoutStr.substring(0, minIndex);
                     stdoutLines.push(row);
 
                     stdoutStr = stdoutStr.substring(minIndex + 2)
-                    if(isLastLine) break;
+                } else {
+                    let lastIndexOfEnding = stdoutStr.lastIndexOf('\r\n\r\n');
+                    if (lastIndexOfEnding === -1) lastIndexOfEnding = stdoutStr.lastIndexOf('\r\n');
+                    if (lastIndexOfEnding === -1) lastIndexOfEnding = stdoutStr.indexOf('\r\n');
+
+                    if (lastIndexOfEnding !== -1) {
+                        const row = stdoutStr.substring(0, lastIndexOfEnding);
+                        stdoutLines.push(row);
+                        stdoutStr = stdoutStr.substring(lastIndexOfEnding + 2)
+                    }
                 }
                 if (stdoutLines.length > 0) handleDataChunk(stdoutLines);
             }
 
+            function addEmptyKey(key:string|null) {
+                if(key == null) return;
+                if (!obj[key]) obj[key] = {};
+            }
             function updateCurrentKey(key: string | null) {
-                if (currentKey && !obj[currentKey]) obj[currentKey] = {}; // When reading keys and not their entries, and not run in recursive mode (/s), still add the key names to the struct
+                addEmptyKey(currentKey);
+                addEmptyKey(key);
+                
                 currentKey = key;
             }
 
