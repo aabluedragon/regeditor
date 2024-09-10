@@ -176,17 +176,21 @@ export function execFileUtil(params: ExecFileParameters, opts: { onStdOut?: (str
     const cmd = escapeShellArg(params[0]);
     const args = (params?.[1] || []).map(escapeShellArg).join(' ');
     const elevatedOpts: ElevatedSudoPromptOpts = typeof elevated === 'object' && elevated !== null && elevated?.name?.length ? elevated : { name: PACKAGE_DISPLAY_NAME };
-    const oneLinerExecution = cmd + ' ' + args
+
+    // On wine, disable all wine debug messages to prevent them from mixing in stderr of the actual REG command.
+    const oneLinerExecution = (isWindows ? '' : 'WINEDEBUG="err-all,warn-all,fixme-all,trace-all" ') + cmd + ' ' + args
+
     sudo(oneLinerExecution, elevatedOpts, (err, stdout, stderr) => {
 
       const out = (function trimStdinFromStdout() {
-        // TODO: maybe only necessary on Windows, verify on linux and macOS as well.
         let str = stdout?.toString() || '';
-        const indexOfCommand = str.indexOf(oneLinerExecution)
-        if (indexOfCommand !== -1) {
-          str = str.substring(indexOfCommand + oneLinerExecution.length)
-          const firstLineDown = str.indexOf('\r\n');
-          if (firstLineDown !== -1) str = str.substring(firstLineDown + 2)
+        if (isWindows) {
+          const indexOfCommand = str.indexOf(oneLinerExecution)
+          if (indexOfCommand !== -1) {
+            str = str.substring(indexOfCommand + oneLinerExecution.length)
+            const firstLineDown = str.indexOf('\r\n');
+            if (firstLineDown !== -1) str = str.substring(firstLineDown + 2)
+          }
         }
         return str;
       })();
@@ -194,7 +198,7 @@ export function execFileUtil(params: ExecFileParameters, opts: { onStdOut?: (str
       opts?.onStdErr?.(stderr?.toString() || '');
       opts?.onStdOut?.(out);
       opts?.onExit?.();
-    });
+    }, () => { }); // An empty callback is required here, otherwise there's an exception on linux when trying to run elevated commands
     return null;
   } else {
     const proc = execFile(...params);
@@ -231,7 +235,7 @@ export function escapeShellArg(arg: string) {
     replaceAll('>', escapeChar + ">").
     replaceAll('|', escapeChar + "|");
 
-  if (containsWhitespace(escaped)) {
+  if (containsWhitespace(escaped) || (!isWindows && escaped.includes('\\'))) {
     escaped = isWindows ? `"${escaped}"` : `'${escaped}'`;
   }
 
