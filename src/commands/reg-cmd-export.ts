@@ -31,7 +31,7 @@ function regCmdExportSingle(o: RegExportCmd, elevated: ElevatedSudoPromptOpts): 
                 const trimmedStdErr = stderrStr.trim();
                 const trimmedStdOut = stdoutStr.trim();
 
-                if (trimmedStdErr === 'TODO windows' || // windows
+                if (trimmedStdErr === 'ERROR: The system was unable to find the specified registry key or value.' || // windows
                     trimmedStdOut === 'reg: Unable to find the specified registry key') // wine
                     return resolve({ notFound: true, cmd: params });
                 
