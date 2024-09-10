@@ -2,6 +2,7 @@ export * from './commands/reg-cmd-query';
 export * from './commands/reg-cmd-add';
 export * from './commands/reg-cmd-delete';
 export * from './commands/reg-cmd-import';
+export * from './commands/reg-cmd-export';
 export * from './operations/reg-apply';
 export * from './operations/reg-compare';
 export * from './errors';

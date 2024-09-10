@@ -39,7 +39,7 @@ function regCmdAddSingle(a: RegAddCmd, elevated: ElevatedSudoPromptOpts): Promis
             if (opts.v) args.push('/v', opts.v);
             if (opts.ve) args.push('/ve');
 
-            const params = applyParamsModifier(THIS_COMMAND, ['reg', ['add', opts.keyPath, ...args]], opts.cmdParamsModifier, opts?.winePath);
+            const params = applyParamsModifier(THIS_COMMAND, ['reg', [THIS_COMMAND, opts.keyPath, ...args]], opts.cmdParamsModifier, opts?.winePath);
 
             let stdoutStr = '', stderrStr = '';
             const proc = execFileUtil(params, {

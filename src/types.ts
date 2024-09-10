@@ -338,6 +338,26 @@ type RegDeleteVA = {
     va?: boolean
 }
 
+export type RegExportCmd = {
+    /**
+     * The key to export
+     */
+    keyPath: string,
+    /**
+     * __msdocs:__
+     * The name and path of the registry file that will be created.  
+     * This file must have a .reg extension.
+     */
+    file:string
+} & CommonOpts
+
+export type RegExportCmdResult = {
+    notFound: {
+        commandObject: RegDeleteCmd,
+        commandIndex: number,
+    }[]
+} & RegCmdResultWithCmds
+
 /**
  * REG DELETE: A command to delete registry keys and values.  
  * The executable path is usually C:\Windows\System32\reg.exe

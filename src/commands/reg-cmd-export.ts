@@ -1,27 +1,28 @@
 import { applyParamsModifier, execFileUtil, optionalElevateCmdCall, VarArgsOrArray } from "../utils";
 import { findCommonErrorInTrimmedStdErr, RegErrorUnknown } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
-import { ElevatedSudoPromptOpts, ExecFileParameters, RegDeleteCmd, RegDeleteCmdResult } from "../types";
+import { ElevatedSudoPromptOpts, ExecFileParameters, RegDeleteCmd, RegDeleteCmdResult, RegExportCmd, RegExportCmdResult } from "../types";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
 
-const THIS_COMMAND = COMMAND_NAMES.DELETE;
+const THIS_COMMAND = COMMAND_NAMES.EXPORT;
 
 type RegDeleteCmdResultSingle = {
     notFound?: boolean,
     cmd: ExecFileParameters
 }
 
-function regCmdDeleteSingle(d: RegDeleteCmd, elevated: ElevatedSudoPromptOpts): PromiseStoppable<RegDeleteCmdResultSingle> {
+function regCmdExportSingle(o: RegExportCmd, elevated: ElevatedSudoPromptOpts): PromiseStoppable<RegDeleteCmdResultSingle> {
 
-    const args = ['/f'] as string[];
-    if (d.reg32) args.push('/reg:32');
-    if (d.reg64) args.push('/reg:64');
-    if (d.ve) args.push('/ve');
-    if (d.va) args.push('/va');
-    if (d.v) args.push('/v', d.v);
+    const args = [] as string[];
+    args.push(o.keyPath)
+    args.push(o.file);
+
+    if (o.reg32) args.push('/reg:32');
+    if (o.reg64) args.push('/reg:64');
+    args.push('/y');
 
     return PromiseStoppable.createStoppable((resolve, reject, setStopper) => {
-        const params = applyParamsModifier(THIS_COMMAND, ['reg', [THIS_COMMAND, d.keyPath, ...args]], d?.cmdParamsModifier, d?.winePath);
+        const params = applyParamsModifier(THIS_COMMAND, ['reg', [THIS_COMMAND, ...args]], o?.cmdParamsModifier, o?.winePath);
         let stdoutStr = '', stderrStr = '';
         const proc = execFileUtil(params, {
             onStdErr(data) { stderrStr += data; },
@@ -30,8 +31,8 @@ function regCmdDeleteSingle(d: RegDeleteCmd, elevated: ElevatedSudoPromptOpts): 
                 const trimmedStdErr = stderrStr.trim();
                 const trimmedStdOut = stdoutStr.trim();
 
-                if (trimmedStdErr === 'ERROR: The system was unable to find the specified registry key or value.' || // windows
-                    trimmedStdOut === 'reg: Unable to find the specified registry value') // wine
+                if (trimmedStdErr === 'TODO windows' || // windows
+                    trimmedStdOut === 'reg: Unable to find the specified registry key') // wine
                     return resolve({ notFound: true, cmd: params });
                 
                 const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmedStdErr);
@@ -42,19 +43,19 @@ function regCmdDeleteSingle(d: RegDeleteCmd, elevated: ElevatedSudoPromptOpts): 
         }, elevated);
 
         setStopper(() => proc?.kill());
-    }, d?.timeout ?? TIMEOUT_DEFAULT);
+    }, o?.timeout ?? TIMEOUT_DEFAULT);
 }
 
 /**
- * Delete one or more registry keys or values  
- * Executes the REG DELETE command.  
- * @param opts paramters for the REG DELETE command
- * @returns nothing. throws on errors such as access denied.
+ * Export registry keys 
+ * Executes the REG EXPORT command.  
+ * @param opts paramters for the REG EXPORT command
+ * @returns nothing. throws on errors such as access denied. // TODO Fix comments
  */
-export function regCmdDelete(...opts: VarArgsOrArray<RegDeleteCmd>): PromiseStoppable<RegDeleteCmdResult> {
+export function regCmdExport(...opts: VarArgsOrArray<RegExportCmd>): PromiseStoppable<RegExportCmdResult> {
     const requests = opts.flat();
-    return PromiseStoppable.allStoppable(requests.map(o => optionalElevateCmdCall(o, regCmdDeleteSingle)), res => {
-        const response: RegDeleteCmdResult = { notFound: [], cmds: res.map(r => r.cmd) };
+    return PromiseStoppable.allStoppable(requests.map(o => optionalElevateCmdCall(o, regCmdExportSingle)), res => {
+        const response: RegExportCmdResult = { notFound: [], cmds: res.map(r => r.cmd) };
 
         for (let i = 0; i < res.length; i++) {
             if (res[i].notFound) response.notFound.push({
