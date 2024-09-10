@@ -252,7 +252,8 @@ export function optionalElevateCmdCall<T, O extends CommonOpts | string>(paramOr
 
   if (isForced) return fn(paramOrOpts, paramOrOpts?.elevated?.opts ?? true);
 
-  return fn(paramOrOpts, false).catch(async e => {
+  const invoked = fn(paramOrOpts, false);
+  invoked.catch(async e => {
     if (e instanceof RegErrorAccessDenied && isFallback) {
       const hook = typeof paramOrOpts !== 'string' && paramOrOpts?.elevated?.mode === 'fallback' && paramOrOpts?.elevated?.hookBeforeElevation;
       if (typeof hook === 'function') {
@@ -262,7 +263,8 @@ export function optionalElevateCmdCall<T, O extends CommonOpts | string>(paramOr
       return fn(paramOrOpts, typeof paramOrOpts === 'string' ? true : (paramOrOpts?.elevated?.opts ?? true));
     }
     throw e;
-  }) as PromiseStoppable<T>;
+  })
+  return invoked;
 }
 
 export function resolvePosixFilePathWithEnvVarsAndTilde(filepath: string) {
