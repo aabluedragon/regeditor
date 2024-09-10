@@ -2,7 +2,7 @@ import { COMMAND_NAME, CommonOpts, ElevatedSudoPromptOpts, ExecFileParameters, R
 import { exec as sudo } from '@emrivero/sudo-prompt'
 import { type ChildProcess, execFile } from 'child_process'
 import { platform, homedir } from "os";
-import { PACKAGE_DISPLAY_NAME, WINE_FLATPAK_PACKAGE_ID } from "./constants";
+import { COMMAND_NAMES, PACKAGE_DISPLAY_NAME, WINE_FLATPAK_PACKAGE_ID } from "./constants";
 import { RegErrorAccessDenied, RegErrorWineNotFound } from "./errors";
 import { PromiseStoppable } from "./promise-stoppable";
 import { lookpathSync } from "./lookpath-sync";
@@ -102,6 +102,19 @@ const getWine = (() => {
 
 
 export function applyParamsModifier(cmd: COMMAND_NAME, params: ExecFileParameters, modifier: RegCmdExecParamsModifier['cmdParamsModifier'], winePath?: string|null): ExecFileParameters {
+  // Reading unicode characters properly (only required for REG QUERY command)
+  // TODO: fix for wine as well (currently only works for windows, on wine, it results with "Invalid code page")
+  if(cmd === COMMAND_NAMES.QUERY) {
+    if(isWindows) {
+      (function switchToCmdToFixEncoding(){
+        const file = params[0];
+        const args = params?.[1] || [];
+        params[0] = 'cmd';
+        params[1] = ['/c', 'chcp', '65001', '>', 'nul', '&&', file, ...args];
+      })();
+    }
+  }
+  
   const useWine = !isWindows;
   if (useWine) {
     const wineFound = getWine(winePath)
