@@ -37,11 +37,6 @@ export interface REG_NONE {
     data: number[];
 }
 
-export interface REG_NONE_IN_REG_ADD_CMD {
-    type: REG_NONE['type'],
-    data?: never | void | null
-}
-
 export type COMMAND_NAME = typeof COMMAND_NAMES[keyof typeof COMMAND_NAMES];
 
 export type RegValue = REG_SZ | REG_EXPAND_SZ | REG_DWORD | REG_QWORD | REG_MULTI_SZ | REG_BINARY | REG_NONE;

@@ -1,4 +1,4 @@
-import { RegQueryErrorMalformedLine, RegErrorInvalidSyntax, RegQueryErrorReadTooWide, RegErrorUnknown, findCommonErrorInTrimmedStdErr } from "../errors";
+import { RegQueryErrorMalformedLine, RegErrorInvalidSyntax, RegQueryErrorReadTooWide, RegErrorGeneral, findCommonErrorInTrimmedStdErr } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
 import { RegType, RegData, RegQueryCmd, RegStruct, RegValue, RegQueryCmdResult, ExecFileParameters, ElevatedSudoPromptOpts } from "../types";
 import { applyParamsModifier, execFileUtil, getMinimumFoundIndex, getMinimumFoundIndexStrOrRegex, optionalElevateCmdCall, regexEscape, regKeyResolveFullPathFromShortcuts, VarArgsOrArray } from "../utils";
@@ -119,7 +119,7 @@ function regCmdQuerySingle(queryParam: RegQueryCmd, elevated: ElevatedSudoPrompt
                         ) return finishSuccess(true);
                         const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmedStdErr);
                         if (commonError) throw commonError;
-                        if (stderrStr.length) throw new RegErrorUnknown(stderrStr);
+                        if (stderrStr.length) throw new RegErrorGeneral(stderrStr);
                         if (code === null && stderrStr.length === 0) { throw new RegQueryErrorReadTooWide('Read too wide') }
 
                         // Might happen if using the /f "somestr" argument, and there are 1 or more results.

@@ -3,7 +3,7 @@ import { COMMAND_NAME } from "./types";
 export { PromiseStoppableTimeoutError } from './promise-stoppable'
 export class RegErrorAccessDenied extends Error { constructor(message: string) { super(message); this.name = 'RegErrorAccessDenied'; } }
 export class RegErrorInvalidSyntax extends Error { constructor(message: string) { super(message); this.name = 'RegErrorInvalidSyntax'; } }
-export class RegErrorUnknown extends Error { constructor(message: string) { super(message); this.name = 'RegErrorUnknown'; } }
+export class RegErrorGeneral extends Error { constructor(message: string) { super(message); this.name = 'RegErrorGeneral'; } }
 export class RegErrorInvalidKeyName extends Error { constructor(message: string) { super(message); this.name = 'RegErrorInvalidKeyName'; } }
 
 export class RegQueryErrorMalformedLine extends Error { constructor(message: string) { super(message); this.name = 'RegQueryErrorMalformedLine'; } }

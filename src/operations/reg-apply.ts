@@ -3,7 +3,7 @@ import { CommonOpts, RegCmdResultWithCmds, RegData, RegKey, RegQueryCmdResult, R
 import { regCmdAdd } from "../commands/reg-cmd-add";
 import { regCmdQuery } from "../commands/reg-cmd-query";
 import { regCmdDelete } from "../commands/reg-cmd-delete";
-import { REG_VALUE_DEFAULT, TIMEOUT_DEFAULT } from "../constants";
+import { REG_VALUENAME_DEFAULT, TIMEOUT_DEFAULT } from "../constants";
 import { PromiseStoppable } from "../promise-stoppable";
 import { RegErrorInvalidSyntax } from "../errors";
 import { tmpdir } from 'os'
@@ -12,7 +12,7 @@ import { writeFileSync, rmSync, mkdirSync, existsSync } from 'fs'
 import { regCmdImport } from "../commands/reg-cmd-import";
 
 function nameOrDefault(valueName: string) {
-    return { ...(valueName === REG_VALUE_DEFAULT ? { ve: true } : { v: valueName }) }
+    return { ...(valueName === REG_VALUENAME_DEFAULT ? { ve: true } : { v: valueName }) }
 }
 
 function serializeDataForRegFile(type: RegType, data: RegData): string {
@@ -101,8 +101,8 @@ export function regApply(struct: RegStruct, { deleteUnspecifiedValues = false, t
                     .filter(([name]) => !findValueByNameLowerCaseInStruct(struct, existingKey, name) && deleteUnspecifiedValues) // Get existing values that are not specified in the new struct
                     .filter(([name]) =>
                         deleteUnspecifiedValues === 'all' ||
-                        (deleteUnspecifiedValues === 'allExceptDefault' && name !== REG_VALUE_DEFAULT) ||
-                        (deleteUnspecifiedValues === 'onlyDefault' && name === REG_VALUE_DEFAULT) ||
+                        (deleteUnspecifiedValues === 'allExceptDefault' && name !== REG_VALUENAME_DEFAULT) ||
+                        (deleteUnspecifiedValues === 'onlyDefault' && name === REG_VALUENAME_DEFAULT) ||
                         (typeof deleteUnspecifiedValues === 'function' && deleteUnspecifiedValues(existingKey, name, dataInExistingKey[name])))
                     .map(([name]) => ({ op: "DELETE", key: existingKey, valueName: name }) as ExecutionStep)
 
@@ -144,7 +144,7 @@ export function regApply(struct: RegStruct, { deleteUnspecifiedValues = false, t
                             const { name, content } = value;
                             if (isWindows || content.type != 'REG_MULTI_SZ') {
                                 newRegStruct[key] = newRegStruct[key] || {};
-                                const prefix = name === REG_VALUE_DEFAULT ? `@` : `"${name}"`;
+                                const prefix = name === REG_VALUENAME_DEFAULT ? `@` : `"${name}"`;
                                 newRegStruct[key][name] = `${prefix}=${serializeDataForRegFile(content.type, content.data)}`
                             } else {
                                 // Used in case of REG_MULTI_SZ in WINE, it's not working properly there with .reg and with non-english characters.
@@ -157,7 +157,7 @@ export function regApply(struct: RegStruct, { deleteUnspecifiedValues = false, t
                         const { key, valueName } = step;
                         if (valueName) {
                             newRegStruct[key] = newRegStruct[key] || {};
-                            const prefix = valueName === REG_VALUE_DEFAULT ? `@` : `"${valueName}"`;
+                            const prefix = valueName === REG_VALUENAME_DEFAULT ? `@` : `"${valueName}"`;
                             newRegStruct[key][valueName] = `${prefix}=-`
                         } else {
                             deleteKeys.push(key);

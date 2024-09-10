@@ -1,5 +1,5 @@
 import { applyParamsModifier, execFileUtil, optionalElevateCmdCall, VarArgsOrArray } from "../utils";
-import { findCommonErrorInTrimmedStdErr, RegErrorUnknown } from "../errors";
+import { findCommonErrorInTrimmedStdErr, RegErrorGeneral } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
 import { ElevatedSudoPromptOpts, ExecFileParameters, RegDeleteCmd, RegDeleteCmdResult, RegExportCmd, RegExportCmdResult } from "../types";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
@@ -15,7 +15,7 @@ function regCmdExportSingle(o: RegExportCmd, elevated: ElevatedSudoPromptOpts): 
 
     const args = [] as string[];
     args.push(o.keyPath)
-    args.push(o.file);
+    args.push(o.fileName);
 
     if (o.reg32) args.push('/reg:32');
     if (o.reg64) args.push('/reg:64');
@@ -37,7 +37,7 @@ function regCmdExportSingle(o: RegExportCmd, elevated: ElevatedSudoPromptOpts): 
                 
                 const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmedStdErr);
                 if (commonError) return reject(commonError);
-                if (stderrStr.length) return reject(new RegErrorUnknown(stderrStr));
+                if (stderrStr.length) return reject(new RegErrorGeneral(stderrStr));
                 resolve({ cmd: params });
             }
         }, elevated);

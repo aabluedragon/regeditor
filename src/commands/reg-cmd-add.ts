@@ -1,7 +1,7 @@
 import { PromiseStoppable } from "../promise-stoppable";
 import { RegAddCmd, RegType, RegData, ExecFileParameters, RegAddCmdResult, ElevatedSudoPromptOpts } from "../types";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
-import { findCommonErrorInTrimmedStdErr, RegErrorInvalidSyntax, RegErrorUnknown } from "../errors";
+import { findCommonErrorInTrimmedStdErr, RegErrorInvalidSyntax, RegErrorGeneral } from "../errors";
 import { applyParamsModifier, execFileUtil, optionalElevateCmdCall, VarArgsOrArray } from "../utils";
 
 const THIS_COMMAND = COMMAND_NAMES.ADD;
@@ -49,13 +49,13 @@ function regCmdAddSingle(a: RegAddCmd, elevated: ElevatedSudoPromptOpts): Promis
                     const trimmedStdErr = stderrStr.trim();
                     const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmedStdErr);
                     if (commonError) return reject(commonError);
-                    if (trimmedStdErr.length) return reject(new RegErrorUnknown(stderrStr));
+                    if (trimmedStdErr.length) return reject(new RegErrorGeneral(stderrStr));
 
                     const trimmedStdout = stdoutStr.trim();
                     if (trimmedStdout !== 'The operation completed successfully.' // windows
                         &&trimmedStdout !== 'reg: The operation completed successfully' // wine
                     ) {
-                        return reject(new RegErrorUnknown(stderrStr || stdoutStr));
+                        return reject(new RegErrorGeneral(stderrStr || stdoutStr));
                     }
                     resolve({ cmd: params });
                 }

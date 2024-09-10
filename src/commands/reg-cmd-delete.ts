@@ -1,5 +1,5 @@
 import { applyParamsModifier, execFileUtil, optionalElevateCmdCall, VarArgsOrArray } from "../utils";
-import { findCommonErrorInTrimmedStdErr, RegErrorUnknown } from "../errors";
+import { findCommonErrorInTrimmedStdErr, RegErrorGeneral } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
 import { ElevatedSudoPromptOpts, ExecFileParameters, RegDeleteCmd, RegDeleteCmdResult } from "../types";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
@@ -36,7 +36,7 @@ function regCmdDeleteSingle(d: RegDeleteCmd, elevated: ElevatedSudoPromptOpts): 
                 
                 const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmedStdErr);
                 if (commonError) return reject(commonError);
-                if (stderrStr.length) return reject(new RegErrorUnknown(stderrStr));
+                if (stderrStr.length) return reject(new RegErrorGeneral(stderrStr));
                 resolve({ cmd: params });
             }
         }, elevated);

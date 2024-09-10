@@ -21,7 +21,7 @@ export const REG_TYPES_ALL = Object.freeze(['REG_BINARY', 'REG_DWORD', 'REG_EXPA
  * Note that we cannot differentiate between a value named "(Default)" and the default value of a key, as the REG QUERY command does not indicate which it is.  
  * Therefore, we will always assume that the value is the default value of the key.
  */
-export const REG_VALUE_DEFAULT = "(Default)"
+export const REG_VALUENAME_DEFAULT = "(Default)"
 
 export const PACKAGE_DISPLAY_NAME = "regeditor"
 
