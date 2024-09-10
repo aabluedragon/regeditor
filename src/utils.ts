@@ -180,6 +180,7 @@ export function execFileUtil(params: ExecFileParameters, opts: { onStdOut?: (str
     sudo(oneLinerExecution, elevatedOpts, (err, stdout, stderr) => {
 
       const out = (function trimStdinFromStdout() {
+        // TODO: maybe only necessary on Windows, verify on linux and macOS as well.
         let str = stdout?.toString() || '';
         const indexOfCommand = str.indexOf(oneLinerExecution)
         if (indexOfCommand !== -1) {
