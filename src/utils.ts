@@ -84,7 +84,7 @@ type WineFoundResult = { type: 'path' | 'flatpak', value: string } | false;
 const getWine = (() => {
   let cacheWineFound: WineFoundResult = false;
 
-  return (winePath?: string|null): { type: 'path' | 'flatpak', value: string } | false => {
+  return (winePath?: string | null): { type: 'path' | 'flatpak', value: string } | false => {
     if (winePath && existsSync(winePath)) return { type: 'path', value: winePath };
 
     if (cacheWineFound) return cacheWineFound;
@@ -101,12 +101,12 @@ const getWine = (() => {
 })();
 
 
-export function applyParamsModifier(cmd: COMMAND_NAME, params: ExecFileParameters, modifier: RegCmdExecParamsModifier['cmdParamsModifier'], winePath?: string|null): ExecFileParameters {
+export function applyParamsModifier(cmd: COMMAND_NAME, params: ExecFileParameters, modifier: RegCmdExecParamsModifier['cmdParamsModifier'], winePath?: string | null): ExecFileParameters {
   // Reading unicode characters properly (only required for REG QUERY command)
   // TODO: fix for wine as well (currently only works for windows, on wine, it results with "Invalid code page")
-  if(cmd === COMMAND_NAMES.QUERY) {
-    if(isWindows) {
-      (function switchToCmdToFixEncoding(){
+  if (cmd === COMMAND_NAMES.QUERY) {
+    if (isWindows) {
+      (function switchToCmdToFixEncoding() {
         const file = params[0];
         const args = params?.[1] || [];
         params[0] = 'cmd';
@@ -114,7 +114,7 @@ export function applyParamsModifier(cmd: COMMAND_NAME, params: ExecFileParameter
       })();
     }
   }
-  
+
   const useWine = !isWindows;
   if (useWine) {
     const wineFound = getWine(winePath)
@@ -176,9 +176,22 @@ export function execFileUtil(params: ExecFileParameters, opts: { onStdOut?: (str
     const cmd = escapeShellArg(params[0]);
     const args = (params?.[1] || []).map(escapeShellArg).join(' ');
     const elevatedOpts: ElevatedSudoPromptOpts = typeof elevated === 'object' && elevated !== null && elevated?.name?.length ? elevated : { name: PACKAGE_DISPLAY_NAME };
-    sudo(cmd + ' ' + args, elevatedOpts, (err, stdout, stderr) => {
+    const oneLinerExecution = cmd + ' ' + args
+    sudo(oneLinerExecution, elevatedOpts, (err, stdout, stderr) => {
+
+      const out = (function trimStdinFromStdout() {
+        let str = stdout?.toString() || '';
+        const indexOfCommand = str.indexOf(oneLinerExecution)
+        if (indexOfCommand !== -1) {
+          str = str.substring(indexOfCommand + oneLinerExecution.length)
+          const firstLineDown = str.indexOf('\r\n');
+          if (firstLineDown !== -1) str = str.substring(firstLineDown + 2)
+        }
+        return str;
+      })();
+
       opts?.onStdErr?.(stderr?.toString() || '');
-      opts?.onStdOut?.(stdout?.toString() || '');
+      opts?.onStdOut?.(out);
       opts?.onExit?.();
     });
     return null;
