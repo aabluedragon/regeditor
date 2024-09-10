@@ -348,7 +348,7 @@ export type RegExportCmd = {
      * The name and path of the registry file that will be created.  
      * This file must have a .reg extension.
      */
-    file:string
+    fileName:string
 } & CommonOpts
 
 export type RegExportCmdResult = {
