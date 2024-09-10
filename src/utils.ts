@@ -178,7 +178,7 @@ export function execFileUtil(params: ExecFileParameters, opts: { onStdOut?: (str
     const elevatedOpts: ElevatedSudoPromptOpts = typeof elevated === 'object' && elevated !== null && elevated?.name?.length ? elevated : { name: PACKAGE_DISPLAY_NAME };
 
     // On wine, disable all wine debug messages to prevent them from mixing in stderr of the actual REG command.
-    const oneLinerExecution = (isWindows ? '' : 'WINEDEBUG="err-all,warn-all,fixme-all,trace-all" ') + cmd + ' ' + args
+    const oneLinerExecution = (isWindows ? '' : 'WINEDEBUG="-all" ') + cmd + ' ' + args
 
     sudo(oneLinerExecution, elevatedOpts, (err, stdout, stderr) => {
 
