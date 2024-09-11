@@ -501,5 +501,12 @@ export type RegReadCmd = string | ({
     /**
      * The key to read
      */
-    keyPath: string
+    keyPath: string,
+
+    /**
+     * By default REG QUERY is used for Windows, and REG EXPORT is used for other platforms using Wine.
+     * 
+     * Use this if you need to force a specific command for reading.
+     */
+    readCmd?: 'query' | 'export' | 'auto'
 } & CommonOpts)

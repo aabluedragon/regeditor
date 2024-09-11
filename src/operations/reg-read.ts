@@ -36,6 +36,7 @@ export const regReadWithExportSingle = (o: RegReadCmd, elevated: ElevatedSudoPro
             // File might not exist if tried to export a non-existing key, so we use try-catch
             dataRetreived = await readFile(tmpFilePath, 'utf-16le')
         } catch (e) { }
+        try { await rm(tmpFilePath) } catch (e) { }
         exportResult = c;
         exportFinished = true
     }).catch(e => { exportError = e; exportFinished = true });
@@ -68,11 +69,11 @@ export const regReadWithExportSingle = (o: RegReadCmd, elevated: ElevatedSudoPro
     const struct: RegStruct = {};
 
     // Trim header and go to the first key
-    let data = fileKeyData.substring(fileKeyData.indexOf('['));
+    let dataToProcess = fileKeyData.substring(fileKeyData.indexOf('['));
 
     let currentKey: string | null = null;
 
-    const lines = data.trim().split('\r\n');
+    const lines = dataToProcess.trim().split('\r\n');
     for (let i = 0; i < lines.length; i++) {
         let line = lines[i];
         if (!line.length) continue;
@@ -82,7 +83,7 @@ export const regReadWithExportSingle = (o: RegReadCmd, elevated: ElevatedSudoPro
         }
         const indexOfOpeningBracket = line.indexOf('[');
         if (indexOfOpeningBracket === 0) {
-            fileKeyData.substring(indexOfOpeningBracket + 1);
+            line.substring(indexOfOpeningBracket + 1);
             const indexOfClosingBracket = line.indexOf(']');
             currentKey = line.substring(1, indexOfClosingBracket);
             if (!struct[currentKey]) struct[currentKey] = {};
@@ -154,9 +155,14 @@ export const regReadWithExportSingle = (o: RegReadCmd, elevated: ElevatedSudoPro
  * @returns struct representing the registry entries
  */
 export function regReadSingle(o: RegReadCmd, elevated:ElevatedSudoPromptOpts): PromiseStoppable<RegReadResultSingle> {
-    return isWindows ? regCmdQuerySingle(o, elevated) : regReadWithExportSingle(o, elevated);
+    const opts = typeof o === 'string' ? { keyPath: o } : o;
+    if(isWindows || opts?.readCmd === 'query') {
+        return regCmdQuerySingle(o, elevated);
+    } else if(!isWindows || opts?.readCmd === 'export') {
+        return regReadWithExportSingle(o, elevated);
+    }
+    throw new RegErrorGeneral('Unsupported readCmd mode');
 }
-
 
 /**
  * Reads one or more keys from the registry.
@@ -168,6 +174,6 @@ export function regReadSingle(o: RegReadCmd, elevated:ElevatedSudoPromptOpts): P
  * @returns struct representing the registry entries
  */
 export function regRead(...queriesParam: VarArgsOrArray<RegQueryCmd | RegReadCmd>): PromiseStoppable<RegReadResult> {
-    return handleReadAndQueryCommands(regReadWithExportSingle, ...queriesParam);
+    return handleReadAndQueryCommands(regReadSingle, ...queriesParam);
 }
 
