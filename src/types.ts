@@ -153,7 +153,7 @@ export type RegCmdExecParamsModifier = {
     cmdParamsModifier?: (cmd: COMMAND_NAME, execCmdParameters: ExecFileParameters, wine: boolean) => ExecFileParameters | undefined | null | void
 }
 
-type RegQueryCmdBase = {
+export type RegQueryCmdBase = {
 
     /**
      * The registry key path to read from, e.g. "HKLM\\SOFTWARE\\Apple Inc.\\Bonjour"
@@ -175,16 +175,6 @@ type RegQueryCmdBase = {
     s?: boolean
 
     /**
-     * /se  
-     * Useful if you know an "REG_MULTI_SZ" entry might contain the default seprator \0 as a string value.
-     * 
-     * __msdocs:__  
-     * Specifies the separator (length of 1 character only) in  
-     * data string for REG_MULTI_SZ. Defaults to "\0" as the separator.  
-     */
-    se?: string
-
-    /**
      * /t  
      * Use for filtering entry types, e.g. "REG_SZ", "REG_DWORD", etc...
      * 
@@ -197,6 +187,24 @@ type RegQueryCmdBase = {
      */
     t?: RegType[] | RegType
 
+} & CommonOpts
+
+/**
+ * REG QUERY: A command to query (read) registry values.  
+ * The executable path is usually C:\Windows\System32\reg.exe
+ */
+export type RegQueryCmd = RegKey | (RegQueryCmdBase & {
+
+    /**
+     * /se  
+     * Useful if you know an "REG_MULTI_SZ" entry might contain the default seprator \0 as a string value.
+     * 
+     * __msdocs:__  
+     * Specifies the separator (length of 1 character only) in  
+     * data string for REG_MULTI_SZ. Defaults to "\0" as the separator.  
+     */
+    se?: string
+
     /**
      * Only usable when not using the "elevated" option.
      * 
@@ -204,13 +212,7 @@ type RegQueryCmdBase = {
      * Might be useful for long reads, e.g. when using the /s flag for recursive read.
      */
     onProgress?: (partialStruct: RegStruct, stop: () => void) => false | undefined | void
-} & CommonOpts
-
-/**
- * REG QUERY: A command to query (read) registry values.  
- * The executable path is usually C:\Windows\System32\reg.exe
- */
-export type RegQueryCmd = RegKey | (RegQueryCmdBase & ({
+} & ({
     // Params that can only be used in mode /f
 
     /**
@@ -333,7 +335,7 @@ export type RegExportCmd = {
      * The name and path of the registry file that will be created.  
      * This file must have a .reg extension.
      */
-    fileName:string
+    fileName: string
 } & CommonOpts
 
 export type RegExportCmdResult = {
@@ -359,7 +361,7 @@ export type RegCopyCmd = {
      * Destination key to copy to
      */
     keyPathDest: string
-    
+
     /**
      * __msdocs:__  
      * Copy all subkeys and values from <key1> to <key2>.
@@ -391,13 +393,13 @@ export type RegImportCmdOpts = {
  * REG IMPORT command, imports a .reg file into the registry.
  * The executable path is usually C:\Windows\System32\reg.exe
  */
-export type RegImportCmd = string | RegImportCmdOpts
+export type RegImportCmd = RegKey | RegImportCmdOpts
 
 /**
  * REG ADD: A command to add registry keys and values.  
  * The executable path is usually C:\Windows\System32\reg.exe
  */
-export type RegAddCmd = string | {
+export type RegAddCmd = RegKey | {
     keyPath: string;
 
     /**
@@ -523,12 +525,7 @@ export type ElevatedSudoPromptOpts = {
 
 export type RegReadResult = RegQueryCmdResult
 
-export type RegReadCmd = string | ({
-    /**
-     * The key to read
-     */
-    keyPath: string,
-
+export type RegReadCmdOpts = RegQueryCmdBase & {
     /**
      * By default REG QUERY is used for Windows, and REG EXPORT is used for other platforms using Wine.
      * 
@@ -537,7 +534,13 @@ export type RegReadCmd = string | ({
     readCmd?: 'query' | 'export' | 'auto'
 
     /**
-     * Get subkeys and values recursively, similar to the /s option in REG QUERY
+     * /v
+     * 
+     * __msdocs:__  
+     * Queries for a specific registry key values.  
+     * If omitted, all values for the key are queried.
      */
-    s?:boolean
-} & CommonOpts)
+    v?: string
+}
+
+export type RegReadCmd = RegKey | RegReadCmdOpts

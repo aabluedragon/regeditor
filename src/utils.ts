@@ -1,4 +1,4 @@
-import { COMMAND_NAME, CommonOpts, ElevatedSudoPromptOpts, ExecFileParameters, RegCmdExecParamsModifier, RegQueryCmd, RegQueryCmdResult, RegStruct } from "./types";
+import { COMMAND_NAME, CommonOpts, ElevatedSudoPromptOpts, ExecFileParameters, RegCmdExecParamsModifier, RegKey, RegQueryCmdBase, RegQueryCmdResult, RegStruct } from "./types";
 import { exec as sudo } from '@emrivero/sudo-prompt'
 import { type ChildProcess, execFile } from 'child_process'
 import { platform, homedir } from "os";
@@ -254,7 +254,7 @@ export function generateRegFileName() {
   return `_${PACKAGE_DISPLAY_NAME}_${uuidv4()}.reg`;
 }
 
-export function optionalElevateCmdCall<T, O extends CommonOpts | string>(paramOrOpts: O, fn: (opts: O, elevated: ElevatedSudoPromptOpts) => PromiseStoppable<T>): PromiseStoppable<T> {
+export function optionalElevateCmdCall<T, O extends (CommonOpts | RegKey)>(paramOrOpts: O, fn: (opts: O, elevated: ElevatedSudoPromptOpts) => PromiseStoppable<T>): PromiseStoppable<T> {
   const isFallback = typeof paramOrOpts === 'string' || paramOrOpts?.elevated?.mode === 'fallback' || paramOrOpts?.elevated == null;
   const isForced = typeof paramOrOpts !== 'string' && paramOrOpts?.elevated?.mode === 'forced';
 
@@ -290,47 +290,47 @@ export function isPackageInstalledOnFlatpakSync(packageId?: string): boolean {
 export function getCommonOpts<T extends CommonOpts>(opts: T) {
   const commonOpts: CommonOpts = {};
 
-  if(opts.timeout != null) commonOpts.timeout = opts.timeout;
-  if(opts.cmdParamsModifier != null) commonOpts.cmdParamsModifier = opts.cmdParamsModifier;
-  if(opts.elevated != null) commonOpts.elevated = opts.elevated;
-  if(opts.winePath != null) commonOpts.winePath = opts.winePath;
-  if(opts.reg32) commonOpts.reg32 = true;
-  if(opts.reg64) commonOpts.reg64 = true;
-  
+  if (opts.timeout != null) commonOpts.timeout = opts.timeout;
+  if (opts.cmdParamsModifier != null) commonOpts.cmdParamsModifier = opts.cmdParamsModifier;
+  if (opts.elevated != null) commonOpts.elevated = opts.elevated;
+  if (opts.winePath != null) commonOpts.winePath = opts.winePath;
+  if (opts.reg32) commonOpts.reg32 = true;
+  if (opts.reg64) commonOpts.reg64 = true;
+
   return commonOpts as CommonOpts;
 }
 
-export function handleReadAndQueryCommands(impFn:(o:RegQueryCmd, elevated: ElevatedSudoPromptOpts)=>PromiseStoppable<RegQueryCmdResultSingle>, ...queriesParam: VarArgsOrArray<RegQueryCmd>): PromiseStoppable<RegQueryCmdResult> {
-    const flattened = queriesParam.flat();
-    const queriesOrReads = flattened.map(v => typeof v === 'string' ? ({ keyPath: v }) : v);
-    const promises = queriesOrReads.map(o => optionalElevateCmdCall(o, impFn));
+export function handleReadAndQueryCommands(impFn: (o: RegQueryCmdBase | RegKey, elevated: ElevatedSudoPromptOpts) => PromiseStoppable<RegQueryCmdResultSingle>, ...queriesParam: VarArgsOrArray<RegQueryCmdBase | RegKey>): PromiseStoppable<RegQueryCmdResult> {
+  const flattened = queriesParam.flat();
+  const queriesOrReads = flattened.map(v => typeof v === 'string' ? ({ keyPath: v }) : v);
+  const promises = queriesOrReads.map(o => optionalElevateCmdCall(o, impFn));
 
-    return allStoppable(promises).then(results => {
-        // Skipping the merge logic if just a single query.
-        if (results.length === 1) {
-            const r = results[0];
-            const q = queriesOrReads[0];
-            return {
-                struct: r.struct,
-                keysMissing: r?.keyMissing ? [q.keyPath] : [],
-                cmds: [r.cmd]
-            }
-        }
+  return allStoppable(promises).then(results => {
+    // Skipping the merge logic if just a single query.
+    if (results.length === 1) {
+      const r = results[0];
+      const q = queriesOrReads[0];
+      return {
+        struct: r.struct,
+        keysMissing: r?.keyMissing ? [q.keyPath] : [],
+        cmds: [r.cmd]
+      }
+    }
 
-        // Merge structs for all keys retreived
-        const struct = {} as RegStruct;
-        let keysMissing = [] as string[];
-        const cmds = [] as ExecFileParameters[];
-        for (let i = 0; i < results.length; i++) {
-            const res = results[i];
-            cmds.push(res.cmd);
-            if (res.keyMissing) keysMissing.push(queriesOrReads[i].keyPath);
-            for (const key in res.struct) {
-                struct[key] = { ...struct[key], ...res.struct[key] }
-            }
-        }
-        return { struct, keysMissing, cmds };
-    })
+    // Merge structs for all keys retreived
+    const struct = {} as RegStruct;
+    let keysMissing = [] as string[];
+    const cmds = [] as ExecFileParameters[];
+    for (let i = 0; i < results.length; i++) {
+      const res = results[i];
+      cmds.push(res.cmd);
+      if (res.keyMissing) keysMissing.push(queriesOrReads[i].keyPath);
+      for (const key in res.struct) {
+        struct[key] = { ...struct[key], ...res.struct[key] }
+      }
+    }
+    return { struct, keysMissing, cmds };
+  })
 }
 
 export function sleep(ms: number) {
@@ -340,9 +340,9 @@ export function sleep(ms: number) {
 export function findCommonErrorInTrimmedStdErr(command: COMMAND_NAME, trimmedStdErr: string) {
   if (trimmedStdErr === `ERROR: Invalid key name.\r\nType "REG ${command} /?" for usage.`) return new RegErrorInvalidKeyName(trimmedStdErr);
   if (trimmedStdErr === 'ERROR: Access is denied.' || // windows access denied
-      trimmedStdErr.toLowerCase().endsWith('permission denied') // linux access denied
+    trimmedStdErr.toLowerCase().endsWith('permission denied') // linux access denied
   ) {
-      return new RegErrorAccessDenied(trimmedStdErr); 
+    return new RegErrorAccessDenied(trimmedStdErr);
   }
   if (trimmedStdErr === `ERROR: Invalid syntax.\r\nType "REG ${command} /?" for usage.` || trimmedStdErr === 'ERROR: The parameter is incorrect.') return new RegErrorInvalidSyntax(trimmedStdErr);
   return null;

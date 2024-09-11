@@ -22,6 +22,8 @@ export const regReadWithExportSingle = (o: RegReadCmd, elevated: ElevatedSudoPro
     const opts = typeof o === 'string' ? { keyPath: o } : o;
     const commonOpts = getCommonOpts(opts);
 
+    const optFilterTypes = opts?.t?.length ? (new Set(Array.isArray(opts?.t)? opts?.t : [opts?.t])) : null;
+
     const tmpFilePath = path_join(os_tmpdir(), generateRegFileName());
 
     let exportCmdParams: ExecFileParameters | null = null;
@@ -111,6 +113,9 @@ export const regReadWithExportSingle = (o: RegReadCmd, elevated: ElevatedSudoPro
             valuePart = line.substring(2);
         } else throw new RegErrorGeneral('Unsupported value format');
 
+        if(opts?.v && valueName.toLowerCase() !== opts.v.toLowerCase()) continue;
+        if(opts?.ve && valueName !== REG_VALUENAME_DEFAULT) continue;
+
         let regType: RegType | null = null;
         let data: RegData | null = null;
         if (valuePart.startsWith('"')) {
@@ -144,6 +149,8 @@ export const regReadWithExportSingle = (o: RegReadCmd, elevated: ElevatedSudoPro
             regType = 'REG_NONE';
             data = valuePart.substring(7).split(',').map(v => parseInt(v, 16))
         } else throw new RegErrorGeneral('Unsupported value type');
+
+        if(optFilterTypes && !optFilterTypes?.has(regType)) continue;
 
         struct[currentKey][valueName] = { type: regType, data } as RegValue;
     }
