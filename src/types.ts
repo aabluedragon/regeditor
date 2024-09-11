@@ -198,11 +198,6 @@ type RegQueryCmdBase = {
     t?: RegType[] | RegType
 
     /**
-     * If stumbled upon unexpected lines, continue parsing the rest of the lines (will still throw if stubled upon unrecoverable error).
-     */
-    bestEffort?: boolean
-
-    /**
      * Only usable when not using the "elevated" option.
      * 
      * Use to observe the value of the the result registry struct before it has finished reading, call stop() or return false to stop reading.  
