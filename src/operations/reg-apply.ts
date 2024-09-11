@@ -4,7 +4,7 @@ import { regCmdAdd } from "../commands/reg-cmd-add";
 import { regCmdQuery } from "../commands/reg-cmd-query";
 import { regCmdDelete } from "../commands/reg-cmd-delete";
 import { REG_VALUENAME_DEFAULT, TIMEOUT_DEFAULT } from "../constants";
-import { PromiseStoppable } from "../promise-stoppable";
+import { allStoppable, PromiseStoppable } from "../promise-stoppable";
 import { RegErrorInvalidSyntax } from "../errors";
 import { tmpdir } from 'os'
 import { join as path_join, dirname as path_dirname, basename as path_basename } from "path";
@@ -198,11 +198,11 @@ export function regApply(struct: RegStruct, { deleteUnspecifiedValues = false, t
                 return [...commandsAddDelete, regCmdImport({ fileName: tmpFilePath, ...commonOpts }).finally(() => { try { rmSync(tmpFilePath) } catch { } })];
             })();
 
-        return PromiseStoppable.allStoppable(allCommands as PromiseStoppable<RegCmdResultWithCmds>[], r => ({ cmds: [...existingData.cmds, ...r.map(c => c.cmds).flat()] }));
+        return allStoppable(allCommands as PromiseStoppable<RegCmdResultWithCmds>[]).then(r => ({ cmds: [...existingData.cmds, ...r.map(c => c.cmds).flat()] }));
     }
 
     if (skipQuery) return handleAfterQuery();
-    else return PromiseStoppable.allStoppable([regCmdQuery(queryForKeys)], async query => {
+    else return allStoppable([regCmdQuery(queryForKeys)]).then(async query => {
         const timeleft = timeout - (Date.now() - timeStarted);
         commonOpts.timeout = timeleft;
 

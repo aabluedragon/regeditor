@@ -1,62 +1,105 @@
 import { AddParameters } from "./utils";
 
-type StopperCallbackFn = (isTimeout?:boolean) => void
+type StopperCallbackFn = (isTimeout?: boolean) => void
 type PromiseCallBackType<T> = ConstructorParameters<typeof Promise<T>>[0];
 type WithSetStoppable<T> = AddParameters<PromiseCallBackType<T>, [(stop: StopperCallbackFn) => void]>;
 type TypeOrPromiseLikeType<T> = T | PromiseLike<T>;
 
-export class PromiseStoppable<T> extends Promise<T> {
-    stop() { this.#stopper?.(false); }
+export interface PromiseStoppable<T> extends Promise<T> {
+    stop: () => void,
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): PromiseStoppable<TResult1 | TResult2>
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): PromiseStoppable<T | TResult>;
+}
 
-    #stopper:StopperCallbackFn = () => { }
-
-    static createStoppable<T>(fn: WithSetStoppable<T>, timeout?: number): PromiseStoppable<T> {
-        let origResolve: (r: TypeOrPromiseLikeType<T>) => void, origReject: (e: any) => any;
-        const p = new PromiseStoppable<T>((r, j) => {
-            origResolve = r; origReject = j;
+export function allStoppable<T extends readonly unknown[] | []>(values: T): PromiseStoppable<{ -readonly [P in keyof T]: Awaited<T[P]>; }> {
+    return newStoppable((res, rej, setStopper) => {
+        setStopper(() => {
+            values.forEach(p => (p as PromiseStoppable<any>)?.stop());
         })
-        
-        let timer: NodeJS.Timeout | null = null;
-        if (timeout != null) {
-            timer = setTimeout(() => {
-                wrappedReject(new PromiseStoppableTimeoutError('PromiseStoppable timed out'));
-                p.#stopper?.(true);
-            }, timeout);
-        }
+        Promise.all(values).then(res).catch(rej);
+    });
+}
 
-        let finished = false;
-        function wrappedResolve(r: TypeOrPromiseLikeType<T>) {
-            if (finished) return;
-            finished = true;
-            clearTimeout(timer!);
-            origResolve?.(r);
-        }
+export function allSettledStoppable<T extends readonly unknown[] | []>(values: T): PromiseStoppable<{ -readonly [P in keyof T]: PromiseSettledResult<Awaited<T[P]>>; }> {
+    return newStoppable((res, rej, setStopper) => {
+        setStopper(() => {
+            values.forEach(p => (p as PromiseStoppable<any>)?.stop());
+        })
+        Promise.allSettled(values).then(res).catch(rej);
+    });
+}
 
-        const wrappedReject = (e: any)=>{
-            if (finished) return;
-            finished = true;
-            clearTimeout(timer!);
-            origReject?.(e);
-        }
+export function raceStoppable<T extends readonly unknown[] | []>(values: T): PromiseStoppable<Awaited<T[number]>> {
+    return newStoppable((res, rej, setStopper) => {
+        setStopper(() => {
+            values.forEach(p => (p as PromiseStoppable<any>)?.stop());
+        })
+        Promise.race(values).then(res).catch(rej);
+    });
+}
 
-        fn(wrappedResolve, wrappedReject, k => p.#stopper = k)
+export function newStoppable<T>(fn: WithSetStoppable<T>, timeout?: number): PromiseStoppable<T> {
 
-        return p;
+    let stopper: StopperCallbackFn = () => { }
+
+    let origResolve: (r: TypeOrPromiseLikeType<T>) => void, origReject: (e: any) => any;
+    const p: PromiseStoppable<T> = new Promise<T>((r, j) => {
+        origResolve = r; origReject = j;
+    }) as PromiseStoppable<T>;
+    p.stop = () => {
+        stopper?.();
     }
 
-    static allStoppable<HANDLE_RESULT_TYPE, RES>(promises: PromiseStoppable<RES>[], handleResult: (results: RES[]) => Promise<HANDLE_RESULT_TYPE> | HANDLE_RESULT_TYPE): PromiseStoppable<HANDLE_RESULT_TYPE> {
-        return PromiseStoppable.createStoppable(async (res, rej, setStopper) => {
-            setStopper(() => {
-                promises.forEach(p => p.stop());
-            })
-            try {
-                const results = await Promise.all(promises);
-                res(await handleResult(results));
-            } catch (e) {
-                rej(e);
+    let timer: NodeJS.Timeout | null = null;
+    if (timeout != null) {
+        timer = setTimeout(() => {
+            wrappedReject(new PromiseStoppableTimeoutError('PromiseStoppable timed out'));
+            stopper?.(true);
+        }, timeout);
+    }
+
+    let finished = false;
+    function wrappedResolve(r: TypeOrPromiseLikeType<T>) {
+        if (finished) return;
+        finished = true;
+        clearTimeout(timer!);
+        origResolve?.(r);
+    }
+
+    const wrappedReject = (e: any) => {
+        if (finished) return;
+        finished = true;
+        clearTimeout(timer!);
+        origReject?.(e);
+    }
+
+    function patchStopAvailabilityThroughChain<T>(fromPromise: Promise<T>, isRoot = false): void {
+        if (!(fromPromise instanceof Promise)) return;
+
+        if(!isRoot) {
+            const origStop = ((fromPromise as any) as any as PromiseStoppable<any>)?.stop;
+            ((fromPromise as any) as PromiseStoppable<any>).stop = () => {
+                p?.stop?.()
+                if(origStop != p.stop) origStop?.()
+            };
+        }
+
+        ['then', 'catch', 'finally'].forEach(fnName => {
+            const orig = (fromPromise as any)[fnName];
+            (fromPromise as any)[fnName] = function (...args: any[]) {
+                const res = (orig as (...any: any[]) => any).apply(this, args);
+                patchStopAvailabilityThroughChain(res);
+                return res;
             }
-        })
+            return fromPromise
+        });
     }
+
+    patchStopAvailabilityThroughChain(p, true)
+
+    fn(wrappedResolve, wrappedReject, k => stopper = k);
+
+    return p;
 }
 
 export class PromiseStoppableTimeoutError extends Error { constructor(message: string) { super(message); this.name = 'PromiseStoppableTimeoutError'; } }

@@ -4,10 +4,10 @@ import { type ChildProcess, execFile } from 'child_process'
 import { platform, homedir } from "os";
 import { COMMAND_NAMES, PACKAGE_DISPLAY_NAME, WINE_FLATPAK_PACKAGE_ID } from "./constants";
 import { RegErrorAccessDenied, RegErrorWineNotFound } from "./errors";
-import { PromiseStoppable } from "./promise-stoppable";
 import { lookpathSync } from "./lookpath-sync";
 import { existsSync } from "fs";
 import { join as path_join } from 'path'
+import { PromiseStoppable } from "./promise-stoppable";
 
 const thisProcess = require('process');
 
@@ -252,8 +252,7 @@ export function optionalElevateCmdCall<T, O extends CommonOpts | string>(paramOr
 
   if (isForced) return fn(paramOrOpts, paramOrOpts?.elevated?.opts ?? true);
 
-  const invoked = fn(paramOrOpts, false);
-  invoked.catch(async e => {
+  return fn(paramOrOpts, false).catch(async e => {
     if (e instanceof RegErrorAccessDenied && isFallback) {
       const hook = typeof paramOrOpts !== 'string' && paramOrOpts?.elevated?.mode === 'fallback' && paramOrOpts?.elevated?.hookBeforeElevation;
       if (typeof hook === 'function') {
@@ -264,7 +263,6 @@ export function optionalElevateCmdCall<T, O extends CommonOpts | string>(paramOr
     }
     throw e;
   })
-  return invoked;
 }
 
 export function resolvePosixFilePathWithEnvVarsAndTilde(filepath: string) {

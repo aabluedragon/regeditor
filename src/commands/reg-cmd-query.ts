@@ -1,5 +1,5 @@
 import { RegQueryErrorMalformedLine, RegErrorInvalidSyntax, RegQueryErrorReadTooWide, RegErrorGeneral, findCommonErrorInTrimmedStdErr } from "../errors";
-import { PromiseStoppable } from "../promise-stoppable";
+import { allStoppable, newStoppable, PromiseStoppable } from "../promise-stoppable";
 import { RegType, RegData, RegQueryCmd, RegStruct, RegValue, RegQueryCmdResult, ExecFileParameters, ElevatedSudoPromptOpts } from "../types";
 import { applyParamsModifier, execFileUtil, getMinimumFoundIndex, getMinimumFoundIndexStrOrRegex, optionalElevateCmdCall, regexEscape, regKeyResolveFullPathFromShortcuts, VarArgsOrArray } from "../utils";
 import { type ChildProcess } from "child_process"
@@ -75,7 +75,7 @@ function regCmdQuerySingle(queryParam: RegQueryCmd, elevated: ElevatedSudoPrompt
         else if (!queryOpts.f) throw new RegErrorInvalidSyntax('/v may only omit a string argument when used with /f');
     }
 
-    return PromiseStoppable.createStoppable<RegQueryCmdResultSingle>((_resolve, _reject, setKiller) => {
+    return newStoppable<RegQueryCmdResultSingle>((_resolve, _reject, setStopper) => {
 
         let proc: ChildProcess | null = null;
 
@@ -96,7 +96,7 @@ function regCmdQuerySingle(queryParam: RegQueryCmd, elevated: ElevatedSudoPrompt
             finish(res);
         }
 
-        setKiller(() => finishSuccess());
+        setStopper(() => finishSuccess());
 
         const bestEffort = queryOpts.bestEffort || false;
 
@@ -241,7 +241,7 @@ export function regCmdQuery(...queriesParam: VarArgsOrArray<RegQueryCmd>): Promi
     const queries = flattened.map(getQueryPathAndOpts);
     const promises = flattened.map(o => optionalElevateCmdCall(o, regCmdQuerySingle));
 
-    return PromiseStoppable.allStoppable(promises, (results) => {
+    return allStoppable(promises).then(results => {
         // Skipping the merge logic if just a single query.
         if (results.length === 1) {
             const r = results[0];

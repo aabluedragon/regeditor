@@ -1,5 +1,5 @@
 import { findCommonErrorInTrimmedStdErr, RegErrorAccessDenied, RegErrorGeneral } from "../errors";
-import { PromiseStoppable } from "../promise-stoppable";
+import { newStoppable, PromiseStoppable } from "../promise-stoppable";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
 import { ElevatedSudoPromptOpts, RegImportCmd, RegImportCmdOpts, RegImportCmdResult } from "../types";
 import { applyParamsModifier, execFileUtil, optionalElevateCmdCall } from "../utils";
@@ -20,7 +20,7 @@ export function regCmdImport(cmd: RegImportCmd): PromiseStoppable<RegImportCmdRe
 
 
     function run(_:RegImportCmd, elevated: ElevatedSudoPromptOpts) {
-        return PromiseStoppable.createStoppable<RegImportCmdResult>((resolve, reject, setStopper) => {
+        return newStoppable<RegImportCmdResult>((resolve, reject, setStopper) => {
             const params = applyParamsModifier(THIS_COMMAND, ['reg', [THIS_COMMAND, fileName, ...args]], opts?.cmdParamsModifier, opts?.winePath);
     
             let stdoutStr = '', stderrStr = '';
