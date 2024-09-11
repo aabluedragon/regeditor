@@ -3,6 +3,7 @@ export {regCmdAdd} from './commands/reg-cmd-add';
 export {regCmdDelete} from './commands/reg-cmd-delete';
 export {regCmdImport} from './commands/reg-cmd-import';
 export {regCmdExport} from './commands/reg-cmd-export';
+export {regCmdCopy} from './commands/reg-cmd-copy';
 export {regApply} from './operations/reg-apply';
 export {regCompare} from './operations/reg-compare';
 export {regRead} from './operations/reg-read';

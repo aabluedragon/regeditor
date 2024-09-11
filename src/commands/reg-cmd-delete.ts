@@ -49,7 +49,7 @@ function regCmdDeleteSingle(d: RegDeleteCmd, elevated: ElevatedSudoPromptOpts): 
  * Delete one or more registry keys or values  
  * Executes the REG DELETE command.  
  * @param opts paramters for the REG DELETE command
- * @returns nothing. throws on errors such as access denied.
+ * @returns returns the commands executed, and whether keys were missing. throws on errors such as access denied.
  */
 export function regCmdDelete(...opts: VarArgsOrArray<RegDeleteCmd>): PromiseStoppable<RegDeleteCmdResult> {
     const requests = opts.flat();

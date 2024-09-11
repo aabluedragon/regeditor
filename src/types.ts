@@ -349,6 +349,37 @@ export type RegExportCmdResult = {
 } & RegCmdResultWithCmds
 
 /**
+ * __msdocs:__  
+ * Copies the contents of a specified registry key to another location.  
+ * By default, this operation only copies registry values. Use [/s] to  
+ * recursively copy all subkeys and values.
+ */
+export type RegCopyCmd = {
+    /**
+     * Source key to copy from
+     */
+    keyPathSource: string,
+
+    /**
+     * Destination key to copy to
+     */
+    keyPathDest: string
+    
+    /**
+     * __msdocs:__  
+     * Copy all subkeys and values from <key1> to <key2>.
+     */
+    s?: boolean
+} & CommonOpts
+
+export type RegCopyCmdResult = {
+    notFound: {
+        commandObject: RegCopyCmd,
+        commandIndex: number,
+    }[]
+} & RegCmdResultWithCmds
+
+/**
  * REG DELETE: A command to delete registry keys and values.  
  * The executable path is usually C:\Windows\System32\reg.exe
  */

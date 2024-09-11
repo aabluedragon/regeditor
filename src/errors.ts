@@ -12,6 +12,8 @@ export class RegQueryErrorMalformedLine extends Error { constructor(message: str
  */
 export class RegQueryErrorReadTooWide extends Error { constructor(message: string) { super(message); this.name = 'RegQueryErrorReadTooWide'; } }
 
+export class RegCopyErrorSourceDestSame extends Error { constructor(message: string) { super(message); this.name = 'RegCopyErrorSourceDestSame'; } }
+
 /**
  * Thrown if using non-windows platforms, and wine is not found.
  */

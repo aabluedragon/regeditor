@@ -8,7 +8,8 @@ export const COMMAND_NAMES = Object.freeze({
     QUERY: 'QUERY',
     DELETE: 'DELETE',
     IMPORT: 'IMPORT',
-    EXPORT: 'EXPORT'
+    EXPORT: 'EXPORT',
+    COPY: 'COPY',
 })
 
 export const TIMEOUT_DEFAULT = 30000;
