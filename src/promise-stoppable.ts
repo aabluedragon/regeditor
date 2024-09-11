@@ -2,7 +2,8 @@ import { AddParameters } from "./utils";
 
 type StopperCallbackFn = (isTimeout?: boolean) => void
 type PromiseCallBackType<T> = ConstructorParameters<typeof Promise<T>>[0];
-type WithSetStoppable<T> = AddParameters<PromiseCallBackType<T>, [(stop: StopperCallbackFn) => void]>;
+type SetStopperFunction = (stop: StopperCallbackFn) => void;
+type WithSetStoppable<T> = AddParameters<PromiseCallBackType<T>, [SetStopperFunction]>;
 type TypeOrPromiseLikeType<T> = T | PromiseLike<T>;
 
 export interface PromiseStoppable<T> extends Promise<T> {
@@ -76,11 +77,11 @@ export function newStoppable<T>(fn: WithSetStoppable<T>, timeout?: number): Prom
     function patchStopAvailabilityThroughChain<T>(fromPromise: Promise<T>, isRoot = false): void {
         if (!(fromPromise instanceof Promise)) return;
 
-        if(!isRoot) {
+        if (!isRoot) {
             const origStop = ((fromPromise as any) as any as PromiseStoppable<any>)?.stop;
             ((fromPromise as any) as PromiseStoppable<any>).stop = () => {
                 p?.stop?.()
-                if(origStop != p.stop) origStop?.()
+                if (origStop != p.stop) origStop?.()
             };
         }
 
@@ -100,6 +101,17 @@ export function newStoppable<T>(fn: WithSetStoppable<T>, timeout?: number): Prom
     fn(wrappedResolve, wrappedReject, k => stopper = k);
 
     return p;
+}
+
+export function newStoppableFn<T>(fn: (setStopper: SetStopperFunction) => T | Promise<T>, timeout?: number): PromiseStoppable<T> {
+    return newStoppable(async (resolve, reject, setStopper) => {
+        try {
+            const res = await fn(setStopper);
+            resolve(res);
+        } catch (e) {
+            reject(e);
+        }
+    }, timeout);
 }
 
 export class PromiseStoppableTimeoutError extends Error { constructor(message: string) { super(message); this.name = 'PromiseStoppableTimeoutError'; } }

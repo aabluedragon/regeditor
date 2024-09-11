@@ -1,4 +1,4 @@
-import { findValueByNameLowerCaseInStruct, generateRegFileName, isEqual, isWindows, regKeyResolveFullPathFromShortcuts } from "../utils";
+import { findValueByNameLowerCaseInStruct, generateRegFileName, getCommonOpts, isEqual, isWindows, regKeyResolveFullPathFromShortcuts } from "../utils";
 import { CommonOpts, RegCmdResultWithCmds, RegData, RegKey, RegQueryCmdResult, RegStruct, RegType, RegValue, RegValues, RegApplyCmdMode, RegApplyCmdResult, RegApplyOpts } from "../types";
 import { regCmdAdd } from "../commands/reg-cmd-add";
 import { regCmdQuery } from "../commands/reg-cmd-query";
@@ -42,16 +42,15 @@ type ExecutionStep = { op: 'ADD', key: string, value?: { name: string, content: 
 /**
  * Merge the given object into the registry, only runs commands if changes were found (does one or more REG QUERY first for diffing)
  */
-export function regApply(struct: RegStruct, { deleteUnspecifiedValues = false, timeout = TIMEOUT_DEFAULT, cmdParamsModifier, elevated, reg32, reg64, deleteKeys: normalDeleteKeys, deleteValues: origDeleteValues, forceCmdMode, skipQuery = false, tmpPath, winePath }: RegApplyOpts = {}): PromiseStoppable<RegApplyCmdResult> {
+export function regApply(struct: RegStruct, regApplyOpts: RegApplyOpts = {}): PromiseStoppable<RegApplyCmdResult> {
 
     struct = Object.entries(struct).reduce((acc, [k, v]) => ({ ...acc, [regKeyResolveFullPathFromShortcuts(k)]: v }), {} as RegStruct); // Normalize keys to lowercase
 
     const keyPaths = Object.keys(struct);
     const timeStarted = Date.now();
 
-    const commonOpts: CommonOpts = { timeout, cmdParamsModifier, elevated, winePath } satisfies CommonOpts;
-    if (reg32) commonOpts.reg32 = true;
-    if (reg64) commonOpts.reg64 = true;
+    const { deleteUnspecifiedValues = false, timeout = TIMEOUT_DEFAULT, skipQuery = false, deleteKeys: normalDeleteKeys, deleteValues: origDeleteValues, forceCmdMode, tmpPath } = regApplyOpts
+    const commonOpts = getCommonOpts(regApplyOpts);
 
     const executionPlan = [] as ExecutionStep[];
 

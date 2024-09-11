@@ -278,3 +278,16 @@ export function isPackageInstalledOnFlatpakSync(packageId?: string): boolean {
   if (!packageId?.length || !isLinux) return false;
   return existsSync(`/var/lib/flatpak/app/${packageId}`) || existsSync(resolvePosixFilePathWithEnvVarsAndTilde(`~/.local/share/flatpak/app/${packageId}`));
 }
+
+export function getCommonOpts<T extends CommonOpts>(opts: T) {
+  const commonOpts: CommonOpts = {};
+
+  if(opts.timeout != null) commonOpts.timeout = opts.timeout;
+  if(opts.cmdParamsModifier != null) commonOpts.cmdParamsModifier = opts.cmdParamsModifier;
+  if(opts.elevated != null) commonOpts.elevated = opts.elevated;
+  if(opts.winePath != null) commonOpts.winePath = opts.winePath;
+  if(opts.reg32) commonOpts.reg32 = true;
+  if(opts.reg64) commonOpts.reg64 = true;
+  
+  return commonOpts as CommonOpts;
+}
