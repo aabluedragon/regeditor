@@ -8,7 +8,7 @@ export * from './operations/reg-compare';
 export * from './operations/reg-read';
 export * from './errors';
 export * from './types';
-export * from './promise-stoppable';
-export * from './utils';
-export * from './constants';
 export * from './lookpath-sync'
+export * as PromiseStoppable from './promise-stoppable';
+export * as utils from './utils';
+export * as constants from './constants';

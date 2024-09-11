@@ -1,13 +1,15 @@
-import { regCmdQuery, regCmdDelete, regCmdAdd, regApply, regCmdImport } from './src/index';
+import { readFileSync } from 'fs';
+import { regCmdQuery, regCmdDelete, regCmdAdd, regApply, regCmdImport, regCmdExport, regRead } from './src/index';
+import { exec } from 'child_process';
 
 async function main() {
 
     try {
-        const p = regCmdQuery(
-            {keyPath:'HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\DirectPlay', s:true},
-        )
-        const res = await p;
-        console.log(JSON.stringify(res, null, 4));
+        // const p = regCmdQuery(
+        //     {keyPath:'HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\DirectPlay', s:true},
+        // )
+        // const res = await p;
+        // console.log(JSON.stringify(res, null, 4));
 
         // const p = regCmdDelete({
         //     keyPath:"HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\DirectPlay\\Service Providers\\IPX Connection For DirectPlay\\name",
@@ -55,8 +57,10 @@ async function main() {
             "HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\Microsoft\\DirectPlay\\Services\\{5146ab8cb6b1ce11920c00aa006c4972}\\Sessions": {}
         }, {deleteUnspecifiedValues: false, forceCmdMode:"import"})
 
-        
-        // regCmdImport({fileName:"directplay-win64.reg"});
+        // const regReadCmd = regRead('HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\DirectPlay\\Service Providers\\IPX Connection For DirectPlay');
+        // // regReadCmd.stop();
+        // const resRead = await regReadCmd;
+        // console.log(JSON.stringify(resRead, null, 4));
 
     } catch (e) {
         console.error(e);

@@ -1,22 +1,11 @@
 import { RegQueryErrorMalformedLine, RegErrorInvalidSyntax, RegQueryErrorReadTooWide, RegErrorGeneral, findCommonErrorInTrimmedStdErr } from "../errors";
-import { allStoppable, newStoppable, PromiseStoppable } from "../promise-stoppable";
-import { RegType, RegData, RegQueryCmd, RegStruct, RegValue, RegQueryCmdResult, ExecFileParameters, ElevatedSudoPromptOpts } from "../types";
-import { applyParamsModifier, execFileUtil, getMinimumFoundIndex, getMinimumFoundIndexStrOrRegex, optionalElevateCmdCall, regexEscape, regKeyResolveFullPathFromShortcuts, VarArgsOrArray } from "../utils";
+import { newStoppable, PromiseStoppable } from "../promise-stoppable";
+import { RegType, RegData, RegQueryCmd, RegStruct, RegValue, RegQueryCmdResult, ElevatedSudoPromptOpts, RegQueryCmdResultSingle } from "../types";
+import { applyParamsModifier, execFileUtil, getMinimumFoundIndex, getMinimumFoundIndexStrOrRegex, handleReadAndQueryCommands, regexEscape, regKeyResolveFullPathFromShortcuts, VarArgsOrArray } from "../utils";
 import { type ChildProcess } from "child_process"
 import { TIMEOUT_DEFAULT, COMMAND_NAMES, REG_TYPES_ALL } from "../constants";
 
 const THIS_COMMAND = COMMAND_NAMES.QUERY;
-
-type RegQueryCmdResultSingle = {
-    struct: RegStruct,
-    keyMissing?: boolean
-    cmd: ExecFileParameters
-
-    /**
-     * May be set to true only if "bestEffort" is set to true in the query and errors were found
-     */
-    hadErrors?: boolean
-};
 
 function parseRegValue(type: RegType, value: string | null, se: string): RegData {
     if (type === 'REG_DWORD' || type === 'REG_QWORD') {
@@ -45,7 +34,13 @@ const COLUMN_DELIMITER = '    ';
 const INDENTATION_FOR_ENTRY_VALUE = '    ';
 const INDENTATION_LENGTH_FOR_ENTRY_VALUE = INDENTATION_FOR_ENTRY_VALUE.length;
 
-function regCmdQuerySingle(queryParam: RegQueryCmd, elevated: ElevatedSudoPromptOpts): PromiseStoppable<RegQueryCmdResultSingle> {
+
+/**
+ * Execute a single REG QUERY command.
+ * @param queryParam The query to perform
+ * @returns struct representing the registry entries
+ */
+export function regCmdQuerySingle(queryParam: RegQueryCmd, elevated: ElevatedSudoPromptOpts): PromiseStoppable<RegQueryCmdResultSingle> {
 
     const { queryKeyPath: _queryKeyPathOriginal, queryOpts } = getQueryPathAndOpts(queryParam);
 
@@ -80,7 +75,6 @@ function regCmdQuerySingle(queryParam: RegQueryCmd, elevated: ElevatedSudoPrompt
         let proc: ChildProcess | null = null;
 
         const obj = {} as RegStruct;
-        let hadErrors = false;
         let currentKey = null as string | null;
 
         const finish = (resOrErr: RegQueryCmdResultSingle | Error) => {
@@ -92,13 +86,10 @@ function regCmdQuerySingle(queryParam: RegQueryCmd, elevated: ElevatedSudoPrompt
         function finishSuccess(keyMissing = false) {
             const res: RegQueryCmdResultSingle = { struct: obj, cmd: params };
             if (keyMissing) res.keyMissing = true;
-            if (hadErrors) res.hadErrors = true;
             finish(res);
         }
 
         setStopper(() => finishSuccess());
-
-        const bestEffort = queryOpts.bestEffort || false;
 
         const params = applyParamsModifier(THIS_COMMAND, ['reg', [THIS_COMMAND, queryKeyPath, ...args]], queryOpts?.cmdParamsModifier, queryOpts?.winePath);
         try {
@@ -173,14 +164,14 @@ function regCmdQuerySingle(queryParam: RegQueryCmd, elevated: ElevatedSudoPrompt
                 if (stdoutLines.length > 0) handleDataChunk(stdoutLines);
             }
 
-            function addEmptyKey(key:string|null) {
-                if(key == null) return;
+            function addEmptyKey(key: string | null) {
+                if (key == null) return;
                 if (!obj[key]) obj[key] = {};
             }
             function updateCurrentKey(key: string | null) {
                 addEmptyKey(currentKey);
                 addEmptyKey(key);
-                
+
                 currentKey = key;
             }
 
@@ -190,12 +181,10 @@ function regCmdQuerySingle(queryParam: RegQueryCmd, elevated: ElevatedSudoPrompt
                         if (lineUntrimmed.length === 0) { updateCurrentKey(null); }
                         else if (lineUntrimmed.startsWith(' ')) {
                             if (!currentKey) {
-                                if (bestEffort) { hadErrors = true; continue };
                                 throw new RegQueryErrorMalformedLine('Unexpected value line (missing parent key)');
                             }
                             const delimiter = getMinimumFoundIndex(lineUntrimmed, REG_TYPES_ALL.map(t => `${COLUMN_DELIMITER}${t}${COLUMN_DELIMITER}`));
                             if (delimiter.minIndex === -1 || !delimiter.chosenPattern) {
-                                if (bestEffort) { hadErrors = true; continue };
                                 throw new RegQueryErrorMalformedLine(`Unexpected value line, missing type delimiter "${COLUMN_DELIMITER}" in value: "${lineUntrimmed}"`)
                             }
 
@@ -203,14 +192,10 @@ function regCmdQuerySingle(queryParam: RegQueryCmd, elevated: ElevatedSudoPrompt
 
                             const name = lineUntrimmed.substring(INDENTATION_LENGTH_FOR_ENTRY_VALUE, delimiter.minIndex);
                             const type = delimiter.chosenPattern.trim() as RegType;
-                            try {
-                                const valueInStr = lineUntrimmed.substring(delimiter.minIndex + delimiter.chosenPattern.length) || null
-                                const data = parseRegValue(type, valueInStr, queryOpts?.se || '\\0');
-                                obj[currentKey][name] = { type, data } as RegValue;
-                            } catch (e) {
-                                if (!bestEffort) throw e;
-                                else { hadErrors = true; };
-                            }
+
+                            const valueInStr = lineUntrimmed.substring(delimiter.minIndex + delimiter.chosenPattern.length) || null
+                            const data = parseRegValue(type, valueInStr, queryOpts?.se || '\\0');
+                            obj[currentKey][name] = { type, data } as RegValue;
                         } else updateCurrentKey(lineUntrimmed)
                     }
 
@@ -237,38 +222,6 @@ function regCmdQuerySingle(queryParam: RegQueryCmd, elevated: ElevatedSudoPrompt
  * @returns struct representing the registry entries
  */
 export function regCmdQuery(...queriesParam: VarArgsOrArray<RegQueryCmd>): PromiseStoppable<RegQueryCmdResult> {
-    const flattened = queriesParam.flat();
-    const queries = flattened.map(getQueryPathAndOpts);
-    const promises = flattened.map(o => optionalElevateCmdCall(o, regCmdQuerySingle));
-
-    return allStoppable(promises).then(results => {
-        // Skipping the merge logic if just a single query.
-        if (results.length === 1) {
-            const r = results[0];
-            const q = queries[0];
-            return {
-                struct: r.struct,
-                keysMissing: r?.keyMissing ? [q.queryKeyPath] : [],
-                cmds: [r.cmd],
-                ...(r.hadErrors ? { hadErrors: true } : {})
-            }
-        }
-
-        // Merge structs for all keys retreived
-        const struct = {} as RegStruct;
-        let keysMissing = [] as string[];
-        let hadErrors = false;
-        const cmds = [] as ExecFileParameters[];
-        for (let i = 0; i < results.length; i++) {
-            const res = results[i];
-            cmds.push(res.cmd);
-            if (res.keyMissing) keysMissing.push(queries[i].queryKeyPath);
-            if (res.hadErrors && !hadErrors) hadErrors = true;
-            for (const key in res.struct) {
-                struct[key] = { ...struct[key], ...res.struct[key] }
-            }
-        }
-        return { struct, keysMissing, cmds, ...(hadErrors ? { hadErrors: true } : {}) };
-    })
+    return handleReadAndQueryCommands(regCmdQuerySingle, ...queriesParam);
 }
 

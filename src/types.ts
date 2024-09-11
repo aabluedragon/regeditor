@@ -97,11 +97,6 @@ export type RegCmdResultWithCmds = {
 export type RegQueryCmdResult = {
     struct: RegStruct,
     keysMissing: string[],
-
-    /**
-     * May be set to true only if "bestEffort" is set to true in the query and errors were found
-     */
-    hadErrors?: boolean
 } & RegCmdResultWithCmds
 
 export type RegAddCmdResult = RegCmdResultWithCmds;
@@ -425,7 +420,7 @@ export type RegApplyCmdMode = 'import' | 'add-delete';
 export type RegApplyOpts = {
     /**
      * Delete values that were found in existing key but not given in the new struct object.  
-     * Only applicable when not using "skipQuery".
+     * Only applicable when not using "skipRead".
      * 
      * * false: don't delete any values (leave them as they are, this is the default).  
      * * "all": delete all values that were found in the existing key but not in the given struct object.  
@@ -454,7 +449,7 @@ export type RegApplyOpts = {
      * Skips the REG QUERY before the writing operation, and just perform the write regardless if there weren't any differences.
      * false by default to prevent unnecessary writes and UAC elevation prompts.
      */
-    skipQuery?: boolean
+    skipRead?: boolean
 } & CommonOpts
 
 /**
@@ -499,3 +494,26 @@ export type ElevatedSudoPromptOpts = {
     icns?: string,
     env?: { [key: string]: string }
 } | boolean
+
+export type RegQueryCmdResultSingle = {
+    struct: RegStruct,
+    keyMissing?: boolean
+    cmd: ExecFileParameters
+};
+
+export type RegReadResultSingle = RegQueryCmdResultSingle
+export type RegReadResult = RegQueryCmdResult
+
+export type RegReadCmd = string | ({
+    /**
+     * The key to read
+     */
+    keyPath: string
+} & CommonOpts)
+
+export type RegDeleteCmdResultSingle = {
+    notFound?: boolean,
+    cmd: ExecFileParameters
+}
+
+export type RegExportCmdResultSingle = RegDeleteCmdResultSingle;

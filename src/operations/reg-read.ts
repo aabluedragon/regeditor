@@ -1,35 +1,22 @@
-import { regCmdExport } from "../commands/reg-cmd-export";
-import { CommonOpts, ExecFileParameters, RegData, RegExportCmdResult, RegStruct, RegType, RegValue } from "../types";
+import { regCmdExportSingle } from "../commands/reg-cmd-export";
+import { ElevatedSudoPromptOpts, ExecFileParameters, RegData, RegExportCmdResultSingle, RegQueryCmd, RegReadCmd, RegReadResult, RegReadResultSingle, RegStruct, RegType, RegValue } from "../types";
 import { join as path_join } from 'path';
 import { tmpdir as os_tmpdir } from 'os';
-import { generateRegFileName, getCommonOpts } from "../utils";
+import { generateRegFileName, getCommonOpts, handleReadAndQueryCommands, isWindows, sleep, VarArgsOrArray } from "../utils";
 import { readFile, rm } from "fs/promises";
 import { REG_VALUENAME_DEFAULT, TIMEOUT_DEFAULT } from "../constants";
 import { RegErrorGeneral } from "../errors";
-import { newStoppableFn } from "../promise-stoppable";
-
-// TODO implement regReadExport file to read exported reg file
-
-export type RegReadCmd = string | ({
-    /**
-     * The key to read
-     */
-    keyPath: string
-} & CommonOpts)
-
-function sleep(ms: number) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
+import { newStoppableFn, PromiseStoppable } from "../promise-stoppable";
+import { regCmdQuerySingle } from "../commands/reg-cmd-query";
 
 const finishedReadingRequestedKey = new RegExp("\\r\\n\\[.*\\]\\r\\n.*\\r\\n\\[.*\\]\\r\\n");
 
-type RegReadResultSingle = {
-    notFound?: boolean,
-    struct: RegStruct,
-    cmd: ExecFileParameters
-}
-
-export const regRead = (o: RegReadCmd) => newStoppableFn<RegReadResultSingle>(async (setStopper) => {
+/**
+ * Execute a single REG EXPORT command (instead of REG QUERY), and read its values similarly to REG QUERY.
+ * @param queryParam The query to perform
+ * @returns struct representing the registry entries
+ */
+export const regReadWithExportSingle = (o: RegReadCmd, elevated: ElevatedSudoPromptOpts) => newStoppableFn<RegReadResultSingle>(async (setStopper) => {
 
     const opts = typeof o === 'string' ? { keyPath: o } : o;
     const commonOpts = getCommonOpts(opts);
@@ -37,10 +24,10 @@ export const regRead = (o: RegReadCmd) => newStoppableFn<RegReadResultSingle>(as
     const tmpFilePath = path_join(os_tmpdir(), generateRegFileName());
 
     let exportCmdParams: ExecFileParameters | null = null;
-    const exportCmd = regCmdExport({ keyPath: opts.keyPath, fileName: tmpFilePath, ...commonOpts, cmdParamsModifier: ((cmd, params, wine) => { exportCmdParams = params; return opts?.cmdParamsModifier?.(cmd, params, wine) }) });
+    const exportCmd = regCmdExportSingle({ keyPath: opts.keyPath, fileName: tmpFilePath, ...commonOpts, cmdParamsModifier: ((cmd, params, wine) => { exportCmdParams = params; return opts?.cmdParamsModifier?.(cmd, params, wine) }) }, elevated);
     if (!exportCmdParams) throw new RegErrorGeneral('REG EXPORT command did not set params');
 
-    let exportResult: RegExportCmdResult | null = null;
+    let exportResult: RegExportCmdResultSingle | null = null;
     let exportError: null | Error = null;
     let exportFinished = false;
     exportCmd.then(async c => {
@@ -75,7 +62,7 @@ export const regRead = (o: RegReadCmd) => newStoppableFn<RegReadResultSingle>(as
     if (exportError) throw exportError;
 
     const fileKeyData = dataRetreived?.split(finishedReadingRequestedKey)?.[0]
-    if (stopped || dataRetreived == null || !fileKeyData?.length) return { struct: {}, notFound: true, cmd: exportCmdParams };
+    if (stopped || dataRetreived == null || !fileKeyData?.length) return { struct: {}, keyMissing: true, cmd: exportCmdParams };
 
     const struct: RegStruct = {};
 
@@ -152,5 +139,32 @@ export const regRead = (o: RegReadCmd) => newStoppableFn<RegReadResultSingle>(as
         struct[currentKey][valueName] = { type: regType, data } as RegValue;
     }
 
-    return { struct, cmd: exportCmdParams, ...(Object.keys(struct).length === 0 ? { notFound: true } : {}) };
+    return { struct, cmd: exportCmdParams, ...(Object.keys(struct).length === 0 ? { keyMissing: true } : {}) };
 })
+
+
+/**
+ * Reads a single key from the registry.
+ * 
+ * On Windows, it executes the REG QUERY command.  
+ * On other platforms, it executes the REG EXPORT command via Wine, and reads the values from the temporary exported file.
+ * @param queryParam The query to perform
+ * @returns struct representing the registry entries
+ */
+export function regReadSingle(o: RegReadCmd, elevated:ElevatedSudoPromptOpts): PromiseStoppable<RegReadResultSingle> {
+    return isWindows ? regCmdQuerySingle(o, elevated) : regReadWithExportSingle(o, elevated);
+}
+
+
+/**
+ * Reads one or more keys from the registry.
+ * 
+ * On Windows, it executes the REG QUERY command.  
+ * On other platforms, it executes the REG EXPORT command via Wine, and reads the values from the temporary exported file.
+ * @param queryParam The query to perform
+ * @returns struct representing the registry entries
+ */
+export function regRead(...queriesParam: VarArgsOrArray<RegQueryCmd | RegReadCmd>): PromiseStoppable<RegReadResult> {
+    return handleReadAndQueryCommands(regReadWithExportSingle, ...queriesParam);
+}
+

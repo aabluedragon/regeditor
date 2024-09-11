@@ -1,4 +1,4 @@
-import { COMMAND_NAME, CommonOpts, ElevatedSudoPromptOpts, ExecFileParameters, RegCmdExecParamsModifier, RegStruct } from "./types";
+import { COMMAND_NAME, CommonOpts, ElevatedSudoPromptOpts, ExecFileParameters, RegCmdExecParamsModifier, RegQueryCmd, RegQueryCmdResult, RegQueryCmdResultSingle, RegStruct } from "./types";
 import { exec as sudo } from '@emrivero/sudo-prompt'
 import { type ChildProcess, execFile } from 'child_process'
 import { platform, homedir } from "os";
@@ -7,7 +7,7 @@ import { RegErrorAccessDenied, RegErrorWineNotFound } from "./errors";
 import { lookpathSync } from "./lookpath-sync";
 import { existsSync } from "fs";
 import { join as path_join } from 'path'
-import { PromiseStoppable } from "./promise-stoppable";
+import { allStoppable, PromiseStoppable } from "./promise-stoppable";
 
 const thisProcess = require('process');
 
@@ -242,8 +242,15 @@ export function escapeShellArg(arg: string) {
   return escaped;
 }
 
+// https://stackoverflow.com/a/2117523/230637
+function uuidv4() {
+  return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c =>
+    (+c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> +c / 4).toString(16)
+  );
+}
+
 export function generateRegFileName() {
-  return `_${PACKAGE_DISPLAY_NAME}_${`${Math.random()}`.split('.')[1]}.reg`;
+  return `_${PACKAGE_DISPLAY_NAME}_${uuidv4()}.reg`;
 }
 
 export function optionalElevateCmdCall<T, O extends CommonOpts | string>(paramOrOpts: O, fn: (opts: O, elevated: ElevatedSudoPromptOpts) => PromiseStoppable<T>): PromiseStoppable<T> {
@@ -290,4 +297,41 @@ export function getCommonOpts<T extends CommonOpts>(opts: T) {
   if(opts.reg64) commonOpts.reg64 = true;
   
   return commonOpts as CommonOpts;
+}
+
+export function handleReadAndQueryCommands(impFn:(o:RegQueryCmd, elevated: ElevatedSudoPromptOpts)=>PromiseStoppable<RegQueryCmdResultSingle>, ...queriesParam: VarArgsOrArray<RegQueryCmd>): PromiseStoppable<RegQueryCmdResult> {
+    const flattened = queriesParam.flat();
+    const queriesOrReads = flattened.map(v => typeof v === 'string' ? ({ keyPath: v }) : v);
+    const promises = queriesOrReads.map(o => optionalElevateCmdCall(o, impFn));
+
+    return allStoppable(promises).then(results => {
+        // Skipping the merge logic if just a single query.
+        if (results.length === 1) {
+            const r = results[0];
+            const q = queriesOrReads[0];
+            return {
+                struct: r.struct,
+                keysMissing: r?.keyMissing ? [q.keyPath] : [],
+                cmds: [r.cmd]
+            }
+        }
+
+        // Merge structs for all keys retreived
+        const struct = {} as RegStruct;
+        let keysMissing = [] as string[];
+        const cmds = [] as ExecFileParameters[];
+        for (let i = 0; i < results.length; i++) {
+            const res = results[i];
+            cmds.push(res.cmd);
+            if (res.keyMissing) keysMissing.push(queriesOrReads[i].keyPath);
+            for (const key in res.struct) {
+                struct[key] = { ...struct[key], ...res.struct[key] }
+            }
+        }
+        return { struct, keysMissing, cmds };
+    })
+}
+
+export function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }

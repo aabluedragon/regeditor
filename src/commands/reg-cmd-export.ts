@@ -1,17 +1,12 @@
 import { applyParamsModifier, execFileUtil, optionalElevateCmdCall, VarArgsOrArray } from "../utils";
 import { findCommonErrorInTrimmedStdErr, RegErrorGeneral } from "../errors";
 import { allStoppable, newStoppable, PromiseStoppable } from "../promise-stoppable";
-import { ElevatedSudoPromptOpts, ExecFileParameters, RegDeleteCmd, RegDeleteCmdResult, RegExportCmd, RegExportCmdResult } from "../types";
+import { ElevatedSudoPromptOpts, RegExportCmd, RegExportCmdResult, RegExportCmdResultSingle } from "../types";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
 
 const THIS_COMMAND = COMMAND_NAMES.EXPORT;
 
-type RegDeleteCmdResultSingle = {
-    notFound?: boolean,
-    cmd: ExecFileParameters
-}
-
-function regCmdExportSingle(o: RegExportCmd, elevated: ElevatedSudoPromptOpts): PromiseStoppable<RegDeleteCmdResultSingle> {
+export function regCmdExportSingle(o: RegExportCmd, elevated: ElevatedSudoPromptOpts): PromiseStoppable<RegExportCmdResultSingle> {
 
     const args = [] as string[];
     args.push(o.keyPath)
@@ -34,7 +29,7 @@ function regCmdExportSingle(o: RegExportCmd, elevated: ElevatedSudoPromptOpts): 
                 if (trimmedStdErr === 'ERROR: The system was unable to find the specified registry key or value.' || // windows
                     trimmedStdOut === 'reg: Unable to find the specified registry key') // wine
                     return resolve({ notFound: true, cmd: params });
-                
+
                 const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmedStdErr);
                 if (commonError) return reject(commonError);
                 if (stderrStr.length) return reject(new RegErrorGeneral(stderrStr));

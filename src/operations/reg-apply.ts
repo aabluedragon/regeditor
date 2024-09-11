@@ -1,7 +1,6 @@
 import { findValueByNameLowerCaseInStruct, generateRegFileName, getCommonOpts, isEqual, isWindows, regKeyResolveFullPathFromShortcuts } from "../utils";
-import { CommonOpts, RegCmdResultWithCmds, RegData, RegKey, RegQueryCmdResult, RegStruct, RegType, RegValue, RegValues, RegApplyCmdMode, RegApplyCmdResult, RegApplyOpts } from "../types";
+import { RegCmdResultWithCmds, RegData, RegKey, RegStruct, RegType, RegValue, RegValues, RegApplyCmdMode, RegApplyCmdResult, RegApplyOpts, RegReadResult } from "../types";
 import { regCmdAdd } from "../commands/reg-cmd-add";
-import { regCmdQuery } from "../commands/reg-cmd-query";
 import { regCmdDelete } from "../commands/reg-cmd-delete";
 import { REG_VALUENAME_DEFAULT, TIMEOUT_DEFAULT } from "../constants";
 import { allStoppable, PromiseStoppable } from "../promise-stoppable";
@@ -10,6 +9,7 @@ import { tmpdir } from 'os'
 import { join as path_join, dirname as path_dirname, basename as path_basename } from "path";
 import { writeFileSync, rmSync, mkdirSync, existsSync } from 'fs'
 import { regCmdImport } from "../commands/reg-cmd-import";
+import { regRead } from "./reg-read";
 
 function nameOrDefault(valueName: string) {
     return { ...(valueName === REG_VALUENAME_DEFAULT ? { ve: true } : { v: valueName }) }
@@ -49,7 +49,7 @@ export function regApply(struct: RegStruct, regApplyOpts: RegApplyOpts = {}): Pr
     const keyPaths = Object.keys(struct);
     const timeStarted = Date.now();
 
-    const { deleteUnspecifiedValues = false, timeout = TIMEOUT_DEFAULT, skipQuery = false, deleteKeys: normalDeleteKeys, deleteValues: origDeleteValues, forceCmdMode, tmpPath } = regApplyOpts
+    const { deleteUnspecifiedValues = false, timeout = TIMEOUT_DEFAULT, skipRead: skipQuery = false, deleteKeys: normalDeleteKeys, deleteValues: origDeleteValues, forceCmdMode, tmpPath } = regApplyOpts
     const commonOpts = getCommonOpts(regApplyOpts);
 
     const executionPlan = [] as ExecutionStep[];
@@ -58,7 +58,7 @@ export function regApply(struct: RegStruct, regApplyOpts: RegApplyOpts = {}): Pr
     const allKeyPaths = [...new Set([...keyPaths, ...(lDeleteKeys || [])])];
     const queryForKeys = allKeyPaths.map(k => ({ keyPath: k, ...commonOpts }))
 
-    function handleAfterQuery(existingData?: RegQueryCmdResult) {
+    function handleAfterQuery(existingData?: RegReadResult) {
         if (existingData == null) existingData = { cmds: [], struct: {}, keysMissing: Object.keys(struct) }
         const lKeysMissing = existingData.keysMissing.map(k => k.toLowerCase())
 
@@ -111,6 +111,7 @@ export function regApply(struct: RegStruct, regApplyOpts: RegApplyOpts = {}): Pr
         const _preferredMode: RegApplyCmdMode = (executionPlan.length > 1 || executionPlan.findIndex(c => c.op === "ADD" && c.value?.content?.type === 'REG_NONE' && c.value?.content?.data != null)) !== -1 ? "import" : "add-delete";
         const useCmdMode = forceCmdMode || _preferredMode;
 
+        // Run all steps in the execution plan, using either REG ADD and REG DELETE commands, or via .reg file import (REG IMPORT)
         const allCommands = useCmdMode === 'add-delete' ? executionPlan.map(cmd => {
             if (cmd.op === "ADD") {
                 const { key, value } = cmd;
@@ -201,11 +202,9 @@ export function regApply(struct: RegStruct, regApplyOpts: RegApplyOpts = {}): Pr
     }
 
     if (skipQuery) return handleAfterQuery();
-    else return allStoppable([regCmdQuery(queryForKeys)]).then(async query => {
+    else return regRead(queryForKeys).then(existingData => {
         const timeleft = timeout - (Date.now() - timeStarted);
         commonOpts.timeout = timeleft;
-
-        const existingData = query[0];
         return handleAfterQuery(existingData);
     })
 }
