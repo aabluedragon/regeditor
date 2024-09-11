@@ -110,14 +110,10 @@ export type RegDeleteCmdResult = {
     }[]
 } & RegCmdResultWithCmds
 
-/**
- * **UNTESTED**: parsing in REG QUERY may cause issues with this flag, use with caution.
- */
 type OptionsReg64Or32 = ({
     /**
-     * **UNTESTED**: parsing in REG QUERY may cause issues with this flag, use with caution.
+     * /reg:32
      * 
-     * /reg:32  
      * __msdocs:__  
      * Specifies the key should be accessed using the 32-bit registry view.
      */
@@ -125,9 +121,8 @@ type OptionsReg64Or32 = ({
     reg64?: Omitted
 } | {
     /**
-     * **UNTESTED**: parsing in REG QUERY may cause issues with this flag, use with caution.
+     * /reg:64
      * 
-     * /reg:64  
      * __msdocs:__  
      * Specifies the key should be accessed using the 64-bit registry view.
      */
@@ -290,7 +285,8 @@ type Omitted = never | false | undefined | null
 
 type RegDeleteV = {
     /**
-     * /v  
+     * /v
+     * 
      * __Example from msdocs:__  
      * REG DELETE \\ZODIAC\HKLM\Software\MyCo /v MTU  
      * Deletes the registry value MTU under MyCo on ZODIAC
@@ -305,7 +301,8 @@ type RegDeleteVE = {
     v?: Omitted
 
     /**
-     * /ve  
+     * /ve
+     * 
      * __msdocs:__
      * delete the value of empty value name (Default).
      */
@@ -318,7 +315,8 @@ type RegDeleteVA = {
     ve?: Omitted
 
     /**
-     * /va  
+     * /va
+     * 
      * __msdocs:__
      * delete all values under this key.
      */
@@ -420,7 +418,8 @@ export type RegAddCmd = RegKey | {
     value?: RegValue;
 
     /**
-     * /s Separator  
+     * /s Separator
+     * 
      * __msdocs:__  
      * Specify one character that you use as the separator in your data  
      * string for REG_MULTI_SZ. If omitted, use "\0" as the separator.
@@ -428,7 +427,8 @@ export type RegAddCmd = RegKey | {
     s?: string
 } & ({
     /**
-     * /v ValueName  
+     * /v ValueName
+     * 
      * __msdocs:__  
      * The value name, under the selected Key, to add.
      */
@@ -436,7 +436,8 @@ export type RegAddCmd = RegKey | {
     ve?: Omitted;
 } | {
     /**
-     * /ve  
+     * /ve
+     * 
      * __msdocs:__  
      * adds an empty value name (Default) for the key.
      */
