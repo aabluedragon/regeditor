@@ -151,21 +151,15 @@ export const regReadWithExportSingle = (o: RegReadCmd, elevated: ElevatedSudoPro
     return { struct, cmd: exportCmdParams, ...(Object.keys(struct).length === 0 ? { keyMissing: true } : {}) };
 })
 
-
-/**
- * Reads a single key from the registry.
- * 
- * On Windows, it executes the REG QUERY command.  
- * On other platforms, it executes the REG EXPORT command via Wine, and reads the values from the temporary exported file.  
- * Using REG EXPORT to read allows processing unicode characters when using Wine.
- * @param queryParam The query to perform
- * @returns struct representing the registry entries
- */
 export function regReadSingle(o: RegReadCmd, elevated:ElevatedSudoPromptOpts): PromiseStoppable<RegReadResultSingle> {
     const opts = typeof o === 'string' ? { keyPath: o } : o;
-    if(isWindows || opts?.readCmd === 'query') {
+
+    const preferredReadCmdForPlatform: typeof opts.readCmd = isWindows ? 'query' : 'export';
+    const useCmd = (opts?.readCmd === 'auto' || !opts?.readCmd) ? preferredReadCmdForPlatform : opts.readCmd;
+
+    if(useCmd === 'query') {
         return regCmdQuerySingle(o, elevated);
-    } else if(!isWindows || opts?.readCmd === 'export') {
+    } else if(useCmd === 'export') {
         return regReadWithExportSingle(o, elevated);
     }
     throw new RegErrorGeneral('Unsupported readCmd mode');
