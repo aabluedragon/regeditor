@@ -1,9 +1,10 @@
-import { RegQueryErrorMalformedLine, RegErrorInvalidSyntax, RegQueryErrorReadTooWide, RegErrorGeneral, findCommonErrorInTrimmedStdErr } from "../errors";
+import { RegQueryErrorMalformedLine, RegErrorInvalidSyntax, RegQueryErrorReadTooWide, RegErrorGeneral } from "../errors";
 import { newStoppable, PromiseStoppable } from "../promise-stoppable";
-import { RegType, RegData, RegQueryCmd, RegStruct, RegValue, RegQueryCmdResult, ElevatedSudoPromptOpts, RegQueryCmdResultSingle } from "../types";
-import { applyParamsModifier, execFileUtil, getMinimumFoundIndex, getMinimumFoundIndexStrOrRegex, handleReadAndQueryCommands, regexEscape, regKeyResolveFullPathFromShortcuts, VarArgsOrArray } from "../utils";
+import { RegType, RegData, RegQueryCmd, RegStruct, RegValue, RegQueryCmdResult, ElevatedSudoPromptOpts } from "../types";
+import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, getMinimumFoundIndex, getMinimumFoundIndexStrOrRegex, handleReadAndQueryCommands, regexEscape, regKeyResolveFullPathFromShortcuts, VarArgsOrArray } from "../utils";
 import { type ChildProcess } from "child_process"
 import { TIMEOUT_DEFAULT, COMMAND_NAMES, REG_TYPES_ALL } from "../constants";
+import { RegQueryCmdResultSingle } from "../types-internal";
 
 const THIS_COMMAND = COMMAND_NAMES.QUERY;
 

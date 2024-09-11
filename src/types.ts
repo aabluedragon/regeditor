@@ -362,7 +362,7 @@ export type RegImportCmdOpts = {
 } & CommonOpts
 
 /**
- * REG IMPORT A single command to mutate multiple registry keys and values.  
+ * REG IMPORT command, imports a .reg file into the registry.
  * The executable path is usually C:\Windows\System32\reg.exe
  */
 export type RegImportCmd = string | RegImportCmdOpts
@@ -495,13 +495,6 @@ export type ElevatedSudoPromptOpts = {
     env?: { [key: string]: string }
 } | boolean
 
-export type RegQueryCmdResultSingle = {
-    struct: RegStruct,
-    keyMissing?: boolean
-    cmd: ExecFileParameters
-};
-
-export type RegReadResultSingle = RegQueryCmdResultSingle
 export type RegReadResult = RegQueryCmdResult
 
 export type RegReadCmd = string | ({
@@ -510,10 +503,3 @@ export type RegReadCmd = string | ({
      */
     keyPath: string
 } & CommonOpts)
-
-export type RegDeleteCmdResultSingle = {
-    notFound?: boolean,
-    cmd: ExecFileParameters
-}
-
-export type RegExportCmdResultSingle = RegDeleteCmdResultSingle;

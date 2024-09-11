@@ -1,5 +1,5 @@
-import { applyParamsModifier, execFileUtil, optionalElevateCmdCall, VarArgsOrArray } from "../utils";
-import { findCommonErrorInTrimmedStdErr, RegErrorGeneral } from "../errors";
+import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, optionalElevateCmdCall, VarArgsOrArray } from "../utils";
+import { RegErrorGeneral } from "../errors";
 import { allStoppable, newStoppable, PromiseStoppable } from "../promise-stoppable";
 import { ElevatedSudoPromptOpts, ExecFileParameters, RegDeleteCmd, RegDeleteCmdResult } from "../types";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";

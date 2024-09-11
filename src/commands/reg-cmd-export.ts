@@ -1,8 +1,9 @@
-import { applyParamsModifier, execFileUtil, optionalElevateCmdCall, VarArgsOrArray } from "../utils";
-import { findCommonErrorInTrimmedStdErr, RegErrorGeneral } from "../errors";
+import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, optionalElevateCmdCall, VarArgsOrArray } from "../utils";
+import { RegErrorGeneral } from "../errors";
 import { allStoppable, newStoppable, PromiseStoppable } from "../promise-stoppable";
-import { ElevatedSudoPromptOpts, RegExportCmd, RegExportCmdResult, RegExportCmdResultSingle } from "../types";
+import { ElevatedSudoPromptOpts, RegExportCmd, RegExportCmdResult } from "../types";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
+import { RegExportCmdResultSingle } from "../types-internal";
 
 const THIS_COMMAND = COMMAND_NAMES.EXPORT;
 

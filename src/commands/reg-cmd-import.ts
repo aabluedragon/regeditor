@@ -1,8 +1,8 @@
-import { findCommonErrorInTrimmedStdErr, RegErrorAccessDenied, RegErrorGeneral } from "../errors";
+import { RegErrorAccessDenied, RegErrorGeneral } from "../errors";
 import { newStoppable, PromiseStoppable } from "../promise-stoppable";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
 import { ElevatedSudoPromptOpts, RegImportCmd, RegImportCmdOpts, RegImportCmdResult } from "../types";
-import { applyParamsModifier, execFileUtil, optionalElevateCmdCall } from "../utils";
+import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, optionalElevateCmdCall } from "../utils";
 
 const THIS_COMMAND = COMMAND_NAMES.IMPORT;
 

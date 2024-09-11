@@ -1,8 +1,8 @@
 import { allStoppable, newStoppable, PromiseStoppable } from "../promise-stoppable";
 import { RegAddCmd, RegType, RegData, ExecFileParameters, RegAddCmdResult, ElevatedSudoPromptOpts } from "../types";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
-import { findCommonErrorInTrimmedStdErr, RegErrorInvalidSyntax, RegErrorGeneral } from "../errors";
-import { applyParamsModifier, execFileUtil, optionalElevateCmdCall, VarArgsOrArray } from "../utils";
+import { RegErrorInvalidSyntax, RegErrorGeneral } from "../errors";
+import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, optionalElevateCmdCall, VarArgsOrArray } from "../utils";
 
 const THIS_COMMAND = COMMAND_NAMES.ADD;
 

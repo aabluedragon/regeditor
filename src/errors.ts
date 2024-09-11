@@ -16,14 +16,3 @@ export class RegQueryErrorReadTooWide extends Error { constructor(message: strin
  * Thrown if using non-windows platforms, and wine is not found.
  */
 export class RegErrorWineNotFound extends Error { constructor(message: string) { super(message); this.name = 'RegErrorWineNotFound'; } }
-
-export function findCommonErrorInTrimmedStdErr(command: COMMAND_NAME, trimmedStdErr: string) {
-    if (trimmedStdErr === `ERROR: Invalid key name.\r\nType "REG ${command} /?" for usage.`) return new RegErrorInvalidKeyName(trimmedStdErr);
-    if (trimmedStdErr === 'ERROR: Access is denied.' || // windows access denied
-        trimmedStdErr.toLowerCase().endsWith('permission denied') // linux access denied
-    ) {
-        return new RegErrorAccessDenied(trimmedStdErr); 
-    }
-    if (trimmedStdErr === `ERROR: Invalid syntax.\r\nType "REG ${command} /?" for usage.` || trimmedStdErr === 'ERROR: The parameter is incorrect.') return new RegErrorInvalidSyntax(trimmedStdErr);
-    return null;
-}

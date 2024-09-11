@@ -1,5 +1,5 @@
 import { regCmdExportSingle } from "../commands/reg-cmd-export";
-import { ElevatedSudoPromptOpts, ExecFileParameters, RegData, RegExportCmdResultSingle, RegQueryCmd, RegReadCmd, RegReadResult, RegReadResultSingle, RegStruct, RegType, RegValue } from "../types";
+import { ElevatedSudoPromptOpts, ExecFileParameters, RegData, RegQueryCmd, RegReadCmd, RegReadResult, RegStruct, RegType, RegValue } from "../types";
 import { join as path_join } from 'path';
 import { tmpdir as os_tmpdir } from 'os';
 import { generateRegFileName, getCommonOpts, handleReadAndQueryCommands, isWindows, sleep, VarArgsOrArray } from "../utils";
@@ -8,6 +8,7 @@ import { REG_VALUENAME_DEFAULT, TIMEOUT_DEFAULT } from "../constants";
 import { RegErrorGeneral } from "../errors";
 import { newStoppableFn, PromiseStoppable } from "../promise-stoppable";
 import { regCmdQuerySingle } from "../commands/reg-cmd-query";
+import { RegExportCmdResultSingle, RegReadResultSingle } from "../types-internal";
 
 const finishedReadingRequestedKey = new RegExp("\\r\\n\\[.*\\]\\r\\n.*\\r\\n\\[.*\\]\\r\\n");
 
@@ -147,7 +148,8 @@ export const regReadWithExportSingle = (o: RegReadCmd, elevated: ElevatedSudoPro
  * Reads a single key from the registry.
  * 
  * On Windows, it executes the REG QUERY command.  
- * On other platforms, it executes the REG EXPORT command via Wine, and reads the values from the temporary exported file.
+ * On other platforms, it executes the REG EXPORT command via Wine, and reads the values from the temporary exported file.  
+ * Using REG EXPORT to read allows processing unicode characters when using Wine.
  * @param queryParam The query to perform
  * @returns struct representing the registry entries
  */
@@ -160,7 +162,8 @@ export function regReadSingle(o: RegReadCmd, elevated:ElevatedSudoPromptOpts): P
  * Reads one or more keys from the registry.
  * 
  * On Windows, it executes the REG QUERY command.  
- * On other platforms, it executes the REG EXPORT command via Wine, and reads the values from the temporary exported file.
+ * On other platforms, it executes the REG EXPORT command via Wine, and reads the values from the temporary exported file.  
+ * Using REG EXPORT to read allows processing unicode characters when using Wine.
  * @param queryParam The query to perform
  * @returns struct representing the registry entries
  */

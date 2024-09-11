@@ -1,13 +1,14 @@
-import { COMMAND_NAME, CommonOpts, ElevatedSudoPromptOpts, ExecFileParameters, RegCmdExecParamsModifier, RegQueryCmd, RegQueryCmdResult, RegQueryCmdResultSingle, RegStruct } from "./types";
+import { COMMAND_NAME, CommonOpts, ElevatedSudoPromptOpts, ExecFileParameters, RegCmdExecParamsModifier, RegQueryCmd, RegQueryCmdResult, RegStruct } from "./types";
 import { exec as sudo } from '@emrivero/sudo-prompt'
 import { type ChildProcess, execFile } from 'child_process'
 import { platform, homedir } from "os";
-import { COMMAND_NAMES, PACKAGE_DISPLAY_NAME, WINE_FLATPAK_PACKAGE_ID } from "./constants";
-import { RegErrorAccessDenied, RegErrorWineNotFound } from "./errors";
+import { COMMAND_NAMES, PACKAGE_DISPLAY_NAME } from "./constants";
+import { RegErrorAccessDenied, RegErrorInvalidKeyName, RegErrorInvalidSyntax, RegErrorWineNotFound } from "./errors";
 import { lookpathSync } from "./lookpath-sync";
 import { existsSync } from "fs";
 import { join as path_join } from 'path'
 import { allStoppable, PromiseStoppable } from "./promise-stoppable";
+import { RegQueryCmdResultSingle } from "./types-internal";
 
 const thisProcess = require('process');
 
@@ -334,4 +335,15 @@ export function handleReadAndQueryCommands(impFn:(o:RegQueryCmd, elevated: Eleva
 
 export function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+export function findCommonErrorInTrimmedStdErr(command: COMMAND_NAME, trimmedStdErr: string) {
+  if (trimmedStdErr === `ERROR: Invalid key name.\r\nType "REG ${command} /?" for usage.`) return new RegErrorInvalidKeyName(trimmedStdErr);
+  if (trimmedStdErr === 'ERROR: Access is denied.' || // windows access denied
+      trimmedStdErr.toLowerCase().endsWith('permission denied') // linux access denied
+  ) {
+      return new RegErrorAccessDenied(trimmedStdErr); 
+  }
+  if (trimmedStdErr === `ERROR: Invalid syntax.\r\nType "REG ${command} /?" for usage.` || trimmedStdErr === 'ERROR: The parameter is incorrect.') return new RegErrorInvalidSyntax(trimmedStdErr);
+  return null;
 }
