@@ -509,4 +509,9 @@ export type RegReadCmd = string | ({
      * Use this if you need to force a specific command for reading.
      */
     readCmd?: 'query' | 'export' | 'auto'
+
+    /**
+     * Get subkeys and values recursively, similar to the /s option in REG QUERY
+     */
+    s?:boolean
 } & CommonOpts)

@@ -25,21 +25,24 @@ export const regReadWithExportSingle = (o: RegReadCmd, elevated: ElevatedSudoPro
     const tmpFilePath = path_join(os_tmpdir(), generateRegFileName());
 
     let exportCmdParams: ExecFileParameters | null = null;
-    const exportCmd = regCmdExportSingle({ keyPath: opts.keyPath, fileName: tmpFilePath, ...commonOpts, cmdParamsModifier: ((cmd, params, wine) => { exportCmdParams = params; return opts?.cmdParamsModifier?.(cmd, params, wine) }) }, elevated);
-    if (!exportCmdParams) throw new RegErrorGeneral('REG EXPORT command did not set params');
-
+    
     let exportResult: RegExportCmdResultSingle | null = null;
     let exportError: null | Error = null;
     let exportFinished = false;
-    exportCmd.then(async c => {
+
+    const exportCmd = regCmdExportSingle({ keyPath: opts.keyPath, fileName: tmpFilePath, ...commonOpts, cmdParamsModifier: ((cmd, params, wine) => { exportCmdParams = params; return opts?.cmdParamsModifier?.(cmd, params, wine) }) }, elevated)
+    .then(async c => {
         try {
             // File might not exist if tried to export a non-existing key, so we use try-catch
             dataRetreived = await readFile(tmpFilePath, 'utf-16le')
-        } catch (e) { }
+        } catch (e) {}
         try { await rm(tmpFilePath) } catch (e) { }
         exportResult = c;
         exportFinished = true
+        return c;
     }).catch(e => { exportError = e; exportFinished = true });
+
+    if (!exportCmdParams) throw new RegErrorGeneral('REG EXPORT command did not set params');
 
     let stopped = false;
     setStopper(() => {
@@ -47,29 +50,33 @@ export const regReadWithExportSingle = (o: RegReadCmd, elevated: ElevatedSudoPro
         stopped = true;
     });
 
-    const startTime = Date.now();
     let dataRetreived: null | string = null;
-    while ((Date.now() - startTime < (opts?.timeout ?? TIMEOUT_DEFAULT)) && !exportFinished && dataRetreived == null && !stopped) {
-        try {
-            const c = await readFile(tmpFilePath, 'utf-16le')
-            if (finishedReadingRequestedKey.test(c)) {
-                exportCmd.stop();
-                dataRetreived = c;
-            }
-        } catch (e) { }
-        await sleep(25);
+
+    if(opts?.s) await exportCmd;
+    else {
+        const startTime = Date.now();
+        while ((Date.now() - startTime < (opts?.timeout ?? TIMEOUT_DEFAULT)) && !exportFinished && dataRetreived == null && !stopped) {
+            try {
+                const c = await readFile(tmpFilePath, 'utf-16le')
+                if (finishedReadingRequestedKey.test(c)) {
+                    exportCmd.stop();
+                    dataRetreived = c;
+                }
+            } catch (e) { }
+            await sleep(25);
+        }
     }
+
     try { await rm(tmpFilePath) } catch (e) { }
 
     if (exportError) throw exportError;
 
-    const fileKeyData = dataRetreived?.split(finishedReadingRequestedKey)?.[0]
-    if (stopped || dataRetreived == null || !fileKeyData?.length) return { struct: {}, keyMissing: true, cmd: exportCmdParams };
+    if (stopped || dataRetreived == null || !dataRetreived?.length) return { struct: {}, keyMissing: true, cmd: exportCmdParams };
 
     const struct: RegStruct = {};
 
     // Trim header and go to the first key
-    let dataToProcess = fileKeyData.substring(fileKeyData.indexOf('['));
+    let dataToProcess = dataRetreived.substring(dataRetreived.indexOf('['));
 
     let currentKey: string | null = null;
 
@@ -173,7 +180,7 @@ export function regReadSingle(o: RegReadCmd, elevated:ElevatedSudoPromptOpts): P
  * @param queryParam The query to perform
  * @returns struct representing the registry entries
  */
-export function regRead(...queriesParam: VarArgsOrArray<RegQueryCmd | RegReadCmd>): PromiseStoppable<RegReadResult> {
+export function regRead(...queriesParam: VarArgsOrArray<RegReadCmd>): PromiseStoppable<RegReadResult> {
     return handleReadAndQueryCommands(regReadSingle, ...queriesParam);
 }
 
