@@ -28,11 +28,11 @@ function regCmdCopySingle(c: RegCopyCmd, elevated: ElevatedSudoPromptOpts): Prom
                 const trimmedStdErr = stderrStr.trim();
                 const trimmedStdOut = stdoutStr.trim();
 
-                if (trimmedStdErr === 'TODO' || // windows
+                if (trimmedStdErr === 'ERROR: The system was unable to find the specified registry key or value.' || // windows
                     trimmedStdOut === 'reg: Unable to find the specified registry key') // wine
                     return resolve({ notFound: true, cmd: params });
 
-                if (trimmedStdErr === 'TODO' || // windows
+                if (trimmedStdErr === 'ERROR: The registry entry cannot be copied onto itself.\r\nType "REG COPY /?" for usage.' || // windows
                     trimmedStdOut === 'reg: The source and destination keys cannot be the same') // wine
                     return reject(new RegCopyErrorSourceDestSame(stderrStr));
 
