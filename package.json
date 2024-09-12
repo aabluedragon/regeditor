@@ -28,7 +28,7 @@
     "dragon"
   ],
   "author": "Alon Amir (aaBlueDragon)",
-  "license": "MIT",
+  "license": "LGPL-3.0-or-later",
   "bugs": {
     "url": "https://github.com/aabluedragon/regeditor/issues"
   },
