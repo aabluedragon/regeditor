@@ -475,10 +475,15 @@ export type RegApplyOpts = {
     tmpPath?: { type: 'dir' | 'file', path: string }
 
     /**
-     * Skips the REG QUERY before the writing operation, and just perform the write regardless if there weren't any differences.
-     * false by default to prevent unnecessary writes and UAC elevation prompts.
+     * 'skip': Skips the REG QUERY/EXPORT before the writing operation, and just perform the write regardless if there weren't any differences.
+     * 
+     * 'auto' (default): Will perform either REG QUERY (on Windows) or REG EXPORT (on non-Windows platforms) before the writing operation, and only write if there are differences.
+     * 
+     * 'query': perform REG QUERY before the writing operation.
+     * 
+     * 'export': perform REG EXPORT before the writing operation.
      */
-    skipRead?: boolean
+    readCmd?: 'query' | 'export' | 'auto' | 'skip'
 } & CommonOpts
 
 /**
