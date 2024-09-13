@@ -356,6 +356,7 @@ export function findCommonErrorInTrimmedStdErr(command: COMMAND_NAME, trimmedStd
 
 export function isKnownWineDriverStderrOrWindows(stderr:string):boolean {
   if(isWindows) return true;
+  if(stderr.startsWith('wine: created the configuration directory')) return true;
   const ok = new RegExp(/^the .* driver was unable to open .* this library is required at run time\.$/,'im').test(stderr);
   return ok;
 }
