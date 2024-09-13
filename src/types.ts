@@ -193,6 +193,8 @@ export type RegQueryCmdBase = {
 /**
  * REG QUERY: A command to query (read) registry values.  
  * The executable path is usually C:\Windows\System32\reg.exe
+ * 
+ * Note that the Wine version of this command supports only a subset of the options in the Windows version.
  */
 export type RegQueryCmd = RegKey | (RegQueryCmdBase & {
 

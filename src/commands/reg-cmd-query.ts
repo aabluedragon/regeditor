@@ -219,6 +219,8 @@ export function regCmdQuerySingle(queryParam: RegQueryCmd, elevated: ElevatedSud
 /**
  * Execute one or more reg queries.  
  * Executes the REG QUERY command.  
+ * 
+ * Note that the Wine version of this command supports only a subset of the options in the Windows version.
  * @param queryParam one or more queries to perform
  * @returns struct representing the registry entries
  */
