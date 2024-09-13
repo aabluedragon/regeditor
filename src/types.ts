@@ -101,7 +101,13 @@ export type RegQueryCmdResult = {
 
 export type RegAddCmdResult = RegCmdResultWithCmds;
 export type RegImportCmdResult = RegCmdResultWithCmds;
-export type RegApplyCmdResult = RegCmdResultWithCmds;
+export type RegApplyResult = {
+    /**
+     * The previous registry struct before the changes were applied. 
+     * Will be empty if readCmd is set to 'skip'.
+     */
+    prevStruct: RegStruct
+} & RegCmdResultWithCmds;
 
 export type RegDeleteCmdResult = {
     notFound: {

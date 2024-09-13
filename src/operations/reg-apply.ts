@@ -1,5 +1,5 @@
 import { findValueByNameLowerCaseInStruct, generateRegFileName, getCommonOpts, isEqual, isWindows, regKeyResolveFullPathFromShortcuts } from "../utils";
-import { RegCmdResultWithCmds, RegData, RegKey, RegStruct, RegType, RegValue, RegValues, RegApplyCmdMode, RegApplyCmdResult, RegApplyOpts, RegReadResult, RegReadCmdOpts } from "../types";
+import { RegCmdResultWithCmds, RegData, RegKey, RegStruct, RegType, RegValue, RegValues, RegApplyCmdMode, RegApplyResult, RegApplyOpts, RegReadResult, RegReadCmdOpts } from "../types";
 import { regCmdAdd } from "../commands/reg-cmd-add";
 import { regCmdDelete } from "../commands/reg-cmd-delete";
 import { REG_VALUENAME_DEFAULT, TIMEOUT_DEFAULT } from "../constants";
@@ -42,7 +42,7 @@ type ExecutionStep = { op: 'ADD', key: string, value?: { name: string, content: 
 /**
  * Merge the given object into the registry, only runs commands if changes were found (reads the keys first for diffing)
  */
-export function regApply(struct: RegStruct, regApplyOpts: RegApplyOpts = {}): PromiseStoppable<RegApplyCmdResult> {
+export function regApply(struct: RegStruct, regApplyOpts: RegApplyOpts = {}): PromiseStoppable<RegApplyResult> {
 
     struct = Object.entries(struct).reduce((acc, [k, v]) => ({ ...acc, [regKeyResolveFullPathFromShortcuts(k)]: v }), {} as RegStruct); // Normalize keys to lowercase
 
@@ -198,7 +198,7 @@ export function regApply(struct: RegStruct, regApplyOpts: RegApplyOpts = {}): Pr
                 return [...commandsAddDelete, regCmdImport({ fileName: tmpFilePath, ...commonOpts }).finally(() => { try { rmSync(tmpFilePath) } catch { } })];
             })();
 
-        return allStoppable(allCommands as PromiseStoppable<RegCmdResultWithCmds>[]).then(r => ({ cmds: [...existingData.cmds, ...r.map(c => c.cmds).flat()] }));
+        return allStoppable(allCommands as PromiseStoppable<RegCmdResultWithCmds>[]).then(r => ({ prevStruct: existingData.struct, cmds: [...existingData.cmds, ...r.map(c => c.cmds).flat()] }) satisfies RegApplyResult);
     }
 
     if (!readKeys?.length) return handleAfterRead();
