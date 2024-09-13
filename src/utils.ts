@@ -173,13 +173,18 @@ export function findValueByNameLowerCaseInStruct(struct: RegStruct, key: string,
 }
 
 export function execFileUtil(params: ExecFileParameters, opts: { onStdOut?: (str: string) => void, onStdErr?: (str: string) => void, onExit?: (code?: number | null) => void }, elevated: ElevatedSudoPromptOpts | boolean = false): ChildProcess | null {
+
+  // On wine, disable all wine debug messages to prevent them from mixing in stderr of the actual REG command.
+  const extraEnv = isWindows ? {} : { WINEDEBUG: "-all" };
+
   if (elevated) {
     const cmd = escapeShellArg(params[0]);
     const args = (params?.[1] || []).map(escapeShellArg).join(' ');
     const elevatedOpts: ElevatedSudoPromptOpts = typeof elevated === 'object' && elevated !== null && elevated?.name?.length ? elevated : { name: PACKAGE_DISPLAY_NAME };
 
-    // On wine, disable all wine debug messages to prevent them from mixing in stderr of the actual REG command.
-    const oneLinerExecution = (isWindows ? '' : 'WINEDEBUG="-all" ') + cmd + ' ' + args
+    const envStr = Object.entries(extraEnv).map(([k, v]) => `${k}="${v}"`).join(' ');
+
+    const oneLinerExecution = (envStr?.length? `${envStr} `:'') + cmd + ' ' + args
 
     sudo(oneLinerExecution, elevatedOpts, (err, stdout, stderr) => {
 
@@ -202,7 +207,7 @@ export function execFileUtil(params: ExecFileParameters, opts: { onStdOut?: (str
     }, () => { }); // An empty callback is required here, otherwise there's an exception on linux when trying to run elevated commands
     return null;
   } else {
-    const proc = execFile(...params);
+    const proc = execFile(...params, { env: { ...process.env, ...extraEnv } });
     if (opts?.onStdErr) proc.stderr?.on('data', stdErr => opts?.onStdErr?.(stdErr?.toString()));
     if (opts?.onStdOut) proc.stdout?.on('data', stdOut => opts?.onStdOut?.(stdOut?.toString()));
     if (opts?.onExit) proc.on('exit', opts?.onExit);
@@ -337,13 +342,14 @@ export function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-export function findCommonErrorInTrimmedStdErr(command: COMMAND_NAME, trimmedStdErr: string) {
+export function findCommonErrorInTrimmedStdErr(command: COMMAND_NAME, trimmedStdErr: string, trimmedStdout: string) {
   if (trimmedStdErr === `ERROR: Invalid key name.\r\nType "REG ${command} /?" for usage.`) return new RegErrorInvalidKeyName(trimmedStdErr);
   if (trimmedStdErr === 'ERROR: Access is denied.' || // windows access denied
     trimmedStdErr.toLowerCase().endsWith('permission denied') // linux access denied
   ) {
     return new RegErrorAccessDenied(trimmedStdErr);
   }
-  if (trimmedStdErr === `ERROR: Invalid syntax.\r\nType "REG ${command} /?" for usage.` || trimmedStdErr === 'ERROR: The parameter is incorrect.') return new RegErrorInvalidSyntax(trimmedStdErr);
+  if (trimmedStdout === `reg: Invalid syntax. Type "REG ${command} /?" for help.`) return new RegErrorInvalidSyntax(trimmedStdout) // wine
+  if (trimmedStdErr === `ERROR: Invalid syntax.\r\nType "REG ${command} /?" for usage.` || trimmedStdErr === 'ERROR: The parameter is incorrect.') return new RegErrorInvalidSyntax(trimmedStdErr); // windows
   return null;
 }

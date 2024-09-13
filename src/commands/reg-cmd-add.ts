@@ -47,11 +47,12 @@ function regCmdAddSingle(a: RegAddCmd, elevated: ElevatedSudoPromptOpts): Promis
                 onStdOut(data) { stdoutStr += data },
                 onExit() {
                     const trimmedStdErr = stderrStr.trim();
-                    const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmedStdErr);
+                    const trimmedStdout = stdoutStr.trim();
+
+                    const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmedStdErr, trimmedStdout);
                     if (commonError) return reject(commonError);
                     if (trimmedStdErr.length) return reject(new RegErrorGeneral(stderrStr));
 
-                    const trimmedStdout = stdoutStr.trim();
                     if (trimmedStdout !== 'The operation completed successfully.' // windows
                         &&trimmedStdout !== 'reg: The operation completed successfully' // wine
                     ) {

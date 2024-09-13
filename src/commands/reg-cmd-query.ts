@@ -109,7 +109,7 @@ export function regCmdQuerySingle(queryParam: RegQueryCmd, elevated: ElevatedSud
                         if (trimmedStdErr === 'ERROR: The system was unable to find the specified registry key or value.' // windows
                             || trimmedStdOut === 'reg: Unable to find the specified registry key' // wine
                         ) return finishSuccess(true);
-                        const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmedStdErr);
+                        const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmedStdErr, trimmedStdOut);
                         if (commonError) throw commonError;
                         if (stderrStr.length) throw new RegErrorGeneral(stderrStr);
                         if (code === null && stderrStr.length === 0) { throw new RegQueryErrorReadTooWide('Read too wide') }

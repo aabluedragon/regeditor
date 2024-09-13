@@ -31,7 +31,7 @@ export function regCmdExportSingle(o: RegExportCmd, elevated: ElevatedSudoPrompt
                     trimmedStdOut === 'reg: Unable to find the specified registry key') // wine
                     return resolve({ notFound: true, cmd: params });
 
-                const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmedStdErr);
+                const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmedStdErr, trimmedStdOut);
                 if (commonError) return reject(commonError);
                 if (stderrStr.length) return reject(new RegErrorGeneral(stderrStr));
                 resolve({ cmd: params });

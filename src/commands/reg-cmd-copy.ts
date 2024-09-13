@@ -36,7 +36,7 @@ function regCmdCopySingle(c: RegCopyCmd, elevated: ElevatedSudoPromptOpts): Prom
                     trimmedStdOut === 'reg: The source and destination keys cannot be the same') // wine
                     return reject(new RegCopyErrorSourceDestSame(stderrStr));
 
-                const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmedStdErr);
+                const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmedStdErr, trimmedStdOut);
                 if (commonError) return reject(commonError);
                 if (stderrStr.length) return reject(new RegErrorGeneral(stderrStr));
                 resolve({ cmd: params });
