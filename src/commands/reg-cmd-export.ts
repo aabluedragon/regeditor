@@ -1,4 +1,4 @@
-import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, optionalElevateCmdCall, VarArgsOrArray } from "../utils";
+import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, isKnownWineDriverStderrOrWindows, optionalElevateCmdCall, VarArgsOrArray } from "../utils";
 import { RegErrorGeneral } from "../errors";
 import { allStoppable, newStoppable, PromiseStoppable } from "../promise-stoppable";
 import { ElevatedSudoPromptOpts, RegExportCmd, RegExportCmdResult } from "../types";
@@ -33,7 +33,7 @@ export function regCmdExportSingle(o: RegExportCmd, elevated: ElevatedSudoPrompt
 
                 const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmedStdErr, trimmedStdOut);
                 if (commonError) return reject(commonError);
-                if (stderrStr.length) return reject(new RegErrorGeneral(stderrStr));
+                if (stderrStr.length && !isKnownWineDriverStderrOrWindows(stderrStr)) return reject(new RegErrorGeneral(stderrStr));
                 resolve({ cmd: params });
             }
         }, elevated);

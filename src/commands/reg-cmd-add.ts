@@ -2,7 +2,7 @@ import { allStoppable, newStoppable, PromiseStoppable } from "../promise-stoppab
 import { RegAddCmd, RegType, RegData, ExecFileParameters, RegAddCmdResult, ElevatedSudoPromptOpts } from "../types";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
 import { RegErrorInvalidSyntax, RegErrorGeneral } from "../errors";
-import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, optionalElevateCmdCall, VarArgsOrArray } from "../utils";
+import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, isKnownWineDriverStderrOrWindows, optionalElevateCmdCall, VarArgsOrArray } from "../utils";
 
 const THIS_COMMAND = COMMAND_NAMES.ADD;
 
@@ -51,7 +51,7 @@ function regCmdAddSingle(a: RegAddCmd, elevated: ElevatedSudoPromptOpts): Promis
 
                     const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmedStdErr, trimmedStdout);
                     if (commonError) return reject(commonError);
-                    if (trimmedStdErr.length) return reject(new RegErrorGeneral(stderrStr));
+                    if (trimmedStdErr.length && !isKnownWineDriverStderrOrWindows(stderrStr)) return reject(new RegErrorGeneral(stderrStr));
 
                     if (trimmedStdout !== 'The operation completed successfully.' // windows
                         &&trimmedStdout !== 'reg: The operation completed successfully' // wine

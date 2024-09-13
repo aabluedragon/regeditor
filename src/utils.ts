@@ -345,11 +345,17 @@ export function sleep(ms: number) {
 export function findCommonErrorInTrimmedStdErr(command: COMMAND_NAME, trimmedStdErr: string, trimmedStdout: string) {
   if (trimmedStdErr === `ERROR: Invalid key name.\r\nType "REG ${command} /?" for usage.`) return new RegErrorInvalidKeyName(trimmedStdErr);
   if (trimmedStdErr === 'ERROR: Access is denied.' || // windows access denied
-    trimmedStdErr.toLowerCase().endsWith('permission denied') // linux access denied
+    trimmedStdErr.toLowerCase().includes('permission denied') // linux access denied
   ) {
     return new RegErrorAccessDenied(trimmedStdErr);
   }
   if (trimmedStdout === `reg: Invalid syntax. Type "REG ${command} /?" for help.`) return new RegErrorInvalidSyntax(trimmedStdout) // wine
   if (trimmedStdErr === `ERROR: Invalid syntax.\r\nType "REG ${command} /?" for usage.` || trimmedStdErr === 'ERROR: The parameter is incorrect.') return new RegErrorInvalidSyntax(trimmedStdErr); // windows
   return null;
+}
+
+export function isKnownWineDriverStderrOrWindows(stderr:string):boolean {
+  if(isWindows) return true;
+  const ok = new RegExp(/^the .* driver was unable to open .* this library is required at run time\.$/,'im').test(stderr);
+  return ok;
 }
