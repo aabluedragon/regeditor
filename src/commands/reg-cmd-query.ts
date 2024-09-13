@@ -1,7 +1,7 @@
 import { RegQueryErrorMalformedLine, RegErrorInvalidSyntax, RegQueryErrorReadTooWide, RegErrorGeneral } from "../errors";
 import { newStoppable, PromiseStoppable } from "../promise-stoppable";
 import { RegType, RegData, RegQueryCmd, RegStruct, RegValue, RegQueryCmdResult, ElevatedSudoPromptOpts } from "../types";
-import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, getMinimumFoundIndex, getMinimumFoundIndexStrOrRegex, handleReadAndQueryCommands, isKnownWineDriverStderrOrWindows, regexEscape, regKeyResolveFullPathFromShortcuts, VarArgsOrArray } from "../utils";
+import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, getMinimumFoundIndex, getMinimumFoundIndexStrOrRegex, handleReadAndQueryCommands, isKnownWineDriverStderrOrFirstTimeWineRun, regexEscape, regKeyResolveFullPathFromShortcuts, VarArgsOrArray } from "../utils";
 import { type ChildProcess } from "child_process"
 import { TIMEOUT_DEFAULT, COMMAND_NAMES, REG_TYPES_ALL } from "../constants";
 import { RegQueryCmdResultSingle } from "../types-internal";
@@ -111,7 +111,7 @@ export function regCmdQuerySingle(queryParam: RegQueryCmd, elevated: ElevatedSud
                         ) return finishSuccess(true);
                         const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmedStdErr, trimmedStdOut);
                         if (commonError) throw commonError;
-                        if (stderrStr.length && !isKnownWineDriverStderrOrWindows(stderrStr)) throw new RegErrorGeneral(stderrStr);
+                        if (stderrStr.length && !isKnownWineDriverStderrOrFirstTimeWineRun(stderrStr)) throw new RegErrorGeneral(stderrStr);
                         if (code === null && stderrStr.length === 0) { throw new RegQueryErrorReadTooWide('Read too wide') }
 
                         // Might happen if using the /f "somestr" argument, and there are 1 or more results.
