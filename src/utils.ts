@@ -260,7 +260,7 @@ export function generateRegFileName() {
 }
 
 export function optionalElevateCmdCall<T, O extends (CommonOpts | RegKey)>(paramOrOpts: O, fn: (opts: O, elevated: ElevatedSudoPromptOpts) => PromiseStoppable<T>): PromiseStoppable<T> {
-  const isFallback = typeof paramOrOpts === 'string' || paramOrOpts?.elevated?.mode === 'fallback' || paramOrOpts?.elevated == null;
+  const isFallback = typeof paramOrOpts === 'string' || paramOrOpts?.elevated?.mode === 'fallback' || paramOrOpts?.elevated?.mode == null;
   const isForced = typeof paramOrOpts !== 'string' && paramOrOpts?.elevated?.mode === 'forced';
 
   if (isForced) return fn(paramOrOpts, paramOrOpts?.elevated?.opts ?? true);
