@@ -3,7 +3,7 @@ import { exec as sudo } from '@emrivero/sudo-prompt'
 import { type ChildProcess, execFile } from 'child_process'
 import { platform, homedir } from "os";
 import { COMMAND_NAMES, PACKAGE_DISPLAY_NAME } from "./constants";
-import { RegErrorAccessDenied, RegErrorInvalidKeyName, RegErrorInvalidSyntax, RegErrorWineNotFound } from "./errors";
+import { RegErrorAccessDenied, RegErrorGeneral, RegErrorInvalidKeyName, RegErrorInvalidSyntax, RegErrorWineNotFound } from "./errors";
 import { lookpathSync } from "./lookpath-sync";
 import { existsSync } from "fs";
 import { join as path_join } from 'path'
@@ -178,13 +178,15 @@ export function execFileUtil(params: ExecFileParameters, opts: { onStdOut?: (str
   const extraEnv = isWindows ? {} : { WINEDEBUG: "-all" };
 
   if (elevated) {
+    if(!isWindows) throw new RegErrorGeneral('Elevated mode is not supported for Wine.'); // It may work, however it's highly discouraged to run Wine as root.
+
     const cmd = escapeShellArg(params[0]);
     const args = (params?.[1] || []).map(escapeShellArg).join(' ');
     const elevatedOpts: ElevatedSudoPromptOpts = typeof elevated === 'object' && elevated !== null && elevated?.name?.length ? elevated : { name: PACKAGE_DISPLAY_NAME };
 
     const envStr = Object.entries(extraEnv).map(([k, v]) => `${k}="${v}"`).join(' ');
 
-    const oneLinerExecution = (envStr?.length? `${envStr} `:'') + cmd + ' ' + args
+    const oneLinerExecution = (envStr?.length ? `${envStr} ` : '') + cmd + ' ' + args
 
     sudo(oneLinerExecution, elevatedOpts, (err, stdout, stderr) => {
 
@@ -204,6 +206,7 @@ export function execFileUtil(params: ExecFileParameters, opts: { onStdOut?: (str
       opts?.onStdErr?.(stderr?.toString() || '');
       opts?.onStdOut?.(out);
       opts?.onExit?.();
+      if(err) throw err;
     }, () => { }); // An empty callback is required here, otherwise there's an exception on linux when trying to run elevated commands
     return null;
   } else {
@@ -260,19 +263,20 @@ export function generateRegFileName() {
 }
 
 export function optionalElevateCmdCall<T, O extends (CommonOpts | RegKey)>(paramOrOpts: O, fn: (opts: O, elevated: ElevatedSudoPromptOpts) => PromiseStoppable<T>): PromiseStoppable<T> {
-  const isFallback = typeof paramOrOpts === 'string' || paramOrOpts?.elevated?.mode === 'fallback' || paramOrOpts?.elevated?.mode == null;
-  const isForced = typeof paramOrOpts !== 'string' && paramOrOpts?.elevated?.mode === 'forced';
+  const opts: CommonOpts = typeof paramOrOpts === 'string' ? {} : paramOrOpts;
+  const isFallback = opts?.elevated?.mode === 'fallback' || opts.elevated?.mode == null;
+  const isForced = opts?.elevated?.mode === 'forced';
 
-  if (isForced) return fn(paramOrOpts, paramOrOpts?.elevated?.opts ?? true);
+  if (isForced) return fn(paramOrOpts, opts?.elevated?.opts ?? true);
 
   return fn(paramOrOpts, false).catch(async e => {
     if (e instanceof RegErrorAccessDenied && isFallback) {
-      const hook = typeof paramOrOpts !== 'string' && paramOrOpts?.elevated?.mode === 'fallback' && paramOrOpts?.elevated?.hookBeforeElevation;
+      const hook = opts?.elevated?.hookBeforeElevation;
       if (typeof hook === 'function') {
         const hookResult = await hook();
         if (hookResult === false) throw e;
       }
-      return fn(paramOrOpts, typeof paramOrOpts === 'string' ? true : (paramOrOpts?.elevated?.opts ?? true));
+      return fn(paramOrOpts, typeof paramOrOpts === 'string' ? true : (opts?.elevated?.opts ?? true));
     }
     throw e;
   })
@@ -354,9 +358,9 @@ export function findCommonErrorInTrimmedStdErr(command: COMMAND_NAME, trimmedStd
   return null;
 }
 
-export function isKnownWineDriverStderrOrFirstTimeWineRun(stderr:string):boolean {
-  if(isWindows) return false;
-  if(stderr.startsWith('wine: created the configuration directory')) return true;
-  const ok = new RegExp(/^the .* driver was unable to open .* this library is required at run time\.$/,'im').test(stderr);
+export function isKnownWineDriverStderrOrFirstTimeWineRun(stderr: string): boolean {
+  if (isWindows) return false;
+  if (stderr.startsWith('wine: created the configuration directory')) return true;
+  const ok = new RegExp(/^the .* driver was unable to open .* this library is required at run time\.$/, 'im').test(stderr);
   return ok;
 }

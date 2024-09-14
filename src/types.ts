@@ -48,6 +48,7 @@ export type RegValueName = string;
 export type RegValues = Record<RegValueName, RegValue>
 export type RegStruct = Record<RegKey, RegValues>
 
+type ElevationHookFn = () => Promise<boolean | void> | boolean | void
 export type RegCmdOptElevated = {
     elevated?: {
         /**
@@ -62,11 +63,11 @@ export type RegCmdOptElevated = {
          * A hook to be called just before the elevation is attempted, you may use this to read the notify the user about the elevation request.
          * @returns false to stop the elevation and throw AccessDenied error, or undefined to continue with the elevation.
          */
-        hookBeforeElevation?: () => Promise<boolean | void> | boolean | void
+        hookBeforeElevation?: ElevationHookFn
     } | {
         mode?: 'forced',
         opts?: ElevatedSudoPromptOpts,
-        hookBeforeElevation?: Omitted
+        hookBeforeElevation?: ElevationHookFn
     } | {
         mode: 'disabled',
         opts?: Omitted
