@@ -143,12 +143,12 @@ export function regApply(struct: RegStruct, regApplyOpts: RegApplyOpts = {}): Pr
                         const { key, value } = step;
                         if (value) {
                             const { name, content } = value;
-                            if (isWindows || content.type != 'REG_MULTI_SZ') {
+                            if (isWindows || (content.type != 'REG_MULTI_SZ' && content.type != 'REG_EXPAND_SZ')) {
                                 newRegStruct[key] = newRegStruct[key] || {};
                                 const prefix = name === REG_VALUENAME_DEFAULT ? `@` : `"${name}"`;
                                 newRegStruct[key][name] = `${prefix}=${serializeDataForRegFile(content.type, content.data)}`
                             } else {
-                                // Used in case of REG_MULTI_SZ in WINE, it's not working properly there with .reg and with non-english characters.
+                                // Used in case of REG_MULTI_SZ and REG_EXPAND_SZ in Wine, it's not working properly there with .reg and with non-english characters.
                                 commandsAddDelete.push(regCmdAdd({ keyPath: key, ...nameOrDefault(name), value: content, ...commonOpts }));
                             }
                         } else {
