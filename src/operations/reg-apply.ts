@@ -22,6 +22,7 @@ function serializeDataForRegFile(type: RegType, data: RegData): string {
         case 'REG_QWORD':
             return 'hex(b):' + (data as number[]).map(n => n.toString(16).padStart(2, '0')).join(',')
         case 'REG_EXPAND_SZ':
+            return 'hex(2):' + [...Buffer.from(data as string, 'utf16le'), 0, 0].map(n => n.toString(16).padStart(2, '0')).join(',');
         case 'REG_SZ':
             return `"${data}"`
         case 'REG_MULTI_SZ':
