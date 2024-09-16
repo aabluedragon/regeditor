@@ -178,7 +178,7 @@ export function execFileUtil(params: ExecFileParameters, opts: { onStdOut?: (str
   const extraEnv = isWindows ? {} : { WINEDEBUG: "-all" };
 
   if (elevated) {
-    if(!isWindows) throw new RegErrorGeneral('Elevated mode is not supported for Wine.'); // It may work, however it's highly discouraged to run Wine as root.
+    if (!isWindows) throw new RegErrorGeneral('Elevated mode is not supported for Wine.'); // It may work, however it's highly discouraged to run Wine as root.
 
     const cmd = escapeShellArg(params[0]);
     const args = (params?.[1] || []).map(escapeShellArg).join(' ');
@@ -186,7 +186,6 @@ export function execFileUtil(params: ExecFileParameters, opts: { onStdOut?: (str
 
     const envStr = Object.entries(extraEnv).map(([k, v]) => `${k}="${v}"`).join(' ');
 
-    const oneLinerExecution = (envStr?.length ? `${envStr} ` : '') + cmd + ' ' + args
     const oneLinerExecution = (envStr?.length ? `${envStr} ` : '') + cmd + ' ' + args
 
     sudo(oneLinerExecution, elevatedOpts, (err, stdout, stderr) => {
@@ -207,7 +206,7 @@ export function execFileUtil(params: ExecFileParameters, opts: { onStdOut?: (str
       opts?.onStdErr?.(stderr?.toString() || '');
       opts?.onStdOut?.(out);
       opts?.onExit?.();
-      if(err) throw err;
+      if (err) throw err;
     }, () => { }); // An empty callback is required here, otherwise there's an exception on linux when trying to run elevated commands
     return null;
   } else {
@@ -359,10 +358,10 @@ export function findCommonErrorInTrimmedStdErr(command: COMMAND_NAME, trimmedStd
   return null;
 }
 
-export function isKnownWineDriverStderrOrFirstTimeWineRun(stderr:  string):  boolean {
-  if  (isWindows) return false;
-  if  (stderr.startsWith('wine: created the configuration directory')) return true;
-  const ok = new RegExp(/^the .* driver was unable to open .* this library is required at run time\.$/,  'im').test(stderr);
+export function isKnownWineDriverStderrOrFirstTimeWineRun(stderr: string): boolean {
+  if (isWindows) return false;
+  if (stderr.startsWith('wine: created the configuration directory')) return true;
+  const ok = new RegExp(/^the .* driver was unable to open .* this library is required at run time\.$/, 'im').test(stderr);
   return ok;
 }
 
