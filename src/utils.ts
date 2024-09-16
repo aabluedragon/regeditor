@@ -270,7 +270,7 @@ export function optionalElevateCmdCall<T, O extends (CommonOpts | RegKey)>(param
   if (isForced) return fn(paramOrOpts, opts?.elevated?.opts ?? true);
 
   return fn(paramOrOpts, false).catch(async e => {
-    if (e instanceof RegErrorAccessDenied && isFallback) {
+    if (e instanceof RegErrorAccessDenied && isFallback && isWindows) { // Only fallback to elevated mode on windows
       const hook = opts?.elevated?.hookBeforeElevation;
       if (typeof hook === 'function') {
         const hookResult = await hook();
