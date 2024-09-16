@@ -1,6 +1,6 @@
-import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, isKnownWineDriverStderrOrFirstTimeWineRun, optionalElevateCmdCall, VarArgsOrArray } from "../utils";
+import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, isKnownWineDriverStderrOrFirstTimeWineRun, optionalElevateCmdCall, VarArgsOrArray, stoppable } from "../utils";
 import { RegErrorGeneral } from "../errors";
-import { allStoppable, newStoppable, PromiseStoppable } from "../promise-stoppable";
+import { PromiseStoppable } from "../promise-stoppable";
 import { ElevatedSudoPromptOpts, RegExportCmd, RegExportCmdResult } from "../types";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
 import { RegExportCmdResultSingle } from "../types-internal";
@@ -17,7 +17,7 @@ export function regCmdExportSingle(o: RegExportCmd, elevated: ElevatedSudoPrompt
     if (o.reg64) args.push('/reg:64');
     args.push('/y');
 
-    return newStoppable((resolve, reject, setStopper) => {
+    return stoppable.newPromise((resolve, reject, setStopper) => {
         const params = applyParamsModifier(THIS_COMMAND, ['reg', [THIS_COMMAND, ...args]], o?.cmdParamsModifier, o?.winePath);
         let stdoutStr = '', stderrStr = '';
         const proc = execFileUtil(params, {
@@ -50,7 +50,7 @@ export function regCmdExportSingle(o: RegExportCmd, elevated: ElevatedSudoPrompt
  */
 export function regCmdExport(...opts: VarArgsOrArray<RegExportCmd>): PromiseStoppable<RegExportCmdResult> {
     const requests = opts.flat();
-    return allStoppable(requests.map(o => optionalElevateCmdCall(o, regCmdExportSingle))).then(res => {
+    return stoppable.all(requests.map(o => optionalElevateCmdCall(o, regCmdExportSingle))).then(res => {
         const response: RegExportCmdResult = { notFound: [], cmds: res.map(r => r.cmd) };
 
         for (let i = 0; i < res.length; i++) {

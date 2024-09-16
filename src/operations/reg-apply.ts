@@ -1,9 +1,9 @@
-import { findValueByNameLowerCaseInStruct, generateRegFileName, getCommonOpts, isEqual, isWindows, regKeyResolveFullPathFromShortcuts } from "../utils";
+import { findValueByNameLowerCaseInStruct, generateRegFileName, getCommonOpts, isEqual, isWindows, regKeyResolveFullPathFromShortcuts, stoppable } from "../utils";
 import { RegCmdResultWithCmds, RegData, RegKey, RegStruct, RegType, RegValue, RegValues, RegApplyCmdMode, RegApplyResult, RegApplyOpts, RegReadResult, RegReadCmdOpts } from "../types";
 import { regCmdAdd } from "../commands/reg-cmd-add";
 import { regCmdDelete } from "../commands/reg-cmd-delete";
 import { REG_VALUENAME_DEFAULT, TIMEOUT_DEFAULT } from "../constants";
-import { allStoppable, PromiseStoppable } from "../promise-stoppable";
+import { PromiseStoppable } from "../promise-stoppable";
 import { RegErrorInvalidSyntax } from "../errors";
 import { tmpdir } from 'os'
 import { join as path_join, dirname as path_dirname, basename as path_basename } from "path";
@@ -199,7 +199,7 @@ export function regApply(struct: RegStruct, regApplyOpts: RegApplyOpts = {}): Pr
                 return [...commandsAddDelete, regCmdImport({ fileName: tmpFilePath, ...commonOpts }).finally(() => { try { rmSync(tmpFilePath) } catch { } })];
             })();
 
-        return allStoppable(allCommands as PromiseStoppable<RegCmdResultWithCmds>[]).then(r => ({ prevStruct: existingData.struct, cmds: [...existingData.cmds, ...r.map(c => c.cmds).flat()] }) satisfies RegApplyResult);
+        return stoppable.all(allCommands as PromiseStoppable<RegCmdResultWithCmds>[]).then(r => ({ prevStruct: existingData.struct, cmds: [...existingData.cmds, ...r.map(c => c.cmds).flat()] }) satisfies RegApplyResult);
     }
 
     if (!readKeys?.length) return handleAfterRead();

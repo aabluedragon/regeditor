@@ -1,14 +1,14 @@
 import { regCmdExportSingle } from "../commands/reg-cmd-export";
-import { ElevatedSudoPromptOpts, ExecFileParameters, RegData, RegQueryCmd, RegReadCmd, RegReadResult, RegStruct, RegType, RegValue } from "../types";
+import { ElevatedSudoPromptOpts, ExecFileParameters, RegData, RegReadCmd, RegReadResult, RegStruct, RegType, RegValue } from "../types";
 import { join as path_join } from 'path';
 import { tmpdir as os_tmpdir } from 'os';
-import { generateRegFileName, getCommonOpts, handleReadAndQueryCommands, isWindows, sleep, VarArgsOrArray } from "../utils";
+import { generateRegFileName, getCommonOpts, handleReadAndQueryCommands, isWindows, sleep, VarArgsOrArray, stoppable } from "../utils";
 import { readFile, rm } from "fs/promises";
 import { REG_VALUENAME_DEFAULT, TIMEOUT_DEFAULT } from "../constants";
 import { RegErrorGeneral } from "../errors";
-import { newStoppableFn, PromiseStoppable } from "../promise-stoppable";
 import { regCmdQuerySingle } from "../commands/reg-cmd-query";
 import { RegExportCmdResultSingle, RegReadResultSingle } from "../types-internal";
+import { PromiseStoppable } from "../promise-stoppable";
 
 const finishedReadingRequestedKey = new RegExp("\\r\\n\\[.*\\]\\r\\n.*\\r\\n\\[.*\\]\\r\\n");
 
@@ -17,7 +17,7 @@ const finishedReadingRequestedKey = new RegExp("\\r\\n\\[.*\\]\\r\\n.*\\r\\n\\[.
  * @param queryParam The query to perform
  * @returns struct representing the registry entries
  */
-export const regReadWithExportSingle = (o: RegReadCmd, elevated: ElevatedSudoPromptOpts) => newStoppableFn<RegReadResultSingle>(async (setStopper) => {
+export const regReadWithExportSingle = (o: RegReadCmd, elevated: ElevatedSudoPromptOpts) => stoppable.newFn<RegReadResultSingle>(async (setStopper) => {
 
     const opts = typeof o === 'string' ? { keyPath: o } : o;
     const commonOpts = getCommonOpts(opts);

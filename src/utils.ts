@@ -2,12 +2,12 @@ import { COMMAND_NAME, CommonOpts, ElevatedSudoPromptOpts, ExecFileParameters, R
 import { exec as sudo } from '@emrivero/sudo-prompt'
 import { type ChildProcess, execFile } from 'child_process'
 import { platform, homedir } from "os";
-import { COMMAND_NAMES, PACKAGE_DISPLAY_NAME } from "./constants";
-import { RegErrorAccessDenied, RegErrorGeneral, RegErrorInvalidKeyName, RegErrorInvalidSyntax, RegErrorWineNotFound } from "./errors";
+import { COMMAND_NAMES, PACKAGE_DISPLAY_NAME, TIMEOUT_DEFAULT } from "./constants";
+import { RegErrorAccessDenied, RegErrorGeneral, RegErrorInvalidKeyName, RegErrorInvalidSyntax, RegErrorTimeout, RegErrorWineNotFound } from "./errors";
 import { lookpathSync } from "./lookpath-sync";
 import { existsSync } from "fs";
 import { join as path_join } from 'path'
-import { allStoppable, PromiseStoppable } from "./promise-stoppable";
+import { PromiseStoppable, PromiseStoppableFactory } from "./promise-stoppable";
 import { RegQueryCmdResultSingle } from "./types-internal";
 
 const thisProcess = require('process');
@@ -187,6 +187,7 @@ export function execFileUtil(params: ExecFileParameters, opts: { onStdOut?: (str
     const envStr = Object.entries(extraEnv).map(([k, v]) => `${k}="${v}"`).join(' ');
 
     const oneLinerExecution = (envStr?.length ? `${envStr} ` : '') + cmd + ' ' + args
+    const oneLinerExecution = (envStr?.length ? `${envStr} ` : '') + cmd + ' ' + args
 
     sudo(oneLinerExecution, elevatedOpts, (err, stdout, stderr) => {
 
@@ -314,7 +315,7 @@ export function handleReadAndQueryCommands(impFn: (o: RegQueryCmdBase | RegKey, 
   const queriesOrReads = flattened.map(v => typeof v === 'string' ? ({ keyPath: v }) : v);
   const promises = queriesOrReads.map(o => optionalElevateCmdCall(o, impFn));
 
-  return allStoppable(promises).then(results => {
+  return stoppable.all(promises).then(results => {
     // Skipping the merge logic if just a single query.
     if (results.length === 1) {
       const r = results[0];
@@ -358,9 +359,11 @@ export function findCommonErrorInTrimmedStdErr(command: COMMAND_NAME, trimmedStd
   return null;
 }
 
-export function isKnownWineDriverStderrOrFirstTimeWineRun(stderr: string): boolean {
-  if (isWindows) return false;
-  if (stderr.startsWith('wine: created the configuration directory')) return true;
-  const ok = new RegExp(/^the .* driver was unable to open .* this library is required at run time\.$/, 'im').test(stderr);
+export function isKnownWineDriverStderrOrFirstTimeWineRun(stderr:  string):  boolean {
+  if  (isWindows) return false;
+  if  (stderr.startsWith('wine: created the configuration directory')) return true;
+  const ok = new RegExp(/^the .* driver was unable to open .* this library is required at run time\.$/,  'im').test(stderr);
   return ok;
 }
+
+export const stoppable = PromiseStoppableFactory.create({ timeout: TIMEOUT_DEFAULT, error: new RegErrorTimeout('regeditor timed out') });

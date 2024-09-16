@@ -1,6 +1,6 @@
-import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, isKnownWineDriverStderrOrFirstTimeWineRun, optionalElevateCmdCall, VarArgsOrArray } from "../utils";
+import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, isKnownWineDriverStderrOrFirstTimeWineRun, optionalElevateCmdCall, VarArgsOrArray, stoppable } from "../utils";
 import { RegErrorGeneral } from "../errors";
-import { allStoppable, newStoppable, PromiseStoppable } from "../promise-stoppable";
+import { PromiseStoppable } from "../promise-stoppable";
 import { ElevatedSudoPromptOpts, ExecFileParameters, RegDeleteCmd, RegDeleteCmdResult } from "../types";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
 
@@ -20,7 +20,7 @@ function regCmdDeleteSingle(d: RegDeleteCmd, elevated: ElevatedSudoPromptOpts): 
     if (d.va) args.push('/va');
     if (d.v) args.push('/v', d.v);
 
-    return newStoppable((resolve, reject, setStopper) => {
+    return stoppable.newPromise((resolve, reject, setStopper) => {
         const params = applyParamsModifier(THIS_COMMAND, ['reg', [THIS_COMMAND, d.keyPath, ...args]], d?.cmdParamsModifier, d?.winePath);
         let stdoutStr = '', stderrStr = '';
         const proc = execFileUtil(params, {
@@ -53,7 +53,7 @@ function regCmdDeleteSingle(d: RegDeleteCmd, elevated: ElevatedSudoPromptOpts): 
  */
 export function regCmdDelete(...opts: VarArgsOrArray<RegDeleteCmd>): PromiseStoppable<RegDeleteCmdResult> {
     const requests = opts.flat();
-    return allStoppable(requests.map(o => optionalElevateCmdCall(o, regCmdDeleteSingle))).then(res => {
+    return stoppable.all(requests.map(o => optionalElevateCmdCall(o, regCmdDeleteSingle))).then(res => {
         const response: RegDeleteCmdResult = { notFound: [], cmds: res.map(r => r.cmd) };
 
         for (let i = 0; i < res.length; i++) {

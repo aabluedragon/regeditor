@@ -1,6 +1,6 @@
-import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, isKnownWineDriverStderrOrFirstTimeWineRun, optionalElevateCmdCall, VarArgsOrArray } from "../utils";
+import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, isKnownWineDriverStderrOrFirstTimeWineRun, optionalElevateCmdCall, VarArgsOrArray, stoppable } from "../utils";
 import { RegCopyErrorSourceDestSame, RegErrorGeneral } from "../errors";
-import { allStoppable, newStoppable, PromiseStoppable } from "../promise-stoppable";
+import { PromiseStoppable } from "../promise-stoppable";
 import { ElevatedSudoPromptOpts, ExecFileParameters, RegCopyCmd, RegCopyCmdResult } from "../types";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
 
@@ -18,7 +18,7 @@ function regCmdCopySingle(c: RegCopyCmd, elevated: ElevatedSudoPromptOpts): Prom
     if (c.reg32) args.push('/reg:32');
     if (c.reg64) args.push('/reg:64');
 
-    return newStoppable((resolve, reject, setStopper) => {
+    return stoppable.newPromise((resolve, reject, setStopper) => {
         const params = applyParamsModifier(THIS_COMMAND, ['reg', [THIS_COMMAND, c.keyPathSource, c.keyPathDest, ...args]], c?.cmdParamsModifier, c?.winePath);
         let stdoutStr = '', stderrStr = '';
         const proc = execFileUtil(params, {
@@ -54,7 +54,7 @@ function regCmdCopySingle(c: RegCopyCmd, elevated: ElevatedSudoPromptOpts): Prom
  */
 export function regCmdCopy(...opts: VarArgsOrArray<RegCopyCmd>): PromiseStoppable<RegCopyCmdResult> {
     const requests = opts.flat();
-    return allStoppable(requests.map(o => optionalElevateCmdCall(o, regCmdCopySingle))).then(res => {
+    return stoppable.all(requests.map(o => optionalElevateCmdCall(o, regCmdCopySingle))).then(res => {
         const response: RegCopyCmdResult = { notFound: [], cmds: res.map(r => r.cmd) };
 
         for (let i = 0; i < res.length; i++) {

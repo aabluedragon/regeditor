@@ -6,10 +6,39 @@ type SetStopperFunction = (stop: StopperCallbackFn) => void;
 type WithSetStoppable<T> = AddParameters<PromiseCallBackType<T>, [SetStopperFunction]>;
 type TypeOrPromiseLikeType<T> = T | PromiseLike<T>;
 
+export type PromiseStoppableTimeoutOpts = { timeout?: number, error?: Error }
+export type PromiseStoppableTimeout = number | undefined | PromiseStoppableTimeoutOpts
+
 export interface PromiseStoppable<T> extends Promise<T> {
     stop: () => void,
     then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): PromiseStoppable<TResult1 | TResult2>
     catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): PromiseStoppable<T | TResult>;
+}
+
+export const PromiseStoppableFactory = {
+    create: function (timeoutCfg?: PromiseStoppableTimeout) {
+        const timeoutOptsDefault = typeof timeoutCfg === 'number' ? { timeout:timeoutCfg } : timeoutCfg;
+
+        const newPWrapped: typeof newStoppable = (fn, timeout?) => {
+            const timeoutOpts = typeof timeout === 'number' ? { timeout } : timeout;
+            const useOpts = Object.assign({}, timeoutOptsDefault, timeoutOpts);
+            return newStoppable(fn, useOpts);
+        }
+
+        const newFnWrapped: typeof newStoppableFn = (fn, timeout?) => {
+            const timeoutOpts = typeof timeout === 'number' ? { timeout } : timeout;
+            const useOpts = Object.assign({}, timeoutOptsDefault, timeoutOpts);
+            return newStoppableFn(fn, useOpts);
+        }
+
+        return {
+            newPromise: newPWrapped,
+            newFn: newFnWrapped,
+            all: allStoppable,
+            allSettled: allSettledStoppable,
+            race: raceStoppable,
+        }
+    }
 }
 
 export function allStoppable<T extends readonly unknown[] | []>(values: T): PromiseStoppable<{ -readonly [P in keyof T]: Awaited<T[P]>; }> {
@@ -39,7 +68,7 @@ export function raceStoppable<T extends readonly unknown[] | []>(values: T): Pro
     });
 }
 
-export function newStoppable<T>(fn: WithSetStoppable<T>, timeout?: number): PromiseStoppable<T> {
+export function newStoppable<T>(fn: WithSetStoppable<T>, timeout?: PromiseStoppableTimeout): PromiseStoppable<T> {
 
     let stopper: StopperCallbackFn = () => { }
 
@@ -52,11 +81,21 @@ export function newStoppable<T>(fn: WithSetStoppable<T>, timeout?: number): Prom
     }
 
     let timer: NodeJS.Timeout | null = null;
-    if (timeout != null) {
+    const timeoutOpts = typeof timeout === 'number' ? { timeout } : timeout;
+    const timeoutMS = timeoutOpts?.timeout;
+    if (timeoutMS != null) {
         timer = setTimeout(() => {
-            wrappedReject(new PromiseStoppableTimeoutError('PromiseStoppable timed out'));
+            const errObj = (()=>{
+                if(timeoutOpts?.error) {
+                    try {
+                        return structuredClone(timeoutOpts.error);
+                    } catch (e) {}
+                }
+                return new PromiseStoppableTimeoutError('PromiseStoppable timed out');
+            })();
+            wrappedReject(errObj);
             stopper?.(true);
-        }, timeout);
+        }, timeoutMS);
     }
 
     let finished = false;
@@ -103,7 +142,7 @@ export function newStoppable<T>(fn: WithSetStoppable<T>, timeout?: number): Prom
     return p;
 }
 
-export function newStoppableFn<T>(fn: (setStopper: SetStopperFunction) => T | Promise<T>, timeout?: number): PromiseStoppable<T> {
+export function newStoppableFn<T>(fn: (setStopper: SetStopperFunction) => T | Promise<T>, timeout?: PromiseStoppableTimeout): PromiseStoppable<T> {
     return newStoppable(async (resolve, reject, setStopper) => {
         try {
             const res = await fn(setStopper);

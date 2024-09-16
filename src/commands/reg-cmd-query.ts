@@ -1,7 +1,7 @@
 import { RegQueryErrorMalformedLine, RegErrorInvalidSyntax, RegQueryErrorReadTooWide, RegErrorGeneral } from "../errors";
-import { newStoppable, PromiseStoppable } from "../promise-stoppable";
+import { PromiseStoppable } from "../promise-stoppable";
 import { RegType, RegData, RegQueryCmd, RegStruct, RegValue, RegQueryCmdResult, ElevatedSudoPromptOpts } from "../types";
-import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, getMinimumFoundIndex, getMinimumFoundIndexStrOrRegex, handleReadAndQueryCommands, isKnownWineDriverStderrOrFirstTimeWineRun, regexEscape, regKeyResolveFullPathFromShortcuts, VarArgsOrArray } from "../utils";
+import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, getMinimumFoundIndex, getMinimumFoundIndexStrOrRegex, handleReadAndQueryCommands, isKnownWineDriverStderrOrFirstTimeWineRun, regexEscape, regKeyResolveFullPathFromShortcuts, VarArgsOrArray, stoppable } from "../utils";
 import { type ChildProcess } from "child_process"
 import { TIMEOUT_DEFAULT, COMMAND_NAMES, REG_TYPES_ALL } from "../constants";
 import { RegQueryCmdResultSingle } from "../types-internal";
@@ -71,7 +71,7 @@ export function regCmdQuerySingle(queryParam: RegQueryCmd, elevated: ElevatedSud
         else if (!queryOpts.f) throw new RegErrorInvalidSyntax('/v may only omit a string argument when used with /f');
     }
 
-    return newStoppable<RegQueryCmdResultSingle>((_resolve, _reject, setStopper) => {
+    return stoppable.newPromise<RegQueryCmdResultSingle>((_resolve, _reject, setStopper) => {
 
         let proc: ChildProcess | null = null;
 

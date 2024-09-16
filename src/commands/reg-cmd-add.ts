@@ -1,8 +1,8 @@
-import { allStoppable, newStoppable, PromiseStoppable } from "../promise-stoppable";
+import { PromiseStoppable } from "../promise-stoppable";
 import { RegAddCmd, RegType, RegData, ExecFileParameters, RegAddCmdResult, ElevatedSudoPromptOpts } from "../types";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
 import { RegErrorInvalidSyntax, RegErrorGeneral } from "../errors";
-import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, isKnownWineDriverStderrOrFirstTimeWineRun, optionalElevateCmdCall, VarArgsOrArray } from "../utils";
+import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, isKnownWineDriverStderrOrFirstTimeWineRun, optionalElevateCmdCall, VarArgsOrArray, stoppable } from "../utils";
 
 const THIS_COMMAND = COMMAND_NAMES.ADD;
 
@@ -25,7 +25,7 @@ function serializeData(type: RegType, data: RegData, separator: string): string 
 
 function regCmdAddSingle(a: RegAddCmd, elevated: ElevatedSudoPromptOpts): PromiseStoppable<{ cmd: ExecFileParameters }> {
     const opts = typeof a === 'string' ? { keyPath: a } : a;
-    return newStoppable((resolve, reject, setStopper) => {
+    return stoppable.newPromise((resolve, reject, setStopper) => {
         try {
             const args = ['/f'] as string[];
             if (opts.reg32) args.push('/reg:32');
@@ -76,5 +76,5 @@ function regCmdAddSingle(a: RegAddCmd, elevated: ElevatedSudoPromptOpts): Promis
  * @returns void when successful, throws an error when failed
  */
 export function regCmdAdd(...addCommands: VarArgsOrArray<RegAddCmd>): PromiseStoppable<RegAddCmdResult> {
-    return allStoppable(addCommands.flat().map(o => optionalElevateCmdCall(o, regCmdAddSingle))).then(res => ({ cmds: res.map(r => r.cmd) }));
+    return stoppable.all(addCommands.flat().map(o => optionalElevateCmdCall(o, regCmdAddSingle))).then(res => ({ cmds: res.map(r => r.cmd) }));
 }
