@@ -88,7 +88,9 @@ export function newStoppable<T>(fn: WithSetStoppable<T>, timeout?: PromiseStoppa
             const errObj = (()=>{
                 if(timeoutOpts?.error) {
                     try {
-                        return structuredClone(timeoutOpts.error);
+                        // Create new instance of the same error.
+                        const errorCtor = timeoutOpts.error.constructor;
+                        return new (errorCtor as typeof Error)(timeoutOpts.error.message);
                     } catch (e) {}
                 }
                 return new PromiseStoppableTimeoutError('PromiseStoppable timed out');
