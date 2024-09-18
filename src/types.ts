@@ -144,7 +144,7 @@ export type TimeoutOpt = {
     timeout?: number
 }
 
-export type ExecFileParameters = [file: string, args?: readonly string[] | null];
+export type ExecFileParameters = [file: string, args?: readonly string[] | null, options?: import('child_process').ExecFileOptions | null | undefined];
 export type RegCmdExecParamsModifier = {
     /**
      * A function to be called just before execFile is executing a REG command, you may use this to read the params, or modify them before the command is executed.

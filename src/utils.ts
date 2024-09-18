@@ -113,6 +113,9 @@ export function applyParamsModifier(cmd: COMMAND_NAME, params: ExecFileParameter
         params[0] = 'cmd';
         params[1] = ['/c', 'chcp', '65001', '>', 'nul', '&&', file, ...args];
       })();
+
+      if (!params?.[2]) params[2] = {};
+      params[2].windowsHide = true;
     }
   }
 
@@ -210,7 +213,10 @@ export function execFileUtil(params: ExecFileParameters, opts: { onStdOut?: (str
     }, () => { }); // An empty callback is required here, otherwise there's an exception on linux when trying to run elevated commands
     return null;
   } else {
-    const proc = execFile(...params, { env: { ...process.env, ...extraEnv } });
+    if (!params?.[2]) params[2] = {}
+    params[2].env = { ...process.env, ...extraEnv };
+
+    const proc = execFile(...params);
     if (opts?.onStdErr) proc.stderr?.on('data', stdErr => opts?.onStdErr?.(stdErr?.toString()));
     if (opts?.onStdOut) proc.stdout?.on('data', stdOut => opts?.onStdOut?.(stdOut?.toString()));
     if (opts?.onExit) proc.on('exit', opts?.onExit);
