@@ -203,10 +203,9 @@ export function execFileUtil(params: ExecFileParameters, opts: { onStdOut?: (str
         return str;
       })();
 
-      opts?.onStdErr?.(stderr?.toString() || '');
+      opts?.onStdErr?.(err?.toString() || stderr?.toString() || '');
       opts?.onStdOut?.(out);
       opts?.onExit?.();
-      if (err) throw err;
     }, () => { }); // An empty callback is required here, otherwise there's an exception on linux when trying to run elevated commands
     return null;
   } else {
@@ -355,6 +354,7 @@ export function sleep(ms: number) {
 export function findCommonErrorInTrimmedStdErr(command: COMMAND_NAME, trimmedStdErr: string, trimmedStdout: string) {
   if (trimmedStdErr === `ERROR: Invalid key name.\r\nType "REG ${command} /?" for usage.`) return new RegErrorInvalidKeyName(trimmedStdErr);
   if (trimmedStdErr === 'ERROR: Access is denied.' || // windows access denied
+    trimmedStdErr === 'Error: User did not grant permission.' || // windows access denied if user denies UAC prompt
     trimmedStdErr.toLowerCase().includes('permission denied') // linux access denied
   ) {
     return new RegErrorAccessDenied(trimmedStdErr);
