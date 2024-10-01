@@ -14,7 +14,17 @@ function readRegJson(jsonOrArr: PSJsonResultKey|PSJsonResultKey[], lkeyToCommand
     const jsonArr = Array.isArray(jsonOrArr) ? jsonOrArr : [jsonOrArr];
     for(const json of jsonArr) {
         if(json.Path == null) continue;
-        const opts = lkeyToCommand[json.Path.toLowerCase()];
+        const opts = (()=>{
+            const lpath = json.Path.toLowerCase();
+            // opts for exact key (not recursive subkeys)
+            const o = lkeyToCommand?.[lpath];
+            if(o) return o;
+            for(const lkey in lkeyToCommand) {
+                // opts for recursive subkeys
+                if(lpath.startsWith(lkey)+'\\') return lkeyToCommand[lkey];
+            }
+            return {} as PSReadOpts;
+        })();
         const optFilterTypes = opts?.t?.length ? (new Set(Array.isArray(opts?.t)? opts?.t : [opts?.t])) : null;
 
         const regPath = regKeyResolvePath(json.Path, opts?.reg32 ? 'to32' : undefined);
