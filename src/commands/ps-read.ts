@@ -15,6 +15,7 @@ function readRegJson(jsonOrArr: PSJsonResultKey|PSJsonResultKey[], lkeyToCommand
     for(const json of jsonArr) {
         if(json.Path == null) continue;
         const opts = lkeyToCommand[json.Path.toLowerCase()];
+        const optFilterTypes = opts?.t?.length ? (new Set(Array.isArray(opts?.t)? opts?.t : [opts?.t])) : null;
 
         const regPath = regKeyResolvePath(json.Path, opts?.reg32 ? 'to32' : undefined);
         if(!struct[regPath]) struct[regPath] = {};
@@ -57,7 +58,6 @@ function readRegJson(jsonOrArr: PSJsonResultKey|PSJsonResultKey[], lkeyToCommand
 
             if(opts?.v && Name.toLowerCase() !== opts.v.toLowerCase()) continue;
             if(opts?.ve && Name !== REG_VALUENAME_DEFAULT) continue;
-            const optFilterTypes = opts?.t?.length ? (new Set(Array.isArray(opts?.t)? opts?.t : [opts?.t])) : null;
             if(optFilterTypes && !optFilterTypes?.has(regType)) continue;
 
             struct[regPath][Name] = { type: regType, data };
@@ -93,7 +93,7 @@ export function psRead(commands:PSReadCmd|PSReadCmd[], cfg:PSCommandConfig = {})
         queriedKeys.push(keyQuery);
         keyQuery = keyQuery.replaceAll("'", "''").replaceAll("\r", "").replaceAll("\n", "");
         psCommands += `$registryData += Get-RegistryKeyValues -RegistryPath 'Registry::${keyQuery}' -Recursive ${opts?.s ? '$true' : '$false'};\r`;
-        lkeyToCommand[keyQuery] = opts;
+        lkeyToCommand[keyQuery.toLowerCase()] = opts;
     }
 
     return optionalElevateCmdCall(cfg, function run(_, elevated) {
