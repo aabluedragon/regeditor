@@ -399,3 +399,5 @@ export function isKnownWineDriverStderrOrFirstTimeWineRun(stderr: string): boole
 export const stoppable = PromiseStoppableFactory.create({ timeout: TIMEOUT_DEFAULT, error: new RegErrorTimeout('regeditor timed out') });
 
 export const REGEX_LINE_DELIMITER =/\r\n|\r|\n/g
+
+export const POWERSHELL_SET_ENGLISH_OUTPUT = "[Threading.Thread]::CurrentThread.CurrentUICulture = 'en-US';"

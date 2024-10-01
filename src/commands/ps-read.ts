@@ -4,7 +4,7 @@ import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
 import { PSReadCmd, PSCommandConfig, PSReadCmdResult, PSReadOpts } from "../types-ps";
 import { RegStruct, RegType } from "../types";
 import { PSJsonResultKey, PSRegType } from "../types-internal";
-import { optionalElevateCmdCall, stoppable, applyParamsModifier, execFileUtilAcc, regKeyResolvePath } from "../utils";
+import { optionalElevateCmdCall, stoppable, applyParamsModifier, execFileUtilAcc, regKeyResolvePath, POWERSHELL_SET_ENGLISH_OUTPUT } from "../utils";
 
 const THIS_COMMAND = COMMAND_NAMES.POWERSHELL_READ;
 
@@ -13,6 +13,7 @@ function readRegJson(jsonOrArr: PSJsonResultKey|PSJsonResultKey[], keysToUse32:S
 
     const jsonArr = Array.isArray(jsonOrArr) ? jsonOrArr : [jsonOrArr];
     for(const json of jsonArr) {
+        if(json.Path == null) continue;
         const values = Array.isArray(json.Values) ? json.Values : [json.Values];
         for(const value of values) {
             if(!value) continue;
@@ -76,10 +77,12 @@ export function psRead(commands:PSReadCmd|PSReadCmd[], cfg:PSCommandConfig = {})
     // TODO reg-apply unify same type of command to one function call instead of multiple
 
     const keyToUse32: Set<string> = new Set();
+    const queriedKeys: string[] = [];
     let psCommands = ''
     for(const command of commands) {
         const opts = typeof command === 'string' ? { keyPath: command } : command as PSReadOpts;
         let keyQuery = regKeyResolvePath(opts.keyPath, opts?.reg32? 'from32':undefined);
+        queriedKeys.push(keyQuery);
         keyQuery = keyQuery.replaceAll("'", "''").replaceAll("\r", "").replaceAll("\n", "");
         psCommands += `$registryData += Get-RegistryKeyValues -RegistryPath 'Registry::${keyQuery}' -Recursive ${opts?.s ? '$true' : '$false'};\r`;
         if(opts.reg32) keyToUse32.add(keyQuery.toLowerCase());
@@ -87,15 +90,25 @@ export function psRead(commands:PSReadCmd|PSReadCmd[], cfg:PSCommandConfig = {})
 
     return optionalElevateCmdCall(cfg, function run(_, elevated) {
         return stoppable.newPromise<PSReadCmdResult>((resolve, reject, setStopper) => {
-            let cmdStr = `[Threading.Thread]::CurrentThread.CurrentUICulture = 'en-US';
+            let cmdStr = `${POWERSHELL_SET_ENGLISH_OUTPUT}
             function Get-RegistryKeyValues {
                 param (
                     [string]$RegistryPath,
                     [bool]$Recursive
                 );
 
-                $registryKey = Get-Item -Path $RegistryPath;
-                $registryValues = Get-ItemProperty -Path $RegistryPath;
+                $registryKey = $null;
+                $registryValues = $null;
+                Try {
+                    $registryKey = Get-Item -Path $RegistryPath -ErrorAction Stop
+                    $registryValues = Get-ItemProperty -Path $RegistryPath -ErrorAction Stop
+                } Catch [System.Management.Automation.ItemNotFoundException] {
+                    [PSCustomObject]@{
+                        Path    = $null;
+                        Values  = $null;
+                        SubKeys = $null;
+                    }
+                }
 
                 $values = foreach ($valueName in $registryKey.Property) {
                     $value = $registryValues.$valueName;
@@ -140,14 +153,15 @@ export function psRead(commands:PSReadCmd|PSReadCmd[], cfg:PSCommandConfig = {})
                 onExit(_,stdout,stderr) {
                     const trimmedStdErr = stderr.trim();
                     if(trimmedStdErr) {
-                        // TODO handle key(s) missing.
                         if(trimmedStdErr.includes('Requested registry access is not allowed')) return reject(new RegErrorAccessDenied(trimmedStdErr))
                         return reject(new RegErrorGeneral(trimmedStdErr))
                     };
                     try {
                         const jsonResult = JSON.parse(stdout) as PSJsonResultKey;
                         const struct = readRegJson(jsonResult, keyToUse32);
-                        resolve({ cmd: params, struct });
+                        const returnedKeysLcase = new Set(Object.keys(struct).map(k => k.toLowerCase()));
+                        const keysMissing = queriedKeys.filter(k => !returnedKeysLcase.has(k.toLowerCase()));
+                        resolve({ cmd: params, struct, keysMissing });
                     } catch (e:any) {
                         return reject(e);
                     }

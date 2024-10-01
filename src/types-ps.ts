@@ -5,4 +5,4 @@ export type PSCommandConfig =  Omit<CommonOpts, keyof OptionsReg64Or32>;
 
 export type PSReadOpts = Omit<RegReadCmdOpts, keyof CommonOpts | 'readCmd'> & PSCommonOpts;
 export type PSReadCmd = RegKey | PSReadOpts;
-export type PSReadCmdResult = {cmd:ExecFileParameters, struct:RegStruct}
+export type PSReadCmdResult = {cmd:ExecFileParameters, struct:RegStruct, keysMissing:string[]}
