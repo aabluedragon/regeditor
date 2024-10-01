@@ -1,69 +1,51 @@
-import { readFileSync } from 'fs';
-import { regCmdQuery, regCmdDelete, regCmdAdd, regApply, regCmdImport, regCmdExport, regRead } from './src/index';
-import { exec } from 'child_process';
+
+import { execFile, execFileSync } from 'child_process';
+import { psRead } from './src/commands/ps-read';
+import { regApply } from './src';
 
 async function main() {
 
     try {
-        // const p = regCmdQuery(
-        //     {keyPath:'HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\DirectPlay', s:true},
-        // )
-        // const res = await p;
-        // console.log(JSON.stringify(res, null, 4));
-
-        // const p = regCmdDelete({
-        //     keyPath:"HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\DirectPlay\\Service Providers\\IPX Connection For DirectPlay\\name",
-        // })
-        // // p.stop();
-        // const res = await p;
-        // console.log(res)
-
-        // const p = regCmdAdd({
-        //     keyPath:"HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\DirectPlay\\Service Providers\\IPX Connection For DirectPlay",
-        //     value: {
-        //         type: "REG_NONE",
-        //     },
-        //     v: "name"
-        // })
-        // // p.stop();
-        // const res = await p;
-        // console.log(res)
-
 
         /*
 
-[HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\DirectPlay\Services\{5146ab8cb6b1ce11920c00aa006c4972}\Players]
+        {
+            "Name":  "(default)",
+            "Value":  "wfdwfw",
+            "Type":  3
+        },
 
-[HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\DirectPlay\Services\{5146ab8cb6b1ce11920c00aa006c4972}\Sessions]
+        if name is (default), value is a string, type is 3, then it is REG_SZ
+        */
+        // const key = `HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\DirectPlay\\Service Providers\\IPX Connection For DirectPlayss`;
+        // const escapedKey = key.replaceAll("'", "''").replaceAll("\r", "").replaceAll("\n", "");
+        // const result = execFileSync('powershell', [`[Threading.Thread]::CurrentThread.CurrentUICulture = 'en-US';
+        //     $registryPath = 'Registry::${escapedKey}'
+        //     $registryKey = Get-Item -Path $registryPath
+        //     $registryValues = Get-ItemProperty -Path $registryPath
 
-         */
+        //     $results = foreach ($valueName in $registryKey.Property) {
+        //         $value = $registryValues.$valueName
+        //         $valueType = $registryKey.GetValueKind($valueName)
+                
+        //         [PSCustomObject]@{
+        //             Name = $valueName
+        //             Value = $value
+        //             Type = $valueType
+        //         }
+        //     }
 
-        regApply({
-            "HKLM\\SOFTWARE\\Wow6432Node\\Microsoft\\DirectPlay\\Service Providers\\IPX Connection For DirectPlay": {
-                // "(Default)": {type:"REG_SZ", data: "cool"},
-                what: {type:"REG_SZ", data: "cool"},
-                dwReserved1: {type:"REG_DWORD", data: 0x32},
-                dwReserved2: {type:"REG_DWORD", data: 0x0},
-                Guid: {type:"REG_SZ", data: "{685BC400-9D2C-11cf-A9CD-00AA006886E3}"},
-                Path: {type:"REG_SZ", data: "dpwsockx.dll"},
-                DescriptionA: {type:"REG_SZ", data: "IPX Connection For DirectPlay"},
-                DescriptionW: {type:"REG_SZ", data: "IPX Connection For DirectPlay"},
-            },
-            "HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\Microsoft\\DirectPlay\\Services\\{5146ab8cb6b1ce11920c00aa006c4972}": {
-                Description:{type:"REG_SZ", data:"WinSock IPX Connection For DirectPlay"},
-                Path: {type: "REG_BINARY", data:[0x64,0x00,0x70,0x00,0x77,0x00,0x73,0x00,0x6f,0x00,0x63,0x00,0x6b,0x00,0x78,0x00,0x2e,0x00,0x64,0x00,0x6c,0x00,0x6c,0x00,0x00,0x00]}
-            },
-            "HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\Microsoft\\DirectPlay\\Services\\{5146ab8cb6b1ce11920c00aa006c4972}\\Players": {},
-            "HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\Microsoft\\DirectPlay\\Services\\{5146ab8cb6b1ce11920c00aa006c4972}\\Sessions": {}
-        }, {deleteUnspecifiedValues: false, forceCmdMode:"import"})
+        //     $results | ConvertTo-Json
+        //     `]);
+        //Get-ItemProperty -Path "Registry::" | ConvertTo-Json
+        // console.log(result.toString());
 
-        // const regReadCmd = regRead('HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\DirectPlay\\Service Providers\\IPX Connection For DirectPlay');
-        // // regReadCmd.stop();
-        // const resRead = await regReadCmd;
-        // console.log(JSON.stringify(resRead, null, 4));
-
-    } catch (e) {
-        console.error(e);
+        const res = await psRead([{keyPath:'HKLM\\Software\\WOW6432Node\\Microsoft\\DirectPlay\\Service Providers\\IPX Connection For DirectPlay', s: true}
+            , 'HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\Phone\\Service'
+        ]);
+        debugger
+    } catch (e:any) {
+        console.error(e.toString());
     }
 }
 

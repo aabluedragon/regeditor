@@ -9,6 +9,7 @@ export { regCompare } from './operations/reg-compare';
 export { regRead } from './operations/reg-read';
 export * from './errors';
 export * from './types';
+export * from './types-ps';
 export * from './lookpath-sync'
 export * as PromiseStoppable from './promise-stoppable';
 export { regKeyResolveFullPathFromShortcuts } from './utils';

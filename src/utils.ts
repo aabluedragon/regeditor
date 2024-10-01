@@ -172,7 +172,7 @@ export function findValueByNameLowerCaseInStruct(struct: RegStruct, key: string,
   return values && Object.entries(values).find(([v]) => v.toLowerCase() === valueName.toLowerCase())?.[1]
 }
 
-export function execFileUtil(params: ExecFileParameters, opts: { onStdOut?: (str: string) => void, onStdErr?: (str: string) => void, onExit?: (code?: number | null) => void }, elevated: ElevatedSudoPromptOpts | boolean = false): ChildProcess | null {
+export function execFileUtil(params: ExecFileParameters, opts: { onStdOut?: (str: string) => void, onStdErr?: (str: string) => void, onExit?: (code: number | null) => void }, elevated: ElevatedSudoPromptOpts | boolean = false): ChildProcess | null {
 
   // On wine, disable all wine debug messages to prevent them from mixing in stderr of the actual REG command.
   const extraEnv = isWindows ? {} : { WINEDEBUG: "-all" };
@@ -181,21 +181,26 @@ export function execFileUtil(params: ExecFileParameters, opts: { onStdOut?: (str
     if (!isWindows) throw new RegErrorGeneral('Elevated mode is not supported for Wine.'); // It may work, however it's highly discouraged to run Wine as root.
 
     const cmd = escapeShellArg(params[0]);
-    const args = (params?.[1] || []).map(escapeShellArg).join(' ');
+    let args = (params?.[1] || []).map(escapeShellArg).join(' ');
     const elevatedOpts: ElevatedSudoPromptOpts = typeof elevated === 'object' && elevated !== null && elevated?.name?.length ? elevated : { name: PACKAGE_DISPLAY_NAME };
-
     const envStr = Object.entries(extraEnv).map(([k, v]) => `${k}="${v}"`).join(' ');
 
-    const oneLinerExecution = (envStr?.length ? `${envStr} ` : '') + cmd + ' ' + args
+    if(cmd === 'powershell') {
+        args = args.replaceAll(REGEX_LINE_DELIMITER, '\r');
+        args = args.replaceAll('"', '""');
+    }
 
-    sudo(oneLinerExecution, elevatedOpts, (err, stdout, stderr) => {
+    // For some reason, if we use powershell, we need to surround the arg with two double quotes, e.g. ""the powershell command"""
+    let oneLinerExecution = (envStr?.length ? `${envStr} ` : '') + cmd + ' ' + args
 
+    const REGEDITOR_COMMAND_DELIMITER = '__REGEDITOR__COMMAND__DELIMITER__';
+    sudo(`@echo off && echo ${REGEDITOR_COMMAND_DELIMITER} && `+oneLinerExecution, elevatedOpts, (err, stdout, stderr) => {
       const out = (function trimStdinFromStdout() {
         let str = stdout?.toString() || '';
         if (isWindows) {
-          const indexOfCommand = str.indexOf(oneLinerExecution)
+          const indexOfCommand = str.indexOf(REGEDITOR_COMMAND_DELIMITER)
           if (indexOfCommand !== -1) {
-            str = str.substring(indexOfCommand + oneLinerExecution.length)
+            str = str.substring(indexOfCommand + REGEDITOR_COMMAND_DELIMITER.length)
             const firstLineDown = str.indexOf('\r\n');
             if (firstLineDown !== -1) str = str.substring(firstLineDown + 2)
           }
@@ -205,7 +210,7 @@ export function execFileUtil(params: ExecFileParameters, opts: { onStdOut?: (str
 
       opts?.onStdErr?.(err?.toString() || stderr?.toString() || '');
       opts?.onStdOut?.(out);
-      opts?.onExit?.();
+      opts?.onExit?.(null);
     }, () => { }); // An empty callback is required here, otherwise there's an exception on linux when trying to run elevated commands
     return null;
   } else {
@@ -221,6 +226,15 @@ export function execFileUtil(params: ExecFileParameters, opts: { onStdOut?: (str
     if (opts?.onExit) proc.on('exit', opts?.onExit);
     return proc;
   };
+}
+
+export function execFileUtilAcc(params: ExecFileParameters, opts: { onExit?: (code: number | null, stdout:string, stderr:string) => void }, elevated: ElevatedSudoPromptOpts | boolean = false): ChildProcess | null {
+  let stdoutStr = '', stderrStr = '';
+  return execFileUtil(params, {
+    onStdErr(data) { stderrStr += data; },
+    onStdOut(data) { stdoutStr += data; },
+    onExit: code => opts.onExit?.(code ?? null, stdoutStr, stderrStr)
+  }, elevated);
 }
 
 export function containsWhitespace(str: string) {
@@ -372,3 +386,5 @@ export function isKnownWineDriverStderrOrFirstTimeWineRun(stderr: string): boole
 }
 
 export const stoppable = PromiseStoppableFactory.create({ timeout: TIMEOUT_DEFAULT, error: new RegErrorTimeout('regeditor timed out') });
+
+export const REGEX_LINE_DELIMITER =/\r\n|\r|\n/g

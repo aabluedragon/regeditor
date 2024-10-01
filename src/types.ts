@@ -117,7 +117,7 @@ export type RegDeleteCmdResult = {
     }[]
 } & RegCmdResultWithCmds
 
-type OptionsReg64Or32 = ({
+export type OptionsReg64Or32 = ({
     /**
      * /reg:32
      * 
