@@ -150,7 +150,7 @@ export function regexEscape(str: string) {
  * Resolves paths such as HKLM\\SOFTWARE to the full path, such as HKEY_LOCAL_MACHINE\\SOFTWARE
  * @param keyPath The key path used
  */
-export function regKeyResolveFullPathFromShortcuts(keyPath: string) {
+export function regKeyResolvePath(keyPath: string, bits?: 'to32'|'from32') {
 
   const shortcuts = Object.freeze({
     HKLM: 'HKEY_LOCAL_MACHINE',
@@ -163,6 +163,17 @@ export function regKeyResolveFullPathFromShortcuts(keyPath: string) {
   const indexOfShortcut = keyPath.startsWith('\\\\') ? 3 : 0; // In case starts with \\SomeComputer\ (example: \\SomeComputer\HKLM\Software)
   const pathParts = keyPath.split('\\');
   pathParts[indexOfShortcut] = shortcuts?.[pathParts?.[indexOfShortcut]?.toUpperCase?.()] ?? pathParts[indexOfShortcut];
+
+  if(bits) {
+    const indexOfBitKey = indexOfShortcut + 2;
+    const maybeBitKey = pathParts[indexOfBitKey];
+    const lcaseMaybeBitKey = maybeBitKey.toLowerCase();
+    if(lcaseMaybeBitKey === 'wow6432node' && bits === 'to32') {
+      pathParts.splice(indexOfBitKey, 1);
+    } else if(lcaseMaybeBitKey != 'wow6432node' && bits === 'from32') {
+      pathParts.splice(indexOfBitKey, 0, 'WOW6432Node');
+    }
+  }
 
   return pathParts.join('\\');
 }

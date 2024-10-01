@@ -1,4 +1,4 @@
-import { findValueByNameLowerCaseInStruct, generateRegFileName, getCommonOpts, isEqual, isWindows, regKeyResolveFullPathFromShortcuts, stoppable } from "../utils";
+import { findValueByNameLowerCaseInStruct, generateRegFileName, getCommonOpts, isEqual, isWindows, regKeyResolvePath, stoppable } from "../utils";
 import { RegCmdResultWithCmds, RegData, RegKey, RegStruct, RegType, RegValue, RegValues, RegApplyCmdMode, RegApplyResult, RegApplyOpts, RegReadResult, RegReadCmdOpts } from "../types";
 import { regCmdAdd } from "../commands/reg-cmd-add";
 import { regCmdDelete } from "../commands/reg-cmd-delete";
@@ -45,7 +45,7 @@ type ExecutionStep = { op: 'ADD', key: string, value?: { name: string, content: 
  */
 export function regApply(struct: RegStruct, regApplyOpts: RegApplyOpts = {}): PromiseStoppable<RegApplyResult> {
 
-    struct = Object.entries(struct).reduce((acc, [k, v]) => ({ ...acc, [regKeyResolveFullPathFromShortcuts(k)]: v }), {} as RegStruct); // Normalize keys to lowercase
+    struct = Object.entries(struct).reduce((acc, [k, v]) => ({ ...acc, [regKeyResolvePath(k)]: v }), {} as RegStruct); // Normalize keys to lowercase
 
     const keyPaths = Object.keys(struct);
     const timeStarted = Date.now();
@@ -55,7 +55,7 @@ export function regApply(struct: RegStruct, regApplyOpts: RegApplyOpts = {}): Pr
 
     const executionPlan = [] as ExecutionStep[];
 
-    const lDeleteKeys = normalDeleteKeys?.map(k => regKeyResolveFullPathFromShortcuts(k).toLowerCase());
+    const lDeleteKeys = normalDeleteKeys?.map(k => regKeyResolvePath(k).toLowerCase());
     const allKeyPaths = [...new Set([...keyPaths, ...(lDeleteKeys || [])])];
     const readKeys = readCmd === 'skip' ? [] : allKeyPaths.map(k => ({ keyPath: k, readCmd: readCmd, ...commonOpts }) as RegReadCmdOpts)
 
@@ -65,7 +65,7 @@ export function regApply(struct: RegStruct, regApplyOpts: RegApplyOpts = {}): Pr
 
         // Delete values specified in deleteValues that are not already missing
         const lDeleteValues = origDeleteValues?.
-            map(({ key, valueName }) => ({ key: regKeyResolveFullPathFromShortcuts(key).toLowerCase(), valueName: Array.isArray(valueName) ? valueName : [valueName] }))
+            map(({ key, valueName }) => ({ key: regKeyResolvePath(key).toLowerCase(), valueName: Array.isArray(valueName) ? valueName : [valueName] }))
             .filter(({ key }) => !lDeleteKeys?.includes(key.toLowerCase()) && !lKeysMissing.includes(key.toLowerCase()));
         if (lDeleteValues?.length) {
             const tasksDeleteValues = lDeleteValues.map(({ key, valueName: valueNames }) => valueNames.map(valueName => ({ op: "DELETE", key, valueName }) as ExecutionStep));

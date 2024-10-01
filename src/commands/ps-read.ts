@@ -4,11 +4,11 @@ import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
 import { PSReadCmd, PSCommandConfig, PSReadCmdResult, PSReadOpts } from "../types-ps";
 import { RegStruct, RegType } from "../types";
 import { PSJsonResultKey, PSRegType } from "../types-internal";
-import { optionalElevateCmdCall, stoppable, applyParamsModifier, execFileUtilAcc } from "../utils";
+import { optionalElevateCmdCall, stoppable, applyParamsModifier, execFileUtilAcc, regKeyResolvePath } from "../utils";
 
 const THIS_COMMAND = COMMAND_NAMES.POWERSHELL_READ;
 
-function readRegJson(jsonOrArr: PSJsonResultKey|PSJsonResultKey[]) {
+function readRegJson(jsonOrArr: PSJsonResultKey|PSJsonResultKey[], keysToUse32:Set<string>): RegStruct {
     const struct: RegStruct = {};
 
     const jsonArr = Array.isArray(jsonOrArr) ? jsonOrArr : [jsonOrArr];
@@ -49,15 +49,17 @@ function readRegJson(jsonOrArr: PSJsonResultKey|PSJsonResultKey[]) {
                 default:
                     throw new RegErrorGeneral(`Unsupported registry value type: ${Type}`);
             }
-            if(!struct[json.Path]) struct[json.Path] = {};
-            struct[json.Path][Name] = { type: regType, data };
+            const regPath = regKeyResolvePath(json.Path, keysToUse32.has(json.Path.toLowerCase()) ? 'to32' : undefined);
+            if(!struct[regPath]) struct[regPath] = {};
+            struct[regPath][Name] = { type: regType, data };
         }
     
         if(json.SubKeys != null) {
             const subKeys = Array.isArray(json.SubKeys) ? json.SubKeys : [];
             for(const subKey of subKeys) {
-                struct[subKey.Path] = {}; 
-                const subStruct = readRegJson(subKey);
+                const regPath = regKeyResolvePath(json.Path, keysToUse32.has(json.Path.toLowerCase()) ? 'to32' : undefined);
+                struct[regPath] = {}; 
+                const subStruct = readRegJson(subKey, keysToUse32);
                 for(const key in subStruct) {
                     struct[key] = subStruct[key];
                 }
@@ -71,15 +73,16 @@ function readRegJson(jsonOrArr: PSJsonResultKey|PSJsonResultKey[]) {
 export function psRead(commands:PSReadCmd|PSReadCmd[], cfg:PSCommandConfig = {}): PromiseStoppable<PSReadCmdResult> {
     if(!Array.isArray(commands)) commands = [commands];
 
-    // TODO support 64/32 bit view
-    //https://stackoverflow.com/a/19381092/230637
     // TODO reg-apply unify same type of command to one function call instead of multiple
 
+    const keyToUse32: Set<string> = new Set();
     let psCommands = ''
     for(const command of commands) {
         const opts = typeof command === 'string' ? { keyPath: command } : command as PSReadOpts;
-        const escapedKey = opts.keyPath.replaceAll("'", "''").replaceAll("\r", "").replaceAll("\n", "");
-        psCommands += `$registryData += Get-RegistryKeyValues -RegistryPath 'Registry::${escapedKey}' -Recursive ${opts?.s ? '$true' : '$false'};\r`;
+        let keyQuery = regKeyResolvePath(opts.keyPath, opts?.reg32? 'from32':undefined);
+        keyQuery = keyQuery.replaceAll("'", "''").replaceAll("\r", "").replaceAll("\n", "");
+        psCommands += `$registryData += Get-RegistryKeyValues -RegistryPath 'Registry::${keyQuery}' -Recursive ${opts?.s ? '$true' : '$false'};\r`;
+        if(opts.reg32) keyToUse32.add(keyQuery.toLowerCase());
     }
 
     return optionalElevateCmdCall(cfg, function run(_, elevated) {
@@ -143,7 +146,7 @@ export function psRead(commands:PSReadCmd|PSReadCmd[], cfg:PSCommandConfig = {})
                     };
                     try {
                         const jsonResult = JSON.parse(stdout) as PSJsonResultKey;
-                        const struct = readRegJson(jsonResult);
+                        const struct = readRegJson(jsonResult, keyToUse32);
                         resolve({ cmd: params, struct });
                     } catch (e:any) {
                         return reject(e);

@@ -1,7 +1,7 @@
 import { RegQueryErrorMalformedLine, RegErrorInvalidSyntax, RegQueryErrorReadTooWide, RegErrorGeneral } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
 import { RegType, RegData, RegQueryCmd, RegStruct, RegValue, RegQueryCmdResult, ElevatedSudoPromptOpts } from "../types";
-import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, getMinimumFoundIndex, getMinimumFoundIndexStrOrRegex, handleReadAndQueryCommands, isKnownWineDriverStderrOrFirstTimeWineRun, regexEscape, regKeyResolveFullPathFromShortcuts, VarArgsOrArray, stoppable } from "../utils";
+import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, getMinimumFoundIndex, getMinimumFoundIndexStrOrRegex, handleReadAndQueryCommands, isKnownWineDriverStderrOrFirstTimeWineRun, regexEscape, regKeyResolvePath, VarArgsOrArray, stoppable } from "../utils";
 import { type ChildProcess } from "child_process"
 import { TIMEOUT_DEFAULT, COMMAND_NAMES, REG_TYPES_ALL } from "../constants";
 import { RegQueryCmdResultSingle } from "../types-internal";
@@ -46,7 +46,7 @@ export function regCmdQuerySingle(queryParam: RegQueryCmd, elevated: ElevatedSud
     const { queryKeyPath: _queryKeyPathOriginal, queryOpts } = getQueryPathAndOpts(queryParam);
 
     // Convert query keypath from shortcuts, this is important for the parsing part in parseStdout (see Regular Expressions used).
-    const queryKeyPath = regKeyResolveFullPathFromShortcuts(_queryKeyPathOriginal)
+    const queryKeyPath = regKeyResolvePath(_queryKeyPathOriginal)
 
     const args = [] as string[];
     if (queryOpts.se) args.push('/se', queryOpts.se);;

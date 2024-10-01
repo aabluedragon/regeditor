@@ -12,5 +12,5 @@ export * from './types';
 export * from './types-ps';
 export * from './lookpath-sync'
 export * as PromiseStoppable from './promise-stoppable';
-export { regKeyResolveFullPathFromShortcuts } from './utils';
+export { regKeyResolvePath } from './utils';
 export { COMMAND_NAMES, REG_TYPES_ALL, REG_VALUENAME_DEFAULT, TIMEOUT_DEFAULT } from './constants';
