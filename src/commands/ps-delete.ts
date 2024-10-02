@@ -2,12 +2,11 @@ import { RegErrorAccessDenied, RegErrorGeneral, RegErrorInvalidKeyName } from ".
 import { PromiseStoppable } from "../promise-stoppable";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES, POWERSHELL_SET_ENGLISH_OUTPUT, REGKEY_DOTNET_ROOTS } from "../constants";
 import { PSCommandConfig, PSDeleteOpts, PSDeleteCmd, PSDeleteCmdResult } from "../types-ps";
-import { optionalElevateCmdCall, stoppable, applyParamsModifier, execFileUtilAcc, regKeyResolveBitsView, escapePowerShellArg, regKeyResolveShortcutAndGetParts } from "../utils";
+import { optionalElevateCmdCall, stoppable, applyParamsModifier, execFileUtilAcc, regKeyResolveBitsView, escapePowerShellArg, regKeyResolveShortcutAndGetParts, escapePowerShellRegKey } from "../utils";
 
 const THIS_COMMAND = COMMAND_NAMES.POWERSHELL_DELETE;
 
 // TODO: in missing keys, support reg32 and reg64
-// TODO: escape keyname correctly like in psRead, also in psAdd, to allow key names containing ' and ( )
 
 export function psDelete(commands:PSDeleteCmd|PSDeleteCmd[], cfg:PSCommandConfig = {}): PromiseStoppable<PSDeleteCmdResult> {
     if(!Array.isArray(commands)) commands = [commands];
@@ -15,22 +14,23 @@ export function psDelete(commands:PSDeleteCmd|PSDeleteCmd[], cfg:PSCommandConfig
     let psCommands = ''
     for(const command of commands) {
         const opts = typeof command === 'string' ? { keyPath: command } : command as PSDeleteOpts;
-        const keyPath = regKeyResolveBitsView(opts.keyPath, opts?.reg32? '32' : opts?.reg64? '64' : null);
+        const resolvedKeyPath = regKeyResolveBitsView(opts.keyPath, opts?.reg32? '32' : opts?.reg64? '64' : null);
+        const escapedKeyPath = escapePowerShellRegKey(resolvedKeyPath);
         if(opts?.va) {
-            psCommands += `Remove-ItemProperty -Path 'Registry::${keyPath}' -Name * -Force\r`;
+            psCommands += `Remove-ItemProperty -Path 'Registry::${escapedKeyPath}' -Name * -Force\r`;
         } else if(opts?.ve) {
             const {root, subkey} = regKeyResolveShortcutAndGetParts(opts.keyPath);
             const dotnetRootName = (REGKEY_DOTNET_ROOTS as Record<string,string>)[root];
             if(dotnetRootName == null) throw new RegErrorInvalidKeyName(`Invalid root key: ${root}, could not resolve to a .NET root key`);
             psCommands += `
-            $key = [Microsoft.Win32.Registry]::${dotnetRootName}.OpenSubKey('${subkey}', $true);
+            $key = [Microsoft.Win32.Registry]::${dotnetRootName}.OpenSubKey('${escapePowerShellRegKey(subkey)}', $true);
             $key.DeleteValue("", $false);
             $key.Close();
             `;
         } else if(opts?.v) {
-            psCommands += `Remove-ItemProperty -Path 'Registry::${keyPath}' -Name ${escapePowerShellArg(opts.v)} -Force\r`;
+            psCommands += `Remove-ItemProperty -Path 'Registry::${escapedKeyPath}' -Name ${escapePowerShellArg(opts.v)} -Force\r`;
         } else {
-            psCommands += `Remove-Item -Path 'Registry::${keyPath}' -Recurse -Force\r`;
+            psCommands += `Remove-Item -Path 'Registry::${escapedKeyPath}' -Recurse -Force\r`;
         }
     }
 

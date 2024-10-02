@@ -443,3 +443,7 @@ export function psConvertKindName(type:RegType) {
         default: return 'Unknown';
     }
 }
+
+export function escapePowerShellRegKey(key: string) {
+    return key.replaceAll("'", "''").replaceAll("\r", "").replaceAll("\n", "")
+}

@@ -4,7 +4,7 @@ import { TIMEOUT_DEFAULT, COMMAND_NAMES, REG_VALUENAME_DEFAULT, POWERSHELL_SET_E
 import { PSReadCmd, PSCommandConfig, PSReadCmdResult, PSReadOpts } from "../types-ps";
 import { RegStruct, RegType } from "../types";
 import { PSJsonResultKey, PSRegType } from "../types-internal";
-import { optionalElevateCmdCall, stoppable, applyParamsModifier, execFileUtilAcc, regKeyResolvePath, regKeyResolveBitsView, regKeyPathIs64Bit } from "../utils";
+import { optionalElevateCmdCall, stoppable, applyParamsModifier, execFileUtilAcc, regKeyResolvePath, regKeyResolveBitsView, regKeyPathIs64Bit, escapePowerShellRegKey } from "../utils";
 
 const THIS_COMMAND = COMMAND_NAMES.POWERSHELL_READ;
 
@@ -104,7 +104,7 @@ export function psRead(commands:PSReadCmd|PSReadCmd[], cfg:PSCommandConfig = {})
         }
         
         let keyQuery = regKeyResolveBitsView(opts.keyPath, opts?.reg32? '32': opts?.reg64? '64' : undefined);
-        keyQuery = keyQuery.replaceAll("'", "''").replaceAll("\r", "").replaceAll("\n", "");
+        keyQuery = escapePowerShellRegKey(keyQuery);
         psCommands += `$registryData += Get-RegistryKeyValues -RegistryPath 'Registry::${keyQuery}' -Recursive ${opts?.s ? '$true' : '$false'};\r`;
         lkeyToCommand[keyQuery.toLowerCase()] = opts;
 

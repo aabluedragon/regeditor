@@ -2,11 +2,9 @@ import { RegErrorAccessDenied, RegErrorGeneral, RegErrorInvalidSyntax } from "..
 import { PromiseStoppable } from "../promise-stoppable";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES, POWERSHELL_SET_ENGLISH_OUTPUT } from "../constants";
 import { PSCommandConfig, PSAddCmdResult, PSAddOpts, PSAddCmd } from "../types-ps";
-import { optionalElevateCmdCall, stoppable, applyParamsModifier, execFileUtilAcc, psConvertKindName, escapePowerShellArg, regKeyResolveBitsView } from "../utils";
+import { optionalElevateCmdCall, stoppable, applyParamsModifier, execFileUtilAcc, psConvertKindName, escapePowerShellArg, regKeyResolveBitsView, escapePowerShellRegKey } from "../utils";
 
 const THIS_COMMAND = COMMAND_NAMES.POWERSHELL_ADD;
-
-// TODO: escape keyname correctly like in psRead, to allow key names containing ' and ( )
 
 export function psAdd(commands:PSAddCmd|PSAddCmd[], cfg:PSCommandConfig = {}): PromiseStoppable<PSAddCmdResult> {
     if(!Array.isArray(commands)) commands = [commands];
@@ -19,7 +17,7 @@ export function psAdd(commands:PSAddCmd|PSAddCmd[], cfg:PSCommandConfig = {}): P
         const lkeyPath = keyPath.toLowerCase();
         if(!lcaseKeysAdded.has(lkeyPath)) {
             // add key (if it doesn't exist)
-            psCommands += `$p = 'Registry::${keyPath}';
+            psCommands += `$p = 'Registry::${escapePowerShellRegKey(keyPath)}';
             if (-not (Test-Path $p)) {
                 New-Item -Path $p -Force;
             }\r`;
