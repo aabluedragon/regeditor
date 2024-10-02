@@ -2,7 +2,7 @@ import { RegErrorAccessDenied, RegErrorGeneral, RegErrorInvalidSyntax } from "..
 import { PromiseStoppable } from "../promise-stoppable";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
 import { PSCommandConfig, PSAddCmdResult, PSAddOpts, PSAddCmd } from "../types-ps";
-import { optionalElevateCmdCall, stoppable, applyParamsModifier, execFileUtilAcc, POWERSHELL_SET_ENGLISH_OUTPUT, regKeyResolvePath, psConvertKindName, escapePowerShellArg } from "../utils";
+import { optionalElevateCmdCall, stoppable, applyParamsModifier, execFileUtilAcc, POWERSHELL_SET_ENGLISH_OUTPUT, regKeyResolvePath, psConvertKindName, escapePowerShellArg, regKeyResolveBitsView } from "../utils";
 
 const THIS_COMMAND = COMMAND_NAMES.POWERSHELL_ADD;
 
@@ -13,7 +13,7 @@ export function psAdd(commands:PSAddCmd|PSAddCmd[], cfg:PSCommandConfig = {}): P
     const lcaseKeysAdded = new Set<string>();
     for(const command of commands) {
         const opts = typeof command === 'string' ? { keyPath: command } : command as PSAddOpts;
-        const keyPath = regKeyResolvePath(opts.keyPath); // TODO handle reg32/64
+        const keyPath = regKeyResolveBitsView(opts.keyPath, opts?.reg32? '32' : opts?.reg64? '64' : null);
         const lkeyPath = keyPath.toLowerCase();
         if(!lcaseKeysAdded.has(lkeyPath)) {
             // add key (if it doesn't exist)

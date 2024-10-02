@@ -150,7 +150,7 @@ export function regexEscape(str: string) {
  * Resolves paths such as HKLM\\SOFTWARE to the full path, such as HKEY_LOCAL_MACHINE\\SOFTWARE
  * @param keyPath The key path used
  */
-export function regKeyResolvePath(keyPath: string, bits?: 'to32'|'from32') {
+export function regKeyResolvePath(keyPath: string, bits?: 'to32'|'from32', ignoreIfKey64 = false) {
 
   const shortcuts = Object.freeze({
     HKLM: 'HKEY_LOCAL_MACHINE',
@@ -168,14 +168,31 @@ export function regKeyResolvePath(keyPath: string, bits?: 'to32'|'from32') {
     const indexOfBitKey = indexOfShortcut + 2;
     const maybeBitKey = pathParts[indexOfBitKey];
     const lcaseMaybeBitKey = maybeBitKey.toLowerCase();
-    if(lcaseMaybeBitKey === 'wow6432node' && bits === 'to32') {
-      pathParts.splice(indexOfBitKey, 1);
-    } else if(lcaseMaybeBitKey != 'wow6432node' && bits === 'from32') {
-      pathParts.splice(indexOfBitKey, 0, 'WOW6432Node');
+
+    const shouldIgnore = ignoreIfKey64 && lcaseMaybeBitKey === 'wow6432node';
+    if(!shouldIgnore) {
+      if(lcaseMaybeBitKey === 'wow6432node' && bits === 'to32') {
+        pathParts.splice(indexOfBitKey, 1);
+      } else if(lcaseMaybeBitKey != 'wow6432node' && bits === 'from32') {
+        pathParts.splice(indexOfBitKey, 0, 'WOW6432Node');
+      }
     }
   }
 
   return pathParts.join('\\');
+}
+
+/**
+ * 
+ * @param keyPath 
+ * @param bits '32': convert to WOW6432Node, '64': convert from WOW6432Node (remove it from path).
+ * @returns 
+ */
+export function regKeyResolveBitsView(keyPath: string, bits?: '32' | '64' | null) {
+  return regKeyResolvePath(keyPath, bits === '32' ? 'from32' : bits === '64' ? 'to32' : undefined, true);
+}
+
+export function findValueByNameInStruct(struct: RegStruct, key: string, valueName: string) {
 }
 
 export function findValueByNameLowerCaseInStruct(struct: RegStruct, key: string, valueName: string) {
