@@ -4,7 +4,7 @@ import { TIMEOUT_DEFAULT, COMMAND_NAMES, REG_VALUENAME_DEFAULT } from "../consta
 import { PSReadCmd, PSCommandConfig, PSReadCmdResult, PSReadOpts } from "../types-ps";
 import { RegStruct, RegType } from "../types";
 import { PSJsonResultKey, PSRegType } from "../types-internal";
-import { optionalElevateCmdCall, stoppable, applyParamsModifier, execFileUtilAcc, regKeyResolvePath, POWERSHELL_SET_ENGLISH_OUTPUT } from "../utils";
+import { optionalElevateCmdCall, stoppable, applyParamsModifier, execFileUtilAcc, regKeyResolvePath, regKeyResolveBitsView, POWERSHELL_SET_ENGLISH_OUTPUT, regKeyPathIs64Bit } from "../utils";
 
 const THIS_COMMAND = COMMAND_NAMES.POWERSHELL_READ;
 
@@ -27,7 +27,7 @@ function readRegJson(jsonOrArr: PSJsonResultKey|PSJsonResultKey[], lkeyToCommand
         })();
         const optFilterTypes = opts?.t?.length ? (new Set(Array.isArray(opts?.t)? opts?.t : [opts?.t])) : null;
 
-        const regPath = regKeyResolvePath(json.Path, opts?.reg32 ? 'to32' : undefined);
+        const regPath = regKeyResolvePath(json.Path, opts?.reg32 ? 'to32' : opts?.reg64 ? 'from32' : undefined);
         if(!struct[regPath]) struct[regPath] = {};
 
         const values = Array.isArray(json.Values) ? json.Values : [json.Values];
@@ -76,7 +76,7 @@ function readRegJson(jsonOrArr: PSJsonResultKey|PSJsonResultKey[], lkeyToCommand
         if(json.SubKeys != null) {
             const subKeys = Array.isArray(json.SubKeys) ? json.SubKeys : [];
             for(const subKey of subKeys) {
-                const regPath = regKeyResolvePath(json.Path, opts?.reg32 ? 'to32' : undefined);
+                const regPath = regKeyResolvePath(json.Path, opts?.reg32 ? 'to32' : opts?.reg64 ? 'from32' : undefined);
                 struct[regPath] = {}; 
                 const subStruct = readRegJson(subKey, lkeyToCommand);
                 for(const key in subStruct) {
@@ -98,12 +98,18 @@ export function psRead(commands:PSReadCmd|PSReadCmd[], cfg:PSCommandConfig = {})
     const queriedKeys: string[] = [];
     let psCommands = ''
     for(const command of commands) {
-        const opts = typeof command === 'string' ? { keyPath: command } : command as PSReadOpts;
-        let keyQuery = regKeyResolvePath(opts.keyPath, opts?.reg32? 'from32':undefined);
-        queriedKeys.push(keyQuery);
+        const opts = structuredClone(typeof command === 'string' ? { keyPath: command } : command as PSReadOpts);
+        if(regKeyPathIs64Bit(opts.keyPath)) {
+            delete opts?.reg32; delete opts?.reg64;
+        }
+        
+        let keyQuery = regKeyResolveBitsView(opts.keyPath, opts?.reg32? '32': opts?.reg64? '64' : undefined);
         keyQuery = keyQuery.replaceAll("'", "''").replaceAll("\r", "").replaceAll("\n", "");
         psCommands += `$registryData += Get-RegistryKeyValues -RegistryPath 'Registry::${keyQuery}' -Recursive ${opts?.s ? '$true' : '$false'};\r`;
         lkeyToCommand[keyQuery.toLowerCase()] = opts;
+
+        const originalKeyQueried = regKeyResolvePath(opts.keyPath);
+        queriedKeys.push(originalKeyQueried);
     }
 
     return optionalElevateCmdCall(cfg, function run(_, elevated) {

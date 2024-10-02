@@ -160,14 +160,14 @@ export function regKeyResolvePath(keyPath: string, bits?: 'to32'|'from32', ignor
     HKU: 'HKEY_USERS',
   }) as Readonly<Record<string, string>>;
 
-  const indexOfShortcut = keyPath.startsWith('\\\\') ? 3 : 0; // In case starts with \\SomeComputer\ (example: \\SomeComputer\HKLM\Software)
+  const indexOfRoot = keyPath.startsWith('\\\\') ? 3 : 0; // In case starts with \\SomeComputer\ (example: \\SomeComputer\HKLM\Software)
   const pathParts = keyPath.split('\\');
-  pathParts[indexOfShortcut] = shortcuts?.[pathParts?.[indexOfShortcut]?.toUpperCase?.()] ?? pathParts[indexOfShortcut];
+  pathParts[indexOfRoot] = shortcuts?.[pathParts?.[indexOfRoot]?.toUpperCase?.()] ?? pathParts[indexOfRoot];
 
   if(bits) {
-    const indexOfBitKey = indexOfShortcut + 2;
-    const maybeBitKey = pathParts[indexOfBitKey];
-    const lcaseMaybeBitKey = maybeBitKey.toLowerCase();
+    const indexOfBitKey = indexOfRoot + 2;
+    const maybeBitKey = pathParts?.[indexOfBitKey];
+    const lcaseMaybeBitKey = maybeBitKey?.toLowerCase();
 
     const shouldIgnore = ignoreIfKey64 && lcaseMaybeBitKey === 'wow6432node';
     if(!shouldIgnore) {
@@ -180,6 +180,15 @@ export function regKeyResolvePath(keyPath: string, bits?: 'to32'|'from32', ignor
   }
 
   return pathParts.join('\\');
+}
+
+export function regKeyPathIs64Bit(keyPath: string) {
+  const indexOfRoot = keyPath.startsWith('\\\\') ? 3 : 0; // In case starts with \\SomeComputer\ (example: \\SomeComputer\HKLM\Software)
+  const pathParts = keyPath.split('\\');
+  const indexOfBitKey = indexOfRoot + 2;
+  const maybeBitKey = pathParts?.[indexOfBitKey];
+  const lcaseMaybeBitKey = maybeBitKey?.toLowerCase();
+  return lcaseMaybeBitKey === 'wow6432node'
 }
 
 /**
