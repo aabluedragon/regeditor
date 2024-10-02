@@ -1,4 +1,4 @@
-import { COMMAND_NAME, CommonOpts, ElevatedSudoPromptOpts, ExecFileParameters, RegCmdExecParamsModifier, RegKey, RegQueryCmdBase, RegQueryCmdResult, RegStruct } from "./types";
+import { COMMAND_NAME, CommonOpts, ElevatedSudoPromptOpts, ExecFileParameters, RegCmdExecParamsModifier, RegKey, RegQueryCmdBase, RegQueryCmdResult, RegStruct, RegType } from "./types";
 import { exec as sudo } from '@emrivero/sudo-prompt'
 import { type ChildProcess, execFile } from 'child_process'
 import { platform, homedir } from "os";
@@ -401,3 +401,18 @@ export const stoppable = PromiseStoppableFactory.create({ timeout: TIMEOUT_DEFAU
 export const REGEX_LINE_DELIMITER =/\r\n|\r|\n/g
 
 export const POWERSHELL_SET_ENGLISH_OUTPUT = "[Threading.Thread]::CurrentThread.CurrentUICulture = 'en-US';"
+
+export function psConvertKindName(type:RegType) {
+    switch(type) {
+        case 'REG_SZ': return 'String';
+        case 'REG_EXPAND_SZ': return 'ExpandString';
+        case 'REG_DWORD': return 'DWord';
+        case 'REG_MULTI_SZ': return 'MultiString';
+        case 'REG_QWORD': return 'QWord';
+
+        case 'REG_NONE':
+        case 'REG_BINARY': return 'Binary';
+        
+        default: return 'Unknown';
+    }
+}

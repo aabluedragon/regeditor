@@ -402,11 +402,8 @@ export type RegImportCmdOpts = {
  */
 export type RegImportCmd = RegKey | RegImportCmdOpts
 
-/**
- * REG ADD: A command to add registry keys and values.  
- * The executable path is usually C:\Windows\System32\reg.exe
- */
-export type RegAddCmd = RegKey | {
+
+export type RegAddCmdOpts = {
     keyPath: string;
 
     /**
@@ -453,6 +450,12 @@ export type RegAddCmd = RegKey | {
     ve?: boolean;
     v?: Omitted;
 }) & CommonOpts
+
+/**
+ * REG ADD: A command to add registry keys and values.  
+ * The executable path is usually C:\Windows\System32\reg.exe
+ */
+export type RegAddCmd = RegKey | RegAddCmdOpts;
 
 export type RegApplyCmdMode = 'import' | 'add-delete';
 export type RegApplyOpts = {

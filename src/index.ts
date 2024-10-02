@@ -7,6 +7,8 @@ export { regCmdCopy } from './commands/reg-cmd-copy';
 export { regApply } from './operations/reg-apply';
 export { regCompare } from './operations/reg-compare';
 export { regRead } from './operations/reg-read';
+export { psRead } from './commands/ps-read';
+export { psAdd } from './commands/ps-add';
 export * from './errors';
 export * from './types';
 export * from './types-ps';

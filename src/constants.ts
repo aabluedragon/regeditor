@@ -11,6 +11,7 @@ export const COMMAND_NAMES = Object.freeze({
     EXPORT: 'EXPORT',
     COPY: 'COPY',
     POWERSHELL_READ: 'POWERSHELL_READ',
+    POWERSHELL_ADD: 'POWERSHELL_ADD',
 })
 
 export const TIMEOUT_DEFAULT = 30000;
