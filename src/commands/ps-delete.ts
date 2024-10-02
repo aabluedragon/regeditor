@@ -29,9 +29,8 @@ export function psDelete(commands:PSDeleteCmd|PSDeleteCmd[], cfg:PSCommandConfig
         } else if(opts?.v) {
             psCommands += `Remove-ItemProperty -Path 'Registry::${keyPath}' -Name ${escapePowerShellArg(opts.v)} -Force\r`;
         } else {
-            psCommands += `Remove-Item -Path Registry::${keyPath} -Recurse -Force\r`;
+            psCommands += `Remove-Item -Path 'Registry::${keyPath}' -Recurse -Force\r`;
         }
-
     }
 
     return optionalElevateCmdCall(cfg, function run(_, elevated) {
