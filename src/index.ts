@@ -9,6 +9,7 @@ export { regCompare } from './operations/reg-compare';
 export { regRead } from './operations/reg-read';
 export { psRead } from './commands/ps-read';
 export { psAdd } from './commands/ps-add';
+export { psDelete } from './commands/ps-delete';
 export * from './errors';
 export * from './types';
 export * from './types-ps';

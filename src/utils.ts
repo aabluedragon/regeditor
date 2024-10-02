@@ -152,7 +152,7 @@ export function regKeyResolveShortcutAndGetParts(keyPath: string) {
   const pathParts = keyPath.split('\\');
   pathParts[indexOfRoot] = (REGKEY_SHORTCUTS as Record<string,string>)?.[pathParts?.[indexOfRoot]?.toUpperCase?.()] ?? pathParts[indexOfRoot];
 
-  return { indexOfRoot, pathParts };
+  return { indexOfRoot, pathParts, root: pathParts?.[indexOfRoot], subkey: pathParts?.slice(indexOfRoot + 1).join('\\') };
 }
 
 /**

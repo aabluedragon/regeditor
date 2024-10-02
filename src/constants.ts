@@ -12,6 +12,7 @@ export const COMMAND_NAMES = Object.freeze({
     COPY: 'COPY',
     POWERSHELL_READ: 'POWERSHELL_READ',
     POWERSHELL_ADD: 'POWERSHELL_ADD',
+    POWERSHELL_DELETE: 'POWERSHELL_DELETE',
 })
 
 export const TIMEOUT_DEFAULT = 30000;
@@ -49,3 +50,11 @@ export const REGKEY_SHORTCUTS = Object.freeze({
     HKCU: REGKEY_ROOT_NAMES.HKEY_CURRENT_USER,
     HKU: REGKEY_ROOT_NAMES.HKEY_USERS,
 });
+
+export const REGKEY_DOTNET_ROOTS = Object.freeze({
+    HKEY_CLASSES_ROOT: "ClassesRoot",
+    HKEY_CURRENT_CONFIG: "CurrentConfig",
+    HKEY_CURRENT_USER: "CurrentUser",
+    HKEY_LOCAL_MACHINE: "LocalMachine",
+    HKEY_USERS: "Users"
+})
