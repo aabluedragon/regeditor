@@ -6,6 +6,8 @@ import { optionalElevateCmdCall, stoppable, applyParamsModifier, execFileUtilAcc
 
 const THIS_COMMAND = COMMAND_NAMES.POWERSHELL_ADD;
 
+// TODO: escape keyname correctly like in psRead, to allow key names containing ' and ( )
+
 export function psAdd(commands:PSAddCmd|PSAddCmd[], cfg:PSCommandConfig = {}): PromiseStoppable<PSAddCmdResult> {
     if(!Array.isArray(commands)) commands = [commands];
 

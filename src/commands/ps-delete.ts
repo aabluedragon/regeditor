@@ -7,6 +7,7 @@ import { optionalElevateCmdCall, stoppable, applyParamsModifier, execFileUtilAcc
 const THIS_COMMAND = COMMAND_NAMES.POWERSHELL_DELETE;
 
 // TODO: in missing keys, support reg32 and reg64
+// TODO: escape keyname correctly like in psRead, also in psAdd, to allow key names containing ' and ( )
 
 export function psDelete(commands:PSDeleteCmd|PSDeleteCmd[], cfg:PSCommandConfig = {}): PromiseStoppable<PSDeleteCmdResult> {
     if(!Array.isArray(commands)) commands = [commands];
