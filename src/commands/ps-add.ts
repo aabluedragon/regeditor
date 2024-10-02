@@ -1,8 +1,8 @@
 import { RegErrorAccessDenied, RegErrorGeneral, RegErrorInvalidSyntax } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
-import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
+import { TIMEOUT_DEFAULT, COMMAND_NAMES, POWERSHELL_SET_ENGLISH_OUTPUT } from "../constants";
 import { PSCommandConfig, PSAddCmdResult, PSAddOpts, PSAddCmd } from "../types-ps";
-import { optionalElevateCmdCall, stoppable, applyParamsModifier, execFileUtilAcc, POWERSHELL_SET_ENGLISH_OUTPUT, regKeyResolvePath, psConvertKindName, escapePowerShellArg, regKeyResolveBitsView } from "../utils";
+import { optionalElevateCmdCall, stoppable, applyParamsModifier, execFileUtilAcc, psConvertKindName, escapePowerShellArg, regKeyResolveBitsView } from "../utils";
 
 const THIS_COMMAND = COMMAND_NAMES.POWERSHELL_ADD;
 

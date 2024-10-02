@@ -2,7 +2,7 @@ import { COMMAND_NAME, CommonOpts, ElevatedSudoPromptOpts, ExecFileParameters, R
 import { exec as sudo } from '@emrivero/sudo-prompt'
 import { type ChildProcess, execFile } from 'child_process'
 import { platform, homedir } from "os";
-import { COMMAND_NAMES, PACKAGE_DISPLAY_NAME, TIMEOUT_DEFAULT } from "./constants";
+import { COMMAND_NAMES, PACKAGE_DISPLAY_NAME, REGEX_LINE_DELIMITER, REGKEY_ROOT_NAMES, REGKEY_SHORTCUTS, TIMEOUT_DEFAULT } from "./constants";
 import { RegErrorAccessDenied, RegErrorGeneral, RegErrorInvalidKeyName, RegErrorInvalidSyntax, RegErrorTimeout, RegErrorWineNotFound } from "./errors";
 import { lookpathSync } from "./lookpath-sync";
 import { existsSync } from "fs";
@@ -146,34 +146,32 @@ export function regexEscape(str: string) {
   return str.replace(/[.*+\-?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
 };
 
+export function regKeyResolveShortcutAndGetParts(keyPath: string) {
+
+  const indexOfRoot = keyPath.startsWith('\\\\') ? 3 : 0; // In case starts with \\SomeComputer\ (example: \\SomeComputer\HKLM\Software)
+  const pathParts = keyPath.split('\\');
+  pathParts[indexOfRoot] = (REGKEY_SHORTCUTS as Record<string,string>)?.[pathParts?.[indexOfRoot]?.toUpperCase?.()] ?? pathParts[indexOfRoot];
+
+  return { indexOfRoot, pathParts };
+}
+
 /**
  * Resolves paths such as HKLM\\SOFTWARE to the full path, such as HKEY_LOCAL_MACHINE\\SOFTWARE
  * @param keyPath The key path used
  */
 export function regKeyResolvePath(keyPath: string, bits?: 'to32'|'from32', ignoreIfKey64 = false) {
 
-  const shortcuts = Object.freeze({
-    HKLM: 'HKEY_LOCAL_MACHINE',
-    HKCC: 'HKEY_CURRENT_CONFIG',
-    HKCR: 'HKEY_CLASSES_ROOT',
-    HKCU: 'HKEY_CURRENT_USER',
-    HKU: 'HKEY_USERS',
-  }) as Readonly<Record<string, string>>;
-
-  const indexOfRoot = keyPath.startsWith('\\\\') ? 3 : 0; // In case starts with \\SomeComputer\ (example: \\SomeComputer\HKLM\Software)
-  const pathParts = keyPath.split('\\');
-  pathParts[indexOfRoot] = shortcuts?.[pathParts?.[indexOfRoot]?.toUpperCase?.()] ?? pathParts[indexOfRoot];
+  const {indexOfRoot, pathParts} = regKeyResolveShortcutAndGetParts(keyPath);
 
   if(bits) {
     const indexOfBitKey = indexOfRoot + 2;
-    const maybeBitKey = pathParts?.[indexOfBitKey];
-    const lcaseMaybeBitKey = maybeBitKey?.toLowerCase();
 
-    const shouldIgnore = ignoreIfKey64 && lcaseMaybeBitKey === 'wow6432node';
+    const pathIs64 = regKeyPathIs64Bit(keyPath)
+    const shouldIgnore = ignoreIfKey64 && pathIs64;
     if(!shouldIgnore) {
-      if(lcaseMaybeBitKey === 'wow6432node' && bits === 'to32') {
+      if(pathIs64 && bits === 'to32') {
         pathParts.splice(indexOfBitKey, 1);
-      } else if(lcaseMaybeBitKey != 'wow6432node' && bits === 'from32') {
+      } else if(!pathIs64 && bits === 'from32') {
         pathParts.splice(indexOfBitKey, 0, 'WOW6432Node');
       }
     }
@@ -183,17 +181,20 @@ export function regKeyResolvePath(keyPath: string, bits?: 'to32'|'from32', ignor
 }
 
 export function regKeyPathIs64Bit(keyPath: string) {
-  const indexOfRoot = keyPath.startsWith('\\\\') ? 3 : 0; // In case starts with \\SomeComputer\ (example: \\SomeComputer\HKLM\Software)
-  const pathParts = keyPath.split('\\');
-  const indexOfBitKey = indexOfRoot + 2;
+  const { indexOfRoot, pathParts } = regKeyResolveShortcutAndGetParts(keyPath);
+  const root = pathParts?.[indexOfRoot];
+  const indexOfSoftware = indexOfRoot + 1;
+  const maybeSoftware = pathParts?.[indexOfSoftware];
+  const indexOfBitKey = indexOfSoftware + 1;
   const maybeBitKey = pathParts?.[indexOfBitKey];
-  const lcaseMaybeBitKey = maybeBitKey?.toLowerCase();
-  return lcaseMaybeBitKey === 'wow6432node'
+  return root?.toLowerCase() === REGKEY_ROOT_NAMES.HKEY_LOCAL_MACHINE.toLowerCase() &&
+    maybeSoftware?.toLowerCase() === 'software' &&
+    maybeBitKey?.toLowerCase() === 'wow6432node'
 }
 
 /**
- * 
- * @param keyPath 
+ * Resolves paths such as HKLM\\SOFTWARE to the full path (e.g. HKEY_LOCAL_MACHINE\\SOFTWARE), and converts to/from WOW6432Node if needed.
+ * @param keyPath
  * @param bits '32': convert to WOW6432Node, '64': convert from WOW6432Node (remove it from path).
  * @returns 
  */
@@ -427,10 +428,6 @@ export function isKnownWineDriverStderrOrFirstTimeWineRun(stderr: string): boole
 }
 
 export const stoppable = PromiseStoppableFactory.create({ timeout: TIMEOUT_DEFAULT, error: new RegErrorTimeout('regeditor timed out') });
-
-export const REGEX_LINE_DELIMITER =/\r\n|\r|\n/g
-
-export const POWERSHELL_SET_ENGLISH_OUTPUT = "[Threading.Thread]::CurrentThread.CurrentUICulture = 'en-US';"
 
 export function psConvertKindName(type:RegType) {
     switch(type) {
