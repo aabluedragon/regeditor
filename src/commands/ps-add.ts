@@ -2,7 +2,7 @@ import { RegErrorAccessDenied, RegErrorGeneral, RegErrorInvalidSyntax } from "..
 import { PromiseStoppable } from "../promise-stoppable";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
 import { PSCommandConfig, PSAddCmdResult, PSAddOpts, PSAddCmd } from "../types-ps";
-import { optionalElevateCmdCall, stoppable, applyParamsModifier, execFileUtilAcc, POWERSHELL_SET_ENGLISH_OUTPUT, regKeyResolvePath, escapeShellArg, psConvertKindName } from "../utils";
+import { optionalElevateCmdCall, stoppable, applyParamsModifier, execFileUtilAcc, POWERSHELL_SET_ENGLISH_OUTPUT, regKeyResolvePath, psConvertKindName, escapePowerShellArg } from "../utils";
 
 const THIS_COMMAND = COMMAND_NAMES.POWERSHELL_ADD;
 
@@ -27,10 +27,10 @@ export function psAdd(commands:PSAddCmd|PSAddCmd[], cfg:PSCommandConfig = {}): P
         // add value
         if(opts?.value) {
             const v = opts.value;
-            const name = opts?.v ? escapeShellArg(opts.v) : opts?.ve? "(default)" : null;
+            const name = opts?.v ? escapePowerShellArg(opts.v) : opts?.ve? escapePowerShellArg("(default)") : null;
             if(!name) throw new RegErrorInvalidSyntax('name not specified for value');
             const data = v?.data!=null ? (
-                Array.isArray(v.data) ? "@("+v.data.map(i=>escapeShellArg(`${i}`)).join(',')+")" : escapeShellArg(`${v.data}`)
+                Array.isArray(v.data) ? "@("+v.data.map(i=>escapePowerShellArg(`${i}`)).join(',')+")" : escapePowerShellArg(`${v.data}`)
             ) : null;
             const type = psConvertKindName(v.type);
             const valueArg = data?.length ? `-Value ${data}` : '';
