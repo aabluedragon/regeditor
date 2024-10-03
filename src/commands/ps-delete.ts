@@ -2,24 +2,23 @@ import { RegErrorAccessDenied, RegErrorGeneral, RegErrorInvalidKeyName } from ".
 import { PromiseStoppable } from "../promise-stoppable";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES, POWERSHELL_SET_ENGLISH_OUTPUT, REGKEY_DOTNET_ROOTS } from "../constants";
 import { PSCommandConfig, PSDeleteOpts, PSDeleteCmd, PSDeleteCmdResult } from "../types-ps";
-import { optionalElevateCmdCall, stoppable, applyParamsModifier, execFileUtilAcc, regKeyResolveBitsView, escapePowerShellArg, regKeyResolveShortcutAndGetParts, escapePowerShellRegKey } from "../utils";
+import { optionalElevateCmdCall, stoppable, applyParamsModifier, execFileUtilAcc, regKeyResolveBitsView, escapePowerShellArg, regKeyResolveShortcutAndGetParts, escapePowerShellRegKey, regKeyResolvePath } from "../utils";
 
 const THIS_COMMAND = COMMAND_NAMES.POWERSHELL_DELETE;
-
-// TODO: in missing keys, support reg32 and reg64
 
 export function psDelete(commands:PSDeleteCmd|PSDeleteCmd[], cfg:PSCommandConfig = {}): PromiseStoppable<PSDeleteCmdResult> {
     if(!Array.isArray(commands)) commands = [commands];
 
-    const RegistryPrefix = 'Registry::';
+    const queries = [] as string[];
     let psCommands = `$ErrorActionPreference = 'Stop';
-    $missingKeys = @()\r`;
+    $keysExistOrNot = @();
+    `;
     for(const command of commands) {
         const opts = typeof command === 'string' ? { keyPath: command } : command as PSDeleteOpts;
-        const resolvedKeyPath = regKeyResolveBitsView(opts.keyPath, opts?.reg32? '32' : opts?.reg64? '64' : null);
-        const escapedKeyPath = escapePowerShellRegKey(resolvedKeyPath);
+        queries.push(regKeyResolvePath(opts.keyPath));
+        const escapedKeyPath = escapePowerShellRegKey(regKeyResolveBitsView(opts.keyPath, opts?.reg32? '32' : opts?.reg64? '64' : null));
         psCommands += `
-        $keyPath = '${RegistryPrefix}${escapedKeyPath}';
+        $keyPath = 'Registry::${escapedKeyPath}';
         Try {
         `;
         if(opts?.va) {
@@ -38,13 +37,15 @@ export function psDelete(commands:PSDeleteCmd|PSDeleteCmd[], cfg:PSCommandConfig
         } else {
             psCommands += `Remove-Item -Path $keyPath -Recurse -Force;\r\n`;
         }
-        psCommands += `} Catch [System.Management.Automation.ItemNotFoundException] {
-            $missingKeys += $keyPath
+        psCommands += `
+            $keysExistOrNot += $true;
+        } Catch [System.Management.Automation.ItemNotFoundException] {
+            $keysExistOrNot += $false;
         }
         `;
     }
     psCommands += `
-    $missingKeys | ConvertTo-Json
+    $keysExistOrNot | ConvertTo-Json
     `;
 
     return optionalElevateCmdCall(cfg, function run(_, elevated) {
@@ -63,7 +64,15 @@ export function psDelete(commands:PSDeleteCmd|PSDeleteCmd[], cfg:PSCommandConfig
                     };
                     try {
                         const parsed = JSON.parse(stdout);
-                        const keysMissing = [...new Set(Array.isArray(parsed) ? parsed : [parsed])].map(i=>i.substring(RegistryPrefix.length));
+                        const keysExistOrNot: boolean[] = Array.isArray(parsed) ? parsed : [parsed];
+                        const keysMissing: string[] = [];
+                        keysExistOrNot.forEach((exists, i) => {
+                            if(exists) return;
+                            const q = queries[i];
+                            if(!keysMissing.find(k=>k.toLowerCase() === q.toLowerCase())) {
+                                keysMissing.push(q);
+                            }
+                        });
                         resolve({ cmd: params, keysMissing });
                     } catch (e:any) {
                         return reject(e);
