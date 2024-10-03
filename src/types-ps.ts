@@ -13,4 +13,4 @@ export type PSAddCmdResult = {cmd:ExecFileParameters}
 
 export type PSDeleteOpts = Omit<RegDeleteCmd, keyof CommonOpts> & PSCommonOpts;
 export type PSDeleteCmd = RegKey | PSDeleteOpts;
-export type PSDeleteCmdResult = {cmd:ExecFileParameters}
+export type PSDeleteCmdResult = {cmd:ExecFileParameters, keysMissing:string[]}

@@ -11,13 +11,19 @@ const THIS_COMMAND = COMMAND_NAMES.POWERSHELL_DELETE;
 export function psDelete(commands:PSDeleteCmd|PSDeleteCmd[], cfg:PSCommandConfig = {}): PromiseStoppable<PSDeleteCmdResult> {
     if(!Array.isArray(commands)) commands = [commands];
 
-    let psCommands = ''
+    const RegistryPrefix = 'Registry::';
+    let psCommands = `$ErrorActionPreference = 'Stop';
+    $missingKeys = @()\r`;
     for(const command of commands) {
         const opts = typeof command === 'string' ? { keyPath: command } : command as PSDeleteOpts;
         const resolvedKeyPath = regKeyResolveBitsView(opts.keyPath, opts?.reg32? '32' : opts?.reg64? '64' : null);
         const escapedKeyPath = escapePowerShellRegKey(resolvedKeyPath);
+        psCommands += `
+        $keyPath = '${RegistryPrefix}${escapedKeyPath}';
+        Try {
+        `;
         if(opts?.va) {
-            psCommands += `Remove-ItemProperty -Path 'Registry::${escapedKeyPath}' -Name * -Force\r`;
+            psCommands += `Remove-ItemProperty -Path $keyPath -Name * -Force;\r\n`;
         } else if(opts?.ve) {
             const {root, subkey} = regKeyResolveShortcutAndGetParts(opts.keyPath);
             const dotnetRootName = (REGKEY_DOTNET_ROOTS as Record<string,string>)[root];
@@ -28,11 +34,18 @@ export function psDelete(commands:PSDeleteCmd|PSDeleteCmd[], cfg:PSCommandConfig
             $key.Close();
             `;
         } else if(opts?.v) {
-            psCommands += `Remove-ItemProperty -Path 'Registry::${escapedKeyPath}' -Name ${escapePowerShellArg(opts.v)} -Force\r`;
+            psCommands += `Remove-ItemProperty -Path $keyPath -Name ${escapePowerShellArg(opts.v)} -Force;\r\n`;
         } else {
-            psCommands += `Remove-Item -Path 'Registry::${escapedKeyPath}' -Recurse -Force\r`;
+            psCommands += `Remove-Item -Path $keyPath -Recurse -Force;\r\n`;
         }
+        psCommands += `} Catch [System.Management.Automation.ItemNotFoundException] {
+            $missingKeys += $keyPath
+        }
+        `;
     }
+    psCommands += `
+    $missingKeys | ConvertTo-Json
+    `;
 
     return optionalElevateCmdCall(cfg, function run(_, elevated) {
         return stoppable.newPromise<PSDeleteCmdResult>((resolve, reject, setStopper) => {
@@ -42,14 +55,16 @@ export function psDelete(commands:PSDeleteCmd|PSDeleteCmd[], cfg:PSCommandConfig
             const params = applyParamsModifier(THIS_COMMAND, ['powershell', [cmdStr]], cfg?.cmdParamsModifier, cfg?.winePath);
 
             const proc = execFileUtilAcc(params, {
-                onExit(_,__,stderr) {
+                onExit(_,stdout,stderr) {
                     const trimmedStdErr = stderr.trim();
                     if(trimmedStdErr) {
                         if(trimmedStdErr.includes('Requested registry access is not allowed')) return reject(new RegErrorAccessDenied(trimmedStdErr))
                         return reject(new RegErrorGeneral(trimmedStdErr))
                     };
                     try {
-                        resolve({ cmd: params });
+                        const parsed = JSON.parse(stdout);
+                        const keysMissing = [...new Set(Array.isArray(parsed) ? parsed : [parsed])].map(i=>i.substring(RegistryPrefix.length));
+                        resolve({ cmd: params, keysMissing });
                     } catch (e:any) {
                         return reject(e);
                     }
