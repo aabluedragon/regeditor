@@ -1,8 +1,8 @@
-import { RegErrorAccessDenied, RegErrorGeneral, RegErrorInvalidSyntax } from "../errors";
+import { RegErrorGeneral, RegErrorInvalidKeyName, RegErrorInvalidSyntax } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
-import { TIMEOUT_DEFAULT, COMMAND_NAMES, POWERSHELL_SET_ENGLISH_OUTPUT } from "../constants";
+import { TIMEOUT_DEFAULT, COMMAND_NAMES, POWERSHELL_SET_ENGLISH_OUTPUT, REGKEY_DOTNET_ROOTS } from "../constants";
 import { PSCommandConfig, PSAddCmdResult, PSAddOpts, PSAddCmd } from "../types-ps";
-import { optionalElevateCmdCall, stoppable, applyParamsModifier, execFileUtilAcc, psConvertKindName, escapePowerShellArg, regKeyResolveBitsView, escapePowerShellRegKey } from "../utils";
+import { optionalElevateCmdCall, stoppable, applyParamsModifier, execFileUtilAcc, psConvertKindName, escapePowerShellArg, regKeyResolveBitsView, escapePowerShellRegKey, regKeyResolveShortcutAndGetParts, findPowerShellErrorInTrimmedStdErr } from "../utils";
 
 const THIS_COMMAND = COMMAND_NAMES.POWERSHELL_ADD;
 
@@ -27,14 +27,28 @@ export function psAdd(commands:PSAddCmd|PSAddCmd[], cfg:PSCommandConfig = {}): P
         // add value
         if(opts?.value) {
             const v = opts.value;
-            const name = opts?.v ? escapePowerShellArg(opts.v) : opts?.ve? escapePowerShellArg("(default)") : null;
-            if(!name) throw new RegErrorInvalidSyntax('name not specified for value');
+            
             const data = v?.data!=null ? (
                 Array.isArray(v.data) ? "@("+v.data.map(i=>escapePowerShellArg(`${i}`)).join(',')+")" : escapePowerShellArg(`${v.data}`)
             ) : null;
             const type = psConvertKindName(v.type);
-            const valueArg = data?.length ? `-Value ${data}` : '';
-            psCommands += `New-ItemProperty -Path 'Registry::${keyPath}' -Name ${name} ${valueArg} -PropertyType ${type} -Force;\r`;
+            if(v.type === 'REG_NONE') {
+                const name = opts?.v ? escapePowerShellArg(opts.v) : opts?.ve? escapePowerShellArg("") : null;
+                if(!name) throw new RegErrorInvalidSyntax('name not specified for value');
+                const {root, subkey} = regKeyResolveShortcutAndGetParts(opts.keyPath);
+                const dotnetRootName = (REGKEY_DOTNET_ROOTS as Record<string,string>)[root];
+                if(dotnetRootName == null) throw new RegErrorInvalidKeyName(`Invalid root key: ${root}, could not resolve to a .NET root key`);
+                psCommands += `
+                $key = [Microsoft.Win32.Registry]::${dotnetRootName}.OpenSubKey('${escapePowerShellRegKey(subkey)}', $true);
+                $key.SetValue(${name}, [byte[]]@(${data}), [Microsoft.Win32.RegistryValueKind]::None);
+                $key.Close();
+                `;
+            } else {
+                const name = opts?.v ? escapePowerShellArg(opts.v) : opts?.ve? escapePowerShellArg("(default)") : null;
+                if(!name) throw new RegErrorInvalidSyntax('name not specified for value');
+                const valueArg = data?.length ? `-Value ${data}` : '';
+                psCommands += `New-ItemProperty -Path 'Registry::${keyPath}' -Name ${name} ${valueArg} -PropertyType ${type} -Force;\r`;
+            }
         }
     }
 
@@ -49,7 +63,8 @@ export function psAdd(commands:PSAddCmd|PSAddCmd[], cfg:PSCommandConfig = {}): P
                 onExit(_,__,stderr) {
                     const trimmedStdErr = stderr.trim();
                     if(trimmedStdErr) {
-                        if(trimmedStdErr.includes('Access to the registry key') && trimmedStdErr.includes('is denied')) return reject(new RegErrorAccessDenied(trimmedStdErr))
+                        const commonError = findPowerShellErrorInTrimmedStdErr(trimmedStdErr);
+                        if(commonError) return reject(commonError);
                         return reject(new RegErrorGeneral(trimmedStdErr))
                     };
                     try {

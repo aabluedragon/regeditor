@@ -1,10 +1,10 @@
-import { RegErrorAccessDenied, RegErrorGeneral } from "../errors";
+import { RegErrorGeneral } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES, REG_VALUENAME_DEFAULT, POWERSHELL_SET_ENGLISH_OUTPUT } from "../constants";
 import { PSReadCmd, PSCommandConfig, PSReadCmdResult, PSReadOpts } from "../types-ps";
 import { RegStruct, RegType } from "../types";
 import { PSJsonResultKey, PSRegType } from "../types-internal";
-import { optionalElevateCmdCall, stoppable, applyParamsModifier, execFileUtilAcc, regKeyResolvePath, regKeyResolveBitsView, regKeyPathIs64Bit, escapePowerShellRegKey } from "../utils";
+import { optionalElevateCmdCall, stoppable, applyParamsModifier, execFileUtilAcc, regKeyResolvePath, regKeyResolveBitsView, regKeyPathIs64Bit, escapePowerShellRegKey, findPowerShellErrorInTrimmedStdErr } from "../utils";
 
 const THIS_COMMAND = COMMAND_NAMES.POWERSHELL_READ;
 
@@ -177,7 +177,8 @@ export function psRead(commands:PSReadCmd|PSReadCmd[], cfg:PSCommandConfig = {})
                 onExit(_,stdout,stderr) {
                     const trimmedStdErr = stderr.trim();
                     if(trimmedStdErr) {
-                        if(trimmedStdErr.includes('Requested registry access is not allowed')) return reject(new RegErrorAccessDenied(trimmedStdErr))
+                        const commonError = findPowerShellErrorInTrimmedStdErr(trimmedStdErr);
+                        if(commonError) return reject(commonError);
                         return reject(new RegErrorGeneral(trimmedStdErr))
                     };
                     try {

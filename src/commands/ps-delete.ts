@@ -1,8 +1,8 @@
-import { RegErrorAccessDenied, RegErrorGeneral, RegErrorInvalidKeyName } from "../errors";
+import { RegErrorGeneral, RegErrorInvalidKeyName } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES, POWERSHELL_SET_ENGLISH_OUTPUT, REGKEY_DOTNET_ROOTS } from "../constants";
 import { PSCommandConfig, PSDeleteOpts, PSDeleteCmd, PSDeleteCmdResult } from "../types-ps";
-import { optionalElevateCmdCall, stoppable, applyParamsModifier, execFileUtilAcc, regKeyResolveBitsView, escapePowerShellArg, regKeyResolveShortcutAndGetParts, escapePowerShellRegKey, regKeyResolvePath } from "../utils";
+import { optionalElevateCmdCall, stoppable, applyParamsModifier, execFileUtilAcc, regKeyResolveBitsView, escapePowerShellArg, regKeyResolveShortcutAndGetParts, escapePowerShellRegKey, regKeyResolvePath, findPowerShellErrorInTrimmedStdErr } from "../utils";
 
 const THIS_COMMAND = COMMAND_NAMES.POWERSHELL_DELETE;
 
@@ -59,7 +59,8 @@ export function psDelete(commands:PSDeleteCmd|PSDeleteCmd[], cfg:PSCommandConfig
                 onExit(_,stdout,stderr) {
                     const trimmedStdErr = stderr.trim();
                     if(trimmedStdErr) {
-                        if(trimmedStdErr.includes('Requested registry access is not allowed')) return reject(new RegErrorAccessDenied(trimmedStdErr))
+                        const commonError = findPowerShellErrorInTrimmedStdErr(trimmedStdErr);
+                        if(commonError) return reject(commonError);
                         return reject(new RegErrorGeneral(trimmedStdErr))
                     };
                     try {

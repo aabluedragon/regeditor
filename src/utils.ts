@@ -420,6 +420,14 @@ export function findCommonErrorInTrimmedStdErr(command: COMMAND_NAME, trimmedStd
   return null;
 }
 
+export function findPowerShellErrorInTrimmedStdErr(trimmedStdErr: string) {
+  if (
+    (trimmedStdErr.includes('Access to the registry key') && trimmedStdErr.includes('is denied')) ||
+    trimmedStdErr.includes('Requested registry access is not allowed.')
+  ) return new RegErrorAccessDenied(trimmedStdErr)
+  return null;
+}
+
 export function isKnownWineDriverStderrOrFirstTimeWineRun(stderr: string): boolean {
   if (isWindows) return false;
   if (stderr.startsWith('wine: created the configuration directory')) return true;
