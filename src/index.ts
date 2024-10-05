@@ -11,6 +11,7 @@ export { psRead } from './commands/ps-read';
 export { psAdd } from './commands/ps-add';
 export { psDelete } from './commands/ps-delete';
 export { psCopy } from './commands/ps-copy';
+export { psKeyExists } from './commands/ps-key-exists';
 export * from './errors';
 export * from './types';
 export * from './types-ps';

@@ -7,6 +7,10 @@ export type PSReadOpts = Omit<RegReadCmdOpts, keyof CommonOpts | 'readCmd'> & PS
 export type PSReadCmd = RegKey | PSReadOpts;
 export type PSReadCmdResult = {cmd:ExecFileParameters, struct:RegStruct, keysMissing:string[]}
 
+export type PSKeyExistsOpts = {keyPath:string} & PSCommonOpts;
+export type PSKeyExistsCmd = RegKey | PSKeyExistsOpts;
+export type PSKeyExistsCmdResult = {cmd:ExecFileParameters, keysMissing:string[]}
+
 export type PSAddOpts = Omit<RegAddCmdOpts, keyof CommonOpts | 's'> & PSCommonOpts;
 export type PSAddCmd = RegKey | PSAddOpts;
 export type PSAddCmdResult = {cmd:ExecFileParameters}
