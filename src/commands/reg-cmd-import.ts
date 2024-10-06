@@ -1,8 +1,8 @@
 import { RegErrorAccessDenied, RegErrorGeneral } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
-import { ElevatedSudoPromptOpts, RegImportCmd, RegImportCmdOpts, RegImportCmdResult } from "../types";
-import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, isKnownWineDriverStderrOrFirstTimeWineRun, optionalElevateCmdCall, stoppable } from "../utils";
+import { ElevatedSudoPromptOpts, OptionsReg64Or32, RegImportCmd, RegImportCmdOpts, RegImportCmdResult } from "../types";
+import { applyParamsModifier, execFileUtil, filePathExists, findCommonErrorInTrimmedStdErr, isKnownWineDriverStderrOrFirstTimeWineRun, isWindows, optionalElevateCmdCall, stoppable } from "../utils";
 
 const THIS_COMMAND = COMMAND_NAMES.IMPORT;
 
@@ -27,13 +27,18 @@ export function regCmdImport(cmd: RegImportCmd): PromiseStoppable<RegImportCmdRe
             const proc = execFileUtil(params, {
                 onStdErr(data) { stderrStr += data; },
                 onStdOut(data) { stdoutStr += data; },
-                onExit() {
+                async onExit(code) {
                     const trimmedStdErr = stderrStr.trim();
                     const trimmedStdOut = stdoutStr.trim();
                     const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmedStdErr, trimmedStdOut);
                     if (commonError) return reject(commonError);
                     if (trimmedStdErr === 'ERROR: Error opening the file. There may be a disk or file system error.' || trimmedStdErr === 'ERROR: Error accessing the registry.') return reject(new RegErrorAccessDenied(trimmedStdErr));
-                    if (trimmedStdErr.length && trimmedStdErr !== 'The operation completed successfully.' && !isKnownWineDriverStderrOrFirstTimeWineRun(stderrStr)) return reject(new RegErrorGeneral(stderrStr)); // REG IMPORT writes a success message into stderr.
+                    if (trimmedStdErr.length && trimmedStdErr !== 'The operation completed successfully.' && !isKnownWineDriverStderrOrFirstTimeWineRun(stderrStr)) { // REG IMPORT writes a success message into stderr.
+                        const err = await nonEnglish_REG_FindError(code, fileName);
+                        if(err === 'accessDenied') return reject(new RegErrorAccessDenied(trimmedStdErr));
+                        else if(err === 'missing') return reject(new RegErrorGeneral(trimmedStdErr));
+                        if(code === 1) return reject(new RegErrorGeneral(trimmedStdErr));
+                    }
                     resolve({ cmds: [params] });
                 },
             }, elevated);
@@ -46,3 +51,19 @@ export function regCmdImport(cmd: RegImportCmd): PromiseStoppable<RegImportCmdRe
     return optionalElevateCmdCall(opts, run);
 }
 
+
+/**
+ * Used to find errors in cases where Windows is set to locale other than English, which affects stdout and stderr messages.
+ */
+async function nonEnglish_REG_FindError(exitCode: number | null, regFilePath:string): Promise<'missing' | 'accessDenied' | null> {
+    if (exitCode === 1 && isWindows) {
+        try {
+            const exists = await filePathExists(regFilePath);
+            if (!exists) {
+                return 'missing'
+            }
+        } catch (e) { }
+        return 'accessDenied';
+    }
+    return null;
+}

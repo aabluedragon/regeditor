@@ -9,6 +9,7 @@ import { existsSync } from "fs";
 import { join as path_join } from 'path'
 import { PromiseStoppable, PromiseStoppableFactory } from "./promise-stoppable";
 import { RegQueryCmdResultSingle } from "./types-internal";
+import { access, constants } from "fs/promises";
 
 const thisProcess = require('process');
 
@@ -454,4 +455,13 @@ export function psConvertKindName(type:RegType) {
 
 export function escapePowerShellRegKey(key: string) {
     return key.replaceAll("'", "''").replaceAll("\r", "").replaceAll("\n", "")
+}
+
+export async function filePathExists(filePath:string) {
+  try {
+    await access(filePath, constants.F_OK);
+    return true;
+  } catch(e) {
+    return false;
+  }
 }

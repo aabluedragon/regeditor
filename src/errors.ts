@@ -1,5 +1,3 @@
-import { COMMAND_NAME } from "./types";
-
 export { PromiseStoppableTimeoutError } from './promise-stoppable'
 export class RegErrorAccessDenied extends Error { constructor(message: string) { super(message); this.name = 'RegErrorAccessDenied'; } }
 export class RegErrorInvalidSyntax extends Error { constructor(message: string) { super(message); this.name = 'RegErrorInvalidSyntax'; } }
