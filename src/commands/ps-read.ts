@@ -155,9 +155,15 @@ export function psRead(commands:PSReadCmd|PSReadCmd[], cfg:PSCommandConfig = {})
                     } catch {}
                 }
 
-                if ($Recursive) {
-                    $subKeys = foreach ($subKey in Get-ChildItem -Path $RegistryPath) {
+                $subKeys = foreach ($subKey in Get-ChildItem -Path $RegistryPath) {
+                    if ($Recursive) {
                         Get-RegistryKeyValues -RegistryPath $subKey.PSPath;
+                    } else {
+                        [PSCustomObject]@{
+                            Path    = $subKey.PSPath.Substring($subKey.PSPath.IndexOf('::') + 2);
+                            Values  = $null;
+                            SubKeys = $null;
+                        }
                     }
                 }
 
