@@ -11,6 +11,7 @@ import { PromiseStoppable, PromiseStoppableFactory } from "./promise-stoppable";
 import { RegQueryCmdResultSingle } from "./types-internal";
 import { access, constants } from "fs/promises";
 import { psKeyExists } from "./commands/ps-key-exists";
+import { settings } from "./settings";
 
 const thisProcess = require('process');
 
@@ -89,6 +90,7 @@ const getWine = (() => {
 
   return (winePath?: string | null): { type: 'path' | 'flatpak', value: string } | false => {
     if (winePath && existsSync(winePath)) return { type: 'path', value: winePath };
+    if (settings?.winePath && existsSync(settings.winePath)) return { type: 'path', value: settings.winePath };
 
     if (cacheWineFound) return cacheWineFound;
     const found = ['wine', 'wine64'].find(w => lookpathSync(w));
