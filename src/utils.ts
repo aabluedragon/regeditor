@@ -1,4 +1,4 @@
-import { COMMAND_NAME, CommonOpts, ElevatedSudoPromptOpts, ExecFileParameters, RegCmdExecParamsModifier, RegKey, RegQueryCmdBase, RegQueryCmdResult, RegStruct, RegType } from "./types";
+import { COMMAND_NAME, CommonOpts, ElevatedSudoPromptOpts, ExecFileParameters, OptionsReg64Or32, RegCmdExecParamsModifier, RegKey, RegQueryCmdBase, RegQueryCmdResult, RegStruct, RegType } from "./types";
 import { exec as sudo } from '@emrivero/sudo-prompt'
 import { type ChildProcess, execFile } from 'child_process'
 import { platform, homedir } from "os";
@@ -10,6 +10,7 @@ import { join as path_join } from 'path'
 import { PromiseStoppable, PromiseStoppableFactory } from "./promise-stoppable";
 import { RegQueryCmdResultSingle } from "./types-internal";
 import { access, constants } from "fs/promises";
+import { psKeyExists } from "./commands/ps-key-exists";
 
 const thisProcess = require('process');
 
@@ -417,7 +418,7 @@ export function findCommonErrorInTrimmedStdErr(command: COMMAND_NAME, trimmedStd
     return new RegErrorAccessDenied(trimmedStdErr);
   }
   if (trimmedStdout === `reg: Invalid syntax. Type "REG ${command} /?" for help.`) return new RegErrorInvalidSyntax(trimmedStdout) // wine
-  if (trimmedStdErr === `ERROR: Invalid syntax.\r\nType "REG ${command} /?" for usage.` || trimmedStdErr === 'ERROR: The parameter is incorrect.') return new RegErrorInvalidSyntax(trimmedStdErr); // windows
+  if (trimmedStdErr.includes(`"REG ${command} /?"`) || trimmedStdErr === 'ERROR: The parameter is incorrect.') return new RegErrorInvalidSyntax(trimmedStdErr); // windows
   return null;
 }
 
@@ -464,4 +465,22 @@ export async function filePathExists(filePath:string) {
   } catch(e) {
     return false;
   }
+}
+
+
+/**
+ * Used to find errors in cases where Windows is set to locale other than English, which affects stdout and stderr messages.
+ */
+export async function nonEnglish_REG_FindError(exitCode: number | null, keyPath: string, o: OptionsReg64Or32): Promise<'missing' | 'accessDenied' | null> {
+  if (exitCode === 1 && isWindows) {
+      try {
+          const regBitsOpts = (o?.reg32 ? { reg32: o.reg32 } : o?.reg64 ? { reg64: o.reg64 } : {}) satisfies OptionsReg64Or32;
+          const res = await psKeyExists({ keyPath, ...regBitsOpts });
+          if (res?.keysMissing?.length) {
+              return 'missing'
+          }
+      } catch (e) { }
+      return 'accessDenied';
+  }
+  return null;
 }

@@ -1,5 +1,5 @@
-import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, isKnownWineDriverStderrOrFirstTimeWineRun, optionalElevateCmdCall, VarArgsOrArray, stoppable } from "../utils";
-import { RegErrorGeneral } from "../errors";
+import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, isKnownWineDriverStderrOrFirstTimeWineRun, optionalElevateCmdCall, VarArgsOrArray, stoppable, nonEnglish_REG_FindError } from "../utils";
+import { RegErrorAccessDenied, RegErrorGeneral } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
 import { ElevatedSudoPromptOpts, ExecFileParameters, RegDeleteCmd, RegDeleteCmdResult } from "../types";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
@@ -26,7 +26,7 @@ function regCmdDeleteSingle(d: RegDeleteCmd, elevated: ElevatedSudoPromptOpts): 
         const proc = execFileUtil(params, {
             onStdErr(data) { stderrStr += data; },
             onStdOut(data) { stdoutStr += data; },
-            onExit() {
+            async onExit(code) {
                 const trimmedStdErr = stderrStr.trim();
                 const trimmedStdOut = stdoutStr.trim();
 
@@ -36,7 +36,12 @@ function regCmdDeleteSingle(d: RegDeleteCmd, elevated: ElevatedSudoPromptOpts): 
                 
                 const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmedStdErr, trimmedStdOut);
                 if (commonError) return reject(commonError);
-                if (stderrStr.length && !isKnownWineDriverStderrOrFirstTimeWineRun(stderrStr)) return reject(new RegErrorGeneral(stderrStr));
+                if (stderrStr.length && !isKnownWineDriverStderrOrFirstTimeWineRun(stderrStr)) {
+                    const err = await nonEnglish_REG_FindError(code, d.keyPath, d);
+                    if(err === 'missing') return resolve({ notFound: true, cmd: params });
+                    else if(err === 'accessDenied') return reject(new RegErrorAccessDenied(trimmedStdErr));
+                    return reject(new RegErrorGeneral(stderrStr));
+                }
                 resolve({ cmd: params });
             }
         }, elevated);

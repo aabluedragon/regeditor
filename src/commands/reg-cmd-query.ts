@@ -1,7 +1,7 @@
-import { RegQueryErrorMalformedLine, RegErrorInvalidSyntax, RegQueryErrorReadTooWide, RegErrorGeneral } from "../errors";
+import { RegQueryErrorMalformedLine, RegErrorInvalidSyntax, RegErrorGeneral, RegErrorAccessDenied } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
 import { RegType, RegData, RegQueryCmd, RegStruct, RegValue, RegQueryCmdResult, ElevatedSudoPromptOpts } from "../types";
-import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, getMinimumFoundIndex, getMinimumFoundIndexStrOrRegex, handleReadAndQueryCommands, isKnownWineDriverStderrOrFirstTimeWineRun, regexEscape, regKeyResolvePath, VarArgsOrArray, stoppable } from "../utils";
+import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, getMinimumFoundIndex, getMinimumFoundIndexStrOrRegex, handleReadAndQueryCommands, isKnownWineDriverStderrOrFirstTimeWineRun, regexEscape, regKeyResolvePath, VarArgsOrArray, stoppable, nonEnglish_REG_FindError } from "../utils";
 import { type ChildProcess } from "child_process"
 import { TIMEOUT_DEFAULT, COMMAND_NAMES, REG_TYPES_ALL } from "../constants";
 import { RegQueryCmdResultSingle } from "../types-internal";
@@ -100,26 +100,26 @@ export function regCmdQuerySingle(queryParam: RegQueryCmd, elevated: ElevatedSud
                     parseStdout();
                 },
                 onStdErr(str) { stderrStr += str; },
-                onExit: (code?: number | null) => {
+                onExit: async (code: number | null) => {
                     proc = null;
                     try {
                         const trimmedStdOut = stdoutStr.trim();
-                        if (trimmedStdOut === 'End of search: 0 match(es) found.') return finishSuccess(); // happens when using /f and having 0 results
                         const trimmedStdErr = stderrStr.trim();
                         if (trimmedStdErr === 'ERROR: The system was unable to find the specified registry key or value.' // windows
                             || trimmedStdOut === 'reg: Unable to find the specified registry key' // wine
                         ) return finishSuccess(true);
                         const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmedStdErr, trimmedStdOut);
                         if (commonError) throw commonError;
-                        if (stderrStr.length && !isKnownWineDriverStderrOrFirstTimeWineRun(stderrStr)) throw new RegErrorGeneral(stderrStr);
-                        if (code === null && stderrStr.length === 0) { throw new RegQueryErrorReadTooWide('Read too wide') }
+                        if (stderrStr.length && !isKnownWineDriverStderrOrFirstTimeWineRun(stderrStr)) {
+                            const err = await nonEnglish_REG_FindError(code, queryKeyPath, queryOpts);
+                            if(err === 'missing') return finishSuccess(true);
+                            else if(err === 'accessDenied') throw new RegErrorAccessDenied(stderrStr);
+                            throw new RegErrorGeneral(stderrStr);
+                        }
 
-                        // Might happen if using the /f "somestr" argument, and there are 1 or more results.
-                        if (stdoutStr.endsWith('match(es) found.\r\n')) {
-                            const matchIndex = stdoutStr.lastIndexOf('End of search: ');
-                            if (matchIndex !== -1) {
-                                stdoutStr = stdoutStr.substring(0, matchIndex);
-                            }
+                        // If using the /f "somestr" argument, remove last line 'End of search: ' 'match(es) found.' , remove last 2 lines of array
+                        if (queryOpts.f) {
+                            stdoutStr = stdoutStr.split('\r\n').slice(0, -2).join('\r\n');
                         }
 
                         parseStdout();

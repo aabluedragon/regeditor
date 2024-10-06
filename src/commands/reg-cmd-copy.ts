@@ -1,5 +1,5 @@
-import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, isKnownWineDriverStderrOrFirstTimeWineRun, optionalElevateCmdCall, VarArgsOrArray, stoppable } from "../utils";
-import { RegCopyErrorSourceDestSame, RegErrorGeneral } from "../errors";
+import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, isKnownWineDriverStderrOrFirstTimeWineRun, optionalElevateCmdCall, VarArgsOrArray, stoppable, nonEnglish_REG_FindError } from "../utils";
+import { RegCopyErrorSourceDestSame, RegErrorAccessDenied, RegErrorGeneral } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
 import { ElevatedSudoPromptOpts, ExecFileParameters, RegCopyCmd, RegCopyCmdResult } from "../types";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
@@ -24,7 +24,7 @@ function regCmdCopySingle(c: RegCopyCmd, elevated: ElevatedSudoPromptOpts): Prom
         const proc = execFileUtil(params, {
             onStdErr(data) { stderrStr += data; },
             onStdOut(data) { stdoutStr += data; },
-            onExit() {
+            async onExit(code ) {
                 const trimmedStdErr = stderrStr.trim();
                 const trimmedStdOut = stdoutStr.trim();
 
@@ -32,13 +32,19 @@ function regCmdCopySingle(c: RegCopyCmd, elevated: ElevatedSudoPromptOpts): Prom
                     trimmedStdOut === 'reg: Unable to find the specified registry key') // wine
                     return resolve({ notFound: true, cmd: params });
 
-                if (trimmedStdErr === 'ERROR: The registry entry cannot be copied onto itself.\r\nType "REG COPY /?" for usage.' || // windows
+                if (c.keyPathSource.toLowerCase() === c.keyPathDest.toLowerCase() ||
+                    trimmedStdErr === 'ERROR: The registry entry cannot be copied onto itself.\r\nType "REG COPY /?" for usage.' || // windows
                     trimmedStdOut === 'reg: The source and destination keys cannot be the same') // wine
                     return reject(new RegCopyErrorSourceDestSame(stderrStr));
 
                 const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmedStdErr, trimmedStdOut);
                 if (commonError) return reject(commonError);
-                if (stderrStr.length && !isKnownWineDriverStderrOrFirstTimeWineRun(stderrStr)) return reject(new RegErrorGeneral(stderrStr));
+                if (stderrStr.length && !isKnownWineDriverStderrOrFirstTimeWineRun(stderrStr)) {
+                    const err = await nonEnglish_REG_FindError(code, c.keyPathSource, c);
+                    if(err === 'missing') return resolve({ notFound: true, cmd: params });
+                    else if(err === 'accessDenied') return reject(new RegErrorAccessDenied(c.keyPathSource));
+                    return reject(new RegErrorGeneral(stderrStr));
+                }
                 resolve({ cmd: params });
             }
         }, elevated);

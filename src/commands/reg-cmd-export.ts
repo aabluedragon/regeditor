@@ -1,10 +1,9 @@
-import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, isKnownWineDriverStderrOrFirstTimeWineRun, optionalElevateCmdCall, VarArgsOrArray, stoppable, isWindows } from "../utils";
+import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, isKnownWineDriverStderrOrFirstTimeWineRun, optionalElevateCmdCall, VarArgsOrArray, stoppable, isWindows, nonEnglish_REG_FindError } from "../utils";
 import { RegErrorAccessDenied, RegErrorGeneral } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
-import { ElevatedSudoPromptOpts, OptionsReg64Or32, RegExportCmd, RegExportCmdResult } from "../types";
+import { ElevatedSudoPromptOpts, RegExportCmd, RegExportCmdResult } from "../types";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
 import { RegExportCmdResultSingle } from "../types-internal";
-import { psKeyExists } from "./ps-key-exists";
 
 const THIS_COMMAND = COMMAND_NAMES.EXPORT;
 
@@ -37,7 +36,7 @@ export function regCmdExportSingle(o: RegExportCmd, elevated: ElevatedSudoPrompt
                 if (stderrStr.length && !isKnownWineDriverStderrOrFirstTimeWineRun(stderrStr)) {
                     const err = await nonEnglish_REG_FindError(code, o.keyPath, o);
                     if(err === 'missing') return resolve({ notFound: true, cmd: params });
-                    else if(err === 'accessDenied') return reject(new RegErrorAccessDenied(o.keyPath));
+                    else if(err === 'accessDenied') return reject(new RegErrorAccessDenied(trimmedStdErr));
                     return reject(new RegErrorGeneral(stderrStr));
                 }
                 resolve({ cmd: params });
@@ -68,21 +67,4 @@ export function regCmdExport(...opts: VarArgsOrArray<RegExportCmd>): PromiseStop
 
         return response;
     });
-}
-
-/**
- * Used to find errors in cases where Windows is set to locale other than English, which affects stdout and stderr messages.
- */
-async function nonEnglish_REG_FindError(exitCode: number | null, keyPath: string, o: OptionsReg64Or32): Promise<'missing' | 'accessDenied' | null> {
-    if (exitCode === 1 && isWindows) {
-        try {
-            const regBitsOpts = (o?.reg32 ? { reg32: o.reg32 } : o?.reg64 ? { reg64: o.reg64 } : {}) satisfies OptionsReg64Or32;
-            const res = await psKeyExists({ keyPath, ...regBitsOpts });
-            if (res?.keysMissing?.length) {
-                return 'missing'
-            }
-        } catch (e) { }
-        return 'accessDenied';
-    }
-    return null;
 }

@@ -1,8 +1,8 @@
 import { PromiseStoppable } from "../promise-stoppable";
 import { RegAddCmd, RegType, RegData, ExecFileParameters, RegAddCmdResult, ElevatedSudoPromptOpts } from "../types";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
-import { RegErrorInvalidSyntax, RegErrorGeneral } from "../errors";
-import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, isKnownWineDriverStderrOrFirstTimeWineRun, optionalElevateCmdCall, VarArgsOrArray, stoppable } from "../utils";
+import { RegErrorInvalidSyntax, RegErrorGeneral, RegErrorAccessDenied } from "../errors";
+import { applyParamsModifier, findCommonErrorInTrimmedStdErr, isKnownWineDriverStderrOrFirstTimeWineRun, optionalElevateCmdCall, VarArgsOrArray, stoppable, execFileUtilAcc, isWindows } from "../utils";
 
 const THIS_COMMAND = COMMAND_NAMES.ADD;
 
@@ -41,20 +41,21 @@ function regCmdAddSingle(a: RegAddCmd, elevated: ElevatedSudoPromptOpts): Promis
 
             const params = applyParamsModifier(THIS_COMMAND, ['reg', [THIS_COMMAND, opts.keyPath, ...args]], opts.cmdParamsModifier, opts?.winePath);
 
-            let stdoutStr = '', stderrStr = '';
-            const proc = execFileUtil(params, {
-                onStdErr(data) { stderrStr += data },
-                onStdOut(data) { stdoutStr += data },
-                onExit() {
+            const proc = execFileUtilAcc(params, {
+                onExit(code, stdoutStr, stderrStr) {
                     const trimmedStdErr = stderrStr.trim();
                     const trimmedStdout = stdoutStr.trim();
 
                     const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmedStdErr, trimmedStdout);
                     if (commonError) return reject(commonError);
-                    if (trimmedStdErr.length && !isKnownWineDriverStderrOrFirstTimeWineRun(stderrStr)) return reject(new RegErrorGeneral(stderrStr));
+                    if (trimmedStdErr.length && !isKnownWineDriverStderrOrFirstTimeWineRun(stderrStr)) {
+                        if(code === 1 && isWindows) return reject(new RegErrorAccessDenied(trimmedStdErr));
+                        return reject(new RegErrorGeneral(trimmedStdErr));
+                    }
 
-                    if (trimmedStdout !== 'The operation completed successfully.' // windows
-                        &&trimmedStdout !== 'reg: The operation completed successfully' // wine
+                    if (code !== 0 && code !== null && // null is the exit code after sudo-prompt.
+                        trimmedStdout !== 'The operation completed successfully.' && // windows english locale
+                        trimmedStdout !== 'reg: The operation completed successfully' // wine
                     ) {
                         return reject(new RegErrorGeneral(stderrStr || stdoutStr));
                     }

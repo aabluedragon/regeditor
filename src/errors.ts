@@ -6,11 +6,6 @@ export class RegErrorInvalidKeyName extends Error { constructor(message: string)
 export class RegErrorTimeout extends Error { constructor(message: string) { super(message); this.name = 'RegErrorTimeout'; } }
 
 export class RegQueryErrorMalformedLine extends Error { constructor(message: string) { super(message); this.name = 'RegQueryErrorMalformedLine'; } }
-/**
- * May be thrown after a while if using REG QUERY with the recursive search option /s (s:true) on a key close to the root of the registry, e.g. HKEY_LOCAL_MACHINE\Software\Microsoft
- */
-export class RegQueryErrorReadTooWide extends Error { constructor(message: string) { super(message); this.name = 'RegQueryErrorReadTooWide'; } }
-
 export class RegCopyErrorSourceDestSame extends Error { constructor(message: string) { super(message); this.name = 'RegCopyErrorSourceDestSame'; } }
 
 /**
