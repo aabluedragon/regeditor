@@ -1,7 +1,7 @@
 import { RegQueryErrorMalformedLine, RegErrorInvalidSyntax, RegErrorGeneral, RegErrorAccessDenied } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
 import { RegType, RegData, RegQueryCmd, RegStruct, RegValue, RegQueryCmdResult, ElevatedSudoPromptOpts } from "../types";
-import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, getMinimumFoundIndex, getMinimumFoundIndexStrOrRegex, handleReadAndQueryCommands, isKnownWineDriverStderrOrFirstTimeWineRun, regexEscape, regKeyResolvePath, VarArgsOrArray, stoppable, nonEnglish_REG_FindError } from "../utils";
+import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, getMinimumFoundIndex, getMinimumFoundIndexStrOrRegex, handleReadAndQueryCommands, isKnownWineDriverStderrOrFirstTimeWineRun, regexEscape, regKeyResolvePath, VarArgsOrArray, stoppable, nonEnglish_REG_keyMissingOrAccessDenied } from "../utils";
 import { type ChildProcess } from "child_process"
 import { TIMEOUT_DEFAULT, COMMAND_NAMES, REG_TYPES_ALL } from "../constants";
 import { RegQueryCmdResultSingle } from "../types-internal";
@@ -111,7 +111,7 @@ export function regCmdQuerySingle(queryParam: RegQueryCmd, elevated: ElevatedSud
                         const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmedStdErr, trimmedStdOut);
                         if (commonError) throw commonError;
                         if (stderrStr.length && !isKnownWineDriverStderrOrFirstTimeWineRun(stderrStr)) {
-                            const err = await nonEnglish_REG_FindError(code, queryKeyPath, queryOpts);
+                            const err = await nonEnglish_REG_keyMissingOrAccessDenied(code, queryKeyPath, queryOpts);
                             if(err === 'missing') return finishSuccess(true);
                             else if(err === 'accessDenied') throw new RegErrorAccessDenied(stderrStr);
                             throw new RegErrorGeneral(stderrStr);

@@ -473,11 +473,11 @@ export async function filePathExists(filePath:string) {
 /**
  * Used to find errors in cases where Windows is set to locale other than English, which affects stdout and stderr messages.
  */
-export async function nonEnglish_REG_FindError(exitCode: number | null, keyPath: string, o: OptionsReg64Or32): Promise<'missing' | 'accessDenied' | null> {
+export async function nonEnglish_REG_keyMissingOrAccessDenied(exitCode: number | null, keyPath: string, o: OptionsReg64Or32): Promise<'missing' | 'accessDenied' | null> {
   if (exitCode === 1 && isWindows) {
       try {
           const regBitsOpts = (o?.reg32 ? { reg32: o.reg32 } : o?.reg64 ? { reg64: o.reg64 } : {}) satisfies OptionsReg64Or32;
-          const res = await psKeyExists({ keyPath, ...regBitsOpts });
+          const res = await psKeyExists({ keyPath, ...regBitsOpts }, {elevated:{mode:'disabled'}});
           if (res?.keysMissing?.length) {
               return 'missing'
           }

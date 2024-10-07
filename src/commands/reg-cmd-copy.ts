@@ -1,4 +1,4 @@
-import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, isKnownWineDriverStderrOrFirstTimeWineRun, optionalElevateCmdCall, VarArgsOrArray, stoppable, nonEnglish_REG_FindError } from "../utils";
+import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, isKnownWineDriverStderrOrFirstTimeWineRun, optionalElevateCmdCall, VarArgsOrArray, stoppable, nonEnglish_REG_keyMissingOrAccessDenied } from "../utils";
 import { RegCopyErrorSourceDestSame, RegErrorAccessDenied, RegErrorGeneral } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
 import { ElevatedSudoPromptOpts, ExecFileParameters, RegCopyCmd, RegCopyCmdResult } from "../types";
@@ -40,7 +40,7 @@ function regCmdCopySingle(c: RegCopyCmd, elevated: ElevatedSudoPromptOpts): Prom
                 const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmedStdErr, trimmedStdOut);
                 if (commonError) return reject(commonError);
                 if (stderrStr.length && !isKnownWineDriverStderrOrFirstTimeWineRun(stderrStr)) {
-                    const err = await nonEnglish_REG_FindError(code, c.keyPathSource, c);
+                    const err = await nonEnglish_REG_keyMissingOrAccessDenied(code, c.keyPathSource, c);
                     if(err === 'missing') return resolve({ notFound: true, cmd: params });
                     else if(err === 'accessDenied') return reject(new RegErrorAccessDenied(c.keyPathSource));
                     return reject(new RegErrorGeneral(stderrStr));

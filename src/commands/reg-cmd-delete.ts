@@ -1,4 +1,4 @@
-import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, isKnownWineDriverStderrOrFirstTimeWineRun, optionalElevateCmdCall, VarArgsOrArray, stoppable, nonEnglish_REG_FindError } from "../utils";
+import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, isKnownWineDriverStderrOrFirstTimeWineRun, optionalElevateCmdCall, VarArgsOrArray, stoppable, nonEnglish_REG_keyMissingOrAccessDenied } from "../utils";
 import { RegErrorAccessDenied, RegErrorGeneral } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
 import { ElevatedSudoPromptOpts, ExecFileParameters, RegDeleteCmd, RegDeleteCmdResult } from "../types";
@@ -37,7 +37,7 @@ function regCmdDeleteSingle(d: RegDeleteCmd, elevated: ElevatedSudoPromptOpts): 
                 const commonError = findCommonErrorInTrimmedStdErr(THIS_COMMAND, trimmedStdErr, trimmedStdOut);
                 if (commonError) return reject(commonError);
                 if (stderrStr.length && !isKnownWineDriverStderrOrFirstTimeWineRun(stderrStr)) {
-                    const err = await nonEnglish_REG_FindError(code, d.keyPath, d);
+                    const err = await nonEnglish_REG_keyMissingOrAccessDenied(code, d.keyPath, d);
                     if(err === 'missing') return resolve({ notFound: true, cmd: params });
                     else if(err === 'accessDenied') return reject(new RegErrorAccessDenied(trimmedStdErr));
                     return reject(new RegErrorGeneral(stderrStr));
