@@ -463,12 +463,15 @@ export function escapePowerShellRegKey(key: string) {
 }
 
 export async function filePathExists(filePath:string) {
-  try {
-    await access(filePath, constants.F_OK);
-    return true;
-  } catch(e) {
-    return false;
-  }
+  return existsSync(filePath);
+
+  // Disabled because it retuns false in electron v18 Win 32-bit for some reason (During REG IMPORT command call to check if .reg file exists)
+  // try {
+  //   await access(filePath, constants.F_OK);
+  //   return true;
+  // } catch(e) {
+  //   return false;
+  // }
 }
 
 

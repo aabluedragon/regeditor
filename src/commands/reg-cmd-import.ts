@@ -1,7 +1,7 @@
 import { RegErrorAccessDenied, RegErrorGeneral } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
-import { ElevatedSudoPromptOpts, OptionsReg64Or32, RegImportCmd, RegImportCmdOpts, RegImportCmdResult } from "../types";
+import { ElevatedSudoPromptOpts, RegImportCmd, RegImportCmdOpts, RegImportCmdResult } from "../types";
 import { applyParamsModifier, execFileUtil, filePathExists, findCommonErrorInTrimmedStdErr, isKnownWineDriverStderrOrFirstTimeWineRun, isWindows, optionalElevateCmdCall, stoppable } from "../utils";
 
 const THIS_COMMAND = COMMAND_NAMES.IMPORT;
