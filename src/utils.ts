@@ -222,6 +222,8 @@ export function execFileUtil(params: ExecFileParameters, opts: { onStdOut?: (str
   if (elevated) {
     if (!isWindows) throw new RegErrorGeneral('Elevated mode is not supported for Wine.'); // It may work, however it's highly discouraged to run Wine as root.
 
+    if(params?.[1]) params[1] = params[1].map(v => `${v}`); // force to string
+
     const cmd = escapeShellArg(params[0]);
     let args = (params?.[1] || []).map(v=>escapeShellArg(v)).join(' ');
     const elevatedOpts: ElevatedSudoPromptOpts = typeof elevated === 'object' && elevated !== null && elevated?.name?.length ? elevated : { name: PACKAGE_DISPLAY_NAME };
@@ -285,7 +287,7 @@ export function containsWhitespace(str: string) {
 
 export function escapeShellArg(arg: string, powershell = false) {
   const escapeChar = isWindows ? '^' : '\\';
-  let escaped = arg;
+  let escaped = `${arg}`; // making sure it's a string
 
   if (!isWindows) {
     // unix
