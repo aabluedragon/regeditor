@@ -1,4 +1,4 @@
-import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, isKnownWineDriverStderrOrFirstTimeWineRun, optionalElevateCmdCall, VarArgsOrArray, stoppable, nonEnglish_REG_keyMissingOrAccessDenied } from "../utils";
+import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, isKnownWineDriverStderrOrFirstTimeWineRun, optionalElevateCmdCall, VarArgsOrArray, stoppable, nonEnglish_REG_keyMissingOrAccessDenied, setBitsArg } from "../utils";
 import { RegCopyErrorSourceDestSame, RegErrorAccessDenied, RegErrorGeneral } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
 import { ElevatedSudoPromptOpts, ExecFileParameters, RegCopyCmd, RegCopyCmdResult } from "../types";
@@ -15,8 +15,7 @@ function regCmdCopySingle(c: RegCopyCmd, elevated: ElevatedSudoPromptOpts): Prom
 
     const args = ['/f'] as string[];
     if (c.s) args.push('/s');
-    if (c.reg32) args.push('/reg:32');
-    if (c.reg64) args.push('/reg:64');
+    setBitsArg(args, c);
 
     return stoppable.newPromise((resolve, reject, setStopper) => {
         const params = applyParamsModifier(THIS_COMMAND, ['reg', [THIS_COMMAND, c.keyPathSource, c.keyPathDest, ...args]], c?.cmdParamsModifier, c?.winePath);

@@ -1,4 +1,4 @@
-import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, isKnownWineDriverStderrOrFirstTimeWineRun, optionalElevateCmdCall, VarArgsOrArray, stoppable, isWindows, nonEnglish_REG_keyMissingOrAccessDenied } from "../utils";
+import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, isKnownWineDriverStderrOrFirstTimeWineRun, optionalElevateCmdCall, VarArgsOrArray, stoppable, isWindows, nonEnglish_REG_keyMissingOrAccessDenied, setBitsArg } from "../utils";
 import { RegErrorAccessDenied, RegErrorGeneral } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
 import { ElevatedSudoPromptOpts, RegExportCmd, RegExportCmdResult } from "../types";
@@ -13,8 +13,7 @@ export function regCmdExportSingle(o: RegExportCmd, elevated: ElevatedSudoPrompt
     args.push(o.keyPath)
     args.push(o.fileName);
 
-    if (o.reg32) args.push('/reg:32');
-    if (o.reg64) args.push('/reg:64');
+    setBitsArg(args, o);
     args.push('/y');
 
     return stoppable.newPromise((resolve, reject, setStopper) => {

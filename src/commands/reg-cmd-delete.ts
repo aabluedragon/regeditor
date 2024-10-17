@@ -1,4 +1,4 @@
-import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, isKnownWineDriverStderrOrFirstTimeWineRun, optionalElevateCmdCall, VarArgsOrArray, stoppable, nonEnglish_REG_keyMissingOrAccessDenied } from "../utils";
+import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, isKnownWineDriverStderrOrFirstTimeWineRun, optionalElevateCmdCall, VarArgsOrArray, stoppable, nonEnglish_REG_keyMissingOrAccessDenied, setBitsArg } from "../utils";
 import { RegErrorAccessDenied, RegErrorGeneral } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
 import { ElevatedSudoPromptOpts, ExecFileParameters, RegDeleteCmd, RegDeleteCmdResult } from "../types";
@@ -14,8 +14,7 @@ type RegDeleteCmdResultSingle = {
 function regCmdDeleteSingle(d: RegDeleteCmd, elevated: ElevatedSudoPromptOpts): PromiseStoppable<RegDeleteCmdResultSingle> {
 
     const args = ['/f'] as string[];
-    if (d.reg32) args.push('/reg:32');
-    if (d.reg64) args.push('/reg:64');
+    setBitsArg(args, d);
     if (d.ve) args.push('/ve');
     if (d.va) args.push('/va');
     if (d.v) args.push('/v', d.v);

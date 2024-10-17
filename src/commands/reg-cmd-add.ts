@@ -2,7 +2,7 @@ import { PromiseStoppable } from "../promise-stoppable";
 import { RegAddCmd, RegType, RegData, ExecFileParameters, RegAddCmdResult, ElevatedSudoPromptOpts } from "../types";
 import { TIMEOUT_DEFAULT, COMMAND_NAMES } from "../constants";
 import { RegErrorInvalidSyntax, RegErrorGeneral, RegErrorAccessDenied } from "../errors";
-import { applyParamsModifier, findCommonErrorInTrimmedStdErr, isKnownWineDriverStderrOrFirstTimeWineRun, optionalElevateCmdCall, VarArgsOrArray, stoppable, execFileUtilAcc, isWindows } from "../utils";
+import { applyParamsModifier, findCommonErrorInTrimmedStdErr, isKnownWineDriverStderrOrFirstTimeWineRun, optionalElevateCmdCall, VarArgsOrArray, stoppable, execFileUtilAcc, isWindows, setBitsArg } from "../utils";
 
 const THIS_COMMAND = COMMAND_NAMES.ADD;
 
@@ -28,8 +28,7 @@ function regCmdAddSingle(a: RegAddCmd, elevated: ElevatedSudoPromptOpts): Promis
     return stoppable.newPromise((resolve, reject, setStopper) => {
         try {
             const args = ['/f'] as string[];
-            if (opts.reg32) args.push('/reg:32');
-            if (opts.reg64) args.push('/reg:64');
+            setBitsArg(args, opts);
             if (opts.s) args.push('/s', opts.s);
             if (opts.value) {
                 args.push('/t', opts.value.type);

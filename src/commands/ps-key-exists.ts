@@ -1,8 +1,8 @@
 import { RegErrorGeneral } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
-import { TIMEOUT_DEFAULT, COMMAND_NAMES, POWERSHELL_SET_ENGLISH_OUTPUT } from "../constants";
+import { TIMEOUT_DEFAULT, COMMAND_NAMES, POWERSHELL_SET_ENGLISH_OUTPUT, REGKEY_DOTNET_ROOTS } from "../constants";
 import { PSCommandConfig, PSKeyExistsCmd, PSKeyExistsCmdResult, PSKeyExistsOpts } from "../types-ps";
-import { optionalElevateCmdCall, stoppable, applyParamsModifier, execFileUtilAcc, regKeyResolveBitsView, escapePowerShellRegKey, regKeyResolvePath, findPowerShellErrorInTrimmedStdErr } from "../utils";
+import { optionalElevateCmdCall, stoppable, applyParamsModifier, execFileUtilAcc, escapePowerShellRegKey, regKeyResolvePath, findPowerShellErrorInTrimmedStdErr, regKeyResolveShortcutAndGetParts, getRegOptsBits } from "../utils";
 
 const THIS_COMMAND = COMMAND_NAMES.POWERSHELL_KEYEXISTS;
 
@@ -16,12 +16,14 @@ export function psKeyExists(commands:PSKeyExistsCmd|PSKeyExistsCmd[], cfg:PSComm
     for(const command of commands) {
         const opts = typeof command === 'string' ? { keyPath: command } : command as PSKeyExistsOpts;
         queries.push(regKeyResolvePath(opts.keyPath));
-        const escapedKeyPath = escapePowerShellRegKey(regKeyResolveBitsView(opts.keyPath, opts?.reg32? '32' : opts?.reg64? '64' : null));
+        const kbits = getRegOptsBits(opts) || '64';
+        const {root, subkey} = regKeyResolveShortcutAndGetParts(opts.keyPath);
         psCommands += `
-        $keyPath = 'Registry::${escapedKeyPath}';
         Try {
-            $registryKey = Get-Item -Path $keyPath -ErrorAction Stop;
-            $keysExistOrNot += $true;
+            $regKey = [Microsoft.Win32.RegistryKey]::OpenBaseKey([Microsoft.Win32.RegistryHive]::${(REGKEY_DOTNET_ROOTS as any)[root]}, [Microsoft.Win32.RegistryView]::Registry${kbits});
+            $subKey = $regKey.OpenSubKey('${escapePowerShellRegKey(subkey)}');
+            if ($subKey -eq $null) {$keysExistOrNot += $false;}
+            else {$keysExistOrNot += $true;}
         } Catch [System.Management.Automation.ItemNotFoundException] {
             $keysExistOrNot += $false;
         }

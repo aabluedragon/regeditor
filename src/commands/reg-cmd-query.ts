@@ -1,7 +1,7 @@
 import { RegQueryErrorMalformedLine, RegErrorInvalidSyntax, RegErrorGeneral, RegErrorAccessDenied } from "../errors";
 import { PromiseStoppable } from "../promise-stoppable";
 import { RegType, RegData, RegQueryCmd, RegStruct, RegValue, RegQueryCmdResult, ElevatedSudoPromptOpts } from "../types";
-import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, getMinimumFoundIndex, getMinimumFoundIndexStrOrRegex, handleReadAndQueryCommands, isKnownWineDriverStderrOrFirstTimeWineRun, regexEscape, regKeyResolvePath, VarArgsOrArray, stoppable, nonEnglish_REG_keyMissingOrAccessDenied } from "../utils";
+import { applyParamsModifier, execFileUtil, findCommonErrorInTrimmedStdErr, getMinimumFoundIndex, getMinimumFoundIndexStrOrRegex, handleReadAndQueryCommands, isKnownWineDriverStderrOrFirstTimeWineRun, regexEscape, regKeyResolvePath, VarArgsOrArray, stoppable, nonEnglish_REG_keyMissingOrAccessDenied, setBitsArg } from "../utils";
 import { type ChildProcess } from "child_process"
 import { TIMEOUT_DEFAULT, COMMAND_NAMES, REG_TYPES_ALL } from "../constants";
 import { RegQueryCmdResultSingle } from "../types-internal";
@@ -54,8 +54,7 @@ export function regCmdQuerySingle(queryParam: RegQueryCmd, elevated: ElevatedSud
     if (queryOpts.s) args.push('/s');
     if (queryOpts.f) args.push('/f', queryOpts.f);
     if (queryOpts.ve) args.push('/ve');
-    if (queryOpts.reg32) args.push('/reg:32');
-    if (queryOpts.reg64) args.push('/reg:64');
+    setBitsArg(args, queryOpts);
 
     if (queryOpts.f) { // Params that are only allowed in combination with /f
         if (queryOpts.c) args.push('/c');

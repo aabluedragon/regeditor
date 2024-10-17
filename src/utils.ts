@@ -1,6 +1,6 @@
 import { COMMAND_NAME, CommonOpts, ElevatedSudoPromptOpts, ExecFileParameters, OptionsReg64Or32, RegCmdExecParamsModifier, RegKey, RegQueryCmdBase, RegQueryCmdResult, RegStruct, RegType } from "./types";
 import { exec as sudo } from '@emrivero/sudo-prompt'
-import { type ChildProcess, execFile } from 'child_process'
+import { type ChildProcess, execFile, execSync } from 'child_process'
 import { platform, homedir } from "os";
 import { COMMAND_NAMES, PACKAGE_DISPLAY_NAME, REGEX_LINE_DELIMITER, REGKEY_ROOT_NAMES, REGKEY_SHORTCUTS, TIMEOUT_DEFAULT } from "./constants";
 import { RegErrorAccessDenied, RegErrorGeneral, RegErrorInvalidKeyName, RegErrorInvalidSyntax, RegErrorTimeout, RegErrorWineNotFound } from "./errors";
@@ -239,8 +239,9 @@ export function execFileUtil(params: ExecFileParameters, opts: { onStdOut?: (str
 
     const REGEDITOR_COMMAND_DELIMITER = '__REGEDITOR__COMMAND__DELIMITER__';
     sudo(`@echo off && echo ${REGEDITOR_COMMAND_DELIMITER} && `+oneLinerExecution, elevatedOpts, (err, stdout, stderr) => {
-      const out = (function trimStdinFromStdout() {
-        let str = stdout?.toString() || '';
+      function trimStdinFromStr(str:string|Buffer|undefined) {
+        str = str?.toString() || '';
+        if(!str?.length) return '';
         if (isWindows) {
           const indexOfCommand = str.indexOf(REGEDITOR_COMMAND_DELIMITER)
           if (indexOfCommand !== -1) {
@@ -250,10 +251,13 @@ export function execFileUtil(params: ExecFileParameters, opts: { onStdOut?: (str
           }
         }
         return str;
-      })();
+      };
 
-      opts?.onStdErr?.(err?.toString() || stderr?.toString() || '');
-      opts?.onStdOut?.(out);
+      const sout = trimStdinFromStr(stdout);
+      const errStr = trimStdinFromStr(err?.toString());
+
+      opts?.onStdErr?.(errStr || stderr?.toString() || '');
+      opts?.onStdOut?.(sout);
       opts?.onExit?.(null);
     }, () => { }); // An empty callback is required here, otherwise there's an exception on linux when trying to run elevated commands
     return null;
@@ -486,8 +490,56 @@ export async function nonEnglish_REG_keyMissingOrAccessDenied(exitCode: number |
           if (res?.keysMissing?.length) {
               return 'missing'
           }
-      } catch (e) { }
+      } catch (e) {}
       return 'accessDenied';
   }
   return null;
+}
+
+/**
+ * Checking using wmic because os.arch() may return ia32 on 64 bit windows if running the 32 bit build of NukemNet on a 64 bit machine.
+ */
+export const isWindows32Bit = (()=>{
+  let cache:boolean|null = null;
+
+  return () => {
+    if(cache != null) return cache;
+
+    if(!isWindows) return cache = false;
+    try {
+      const out = execSync('wmic os get osarchitecture', {windowsHide:true}).toString();
+      const lines = out.split(REGEX_LINE_DELIMITER);
+      const idx = lines.findIndex(l=>l.includes('OSArchitecture'));
+      for(let i=idx+1; i<lines.length; i++) {
+        const trimmed = lines[i].trim();
+        if(trimmed.length && trimmed.includes('-bit')) {
+          return cache = trimmed === '32-bit';
+        }
+      }
+    } catch(e) {}
+    return cache = false;
+  };
+})();
+export function regGetSystemSoftwareKey() {
+  
+  const softwareNoBits = "HKEY_LOCAL_MACHINE\\SOFTWARE";
+  const software64Bits = `${softwareNoBits}\\Wow6432Node`;
+
+  // on Wine, it automatically writes to "Wow6432Node" instead if needed.
+  const k = (!isWindows || isWindows32Bit()) ? softwareNoBits : software64Bits
+
+  return k;
+}
+
+export function getRegOptsBits(opts?:OptionsReg64Or32) {
+  return opts?.reg32? '32' : opts?.reg64? '64' :
+    isWindows? (
+      isWindows32Bit() ? '32' : '64'
+    ) : null
+}
+
+export function setBitsArg(args:string[], opts?:OptionsReg64Or32) {
+  const bits = getRegOptsBits(opts)
+  if (bits == '32') args.push('/reg:32');
+  else if (bits == '64') args.push('/reg:64');
 }
