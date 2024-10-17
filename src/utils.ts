@@ -520,13 +520,29 @@ export const isWindows32Bit = (()=>{
     return cache = false;
   };
 })();
+
+export const isWine32Bit = (()=>{
+  let cache:boolean|null = null;
+
+  return () => {
+    if(cache != null) return cache;
+
+    if(isWindows) return cache = false;
+    try {
+      const prefixPath = resolvePosixFilePathWithEnvVarsAndTilde(process?.env?.WINEPREFIX || path_join(process.env.HOME!, '.wine'));
+      const programFilesX86Path = path_join(prefixPath, 'drive_c', 'Program Files (x86)');
+      return cache = !existsSync(programFilesX86Path);
+    } catch(e) {}
+    return cache = false;
+  };
+})();
+
 export function regGetSystemSoftwareKey() {
   
   const softwareNoBits = "HKEY_LOCAL_MACHINE\\SOFTWARE";
   const software64Bits = `${softwareNoBits}\\Wow6432Node`;
 
-  // on Wine, it automatically writes to "Wow6432Node" instead if needed.
-  const k = (!isWindows || isWindows32Bit()) ? softwareNoBits : software64Bits
+  const k = getRegOptsBits() == '32' ? softwareNoBits : software64Bits
 
   return k;
 }
@@ -535,7 +551,7 @@ export function getRegOptsBits(opts?:OptionsReg64Or32) {
   return opts?.reg32? '32' : opts?.reg64? '64' :
     isWindows? (
       isWindows32Bit() ? '32' : '64'
-    ) : null
+    ) : isWine32Bit() ? '32' : '64';
 }
 
 export function setBitsArg(args:string[], opts?:OptionsReg64Or32) {
