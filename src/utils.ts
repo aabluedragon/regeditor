@@ -2,14 +2,13 @@ import { COMMAND_NAME, CommonOpts, ElevatedSudoPromptOpts, ExecFileParameters, O
 import { exec as sudo } from '@emrivero/sudo-prompt'
 import { type ChildProcess, execFile, execSync } from 'child_process'
 import { platform, homedir } from "os";
-import { COMMAND_NAMES, PACKAGE_DISPLAY_NAME, REGEX_LINE_DELIMITER, REGKEY_ROOT_NAMES, REGKEY_SHORTCUTS, TIMEOUT_DEFAULT } from "./constants";
+import { COMMAND_NAMES, PACKAGE_DISPLAY_NAME, REGEX_LINE_DELIMITER, REGKEY_ROOT_NAMES, REGKEY_SHORTCUTS, TIMEOUT_DEFAULT, WINE_FLATPAK_PACKAGE_ID } from "./constants";
 import { RegErrorAccessDenied, RegErrorGeneral, RegErrorInvalidKeyName, RegErrorInvalidSyntax, RegErrorTimeout, RegErrorWineNotFound } from "./errors";
 import { lookpathSync } from "./lookpath-sync";
 import { existsSync } from "fs";
 import { join as path_join } from 'path'
 import { PromiseStoppable, PromiseStoppableFactory } from "./promise-stoppable";
 import { RegQueryCmdResultSingle } from "./types-internal";
-import { access, constants } from "fs/promises";
 import { psKeyExists } from "./commands/ps-key-exists";
 import { settings } from "./settings";
 
@@ -521,6 +520,30 @@ export const isWindows32Bit = (()=>{
   };
 })();
 
+export function getWinePrefixPath(isFlatpak:boolean) {
+  const prefixPath = isFlatpak ?
+    path_join(process.env.HOME!, '.var', 'app', WINE_FLATPAK_PACKAGE_ID, 'data', 'wine')
+    : resolvePosixFilePathWithEnvVarsAndTilde(process?.env?.WINEPREFIX || path_join(process.env.HOME!, '.wine'));
+
+  return prefixPath;
+}
+
+export function convertWinToWinePathOnNonWindows(pth: string, isFlatpak: boolean) {
+  if(isWindows) return pth;
+
+  let subpath = pth?.substring(2) // remove drive letter and ':'
+  subpath = subpath?.replaceAll('\\', '/');
+
+  const driveLetterLowercase = pth?.[0]?.toLowerCase();
+  const isHostFilesystemPath = driveLetterLowercase?.toLowerCase()?.startsWith('z');
+  if(isHostFilesystemPath) return subpath;
+
+  const prefixPath = getWinePrefixPath(isFlatpak);
+  const wineDrivePath = path_join(prefixPath, 'drive_' + driveLetterLowercase, subpath.substring(1));
+
+  return wineDrivePath
+}
+
 export const isWine32Bit = (()=>{
   let cache:boolean|null = null;
 
@@ -529,9 +552,10 @@ export const isWine32Bit = (()=>{
 
     if(isWindows) return cache = false;
     try {
-      const prefixPath = resolvePosixFilePathWithEnvVarsAndTilde(process?.env?.WINEPREFIX || path_join(process.env.HOME!, '.wine'));
+      const prefixPath = getWinePrefixPath(false); // flatpak wine not supported.
       const programFilesX86Path = path_join(prefixPath, 'drive_c', 'Program Files (x86)');
-      return cache = !existsSync(programFilesX86Path);
+      const programFilesPath = path_join(prefixPath, 'drive_c', 'Program Files');
+      return cache = existsSync(programFilesPath) && !existsSync(programFilesX86Path);
     } catch(e) {}
     return cache = false;
   };
